@@ -1,45 +1,68 @@
-# CSC3104 Group 2: Fair Seat Allocation
+# CSC3104 Group 2 – Fair Seat Allocation
 
-Current stage: minimal Python setup with a Flask `/health` endpoint. Booking
-features are not implemented yet. PostgreSQL is not needed for this setup.
+## About the Project
 
-## Windows PowerShell setup
+We are building a ticket booking system that allocates adjacent seats to groups of 1–4 people.
 
-Use Python **3.14.3** (64-bit), available as `python` on PATH. The supported
-version is also recorded in `.python-version`; that file does not install Python.
-Use one dependency workflow: Python `venv` and `pip` with the exact versions in
-`requirements.txt`. No global package installation or environment activation is
-needed.
+The system will support seat reservations, temporary holds, mock payments, expiry, and waitlists.
+
+Our main goal is to develop and test the **Demand-Cycle allocation algorithm**, comparing its fairness and performance against other methods.
+
+## Current Progress
+
+The project is still in its early development stage.
+
+- Flask application with a working `/health` endpoint.
+- Basic project structure and dependencies are set up.
+- Booking features, database, tests, and background workers are not implemented yet.
+- PostgreSQL is not required for the current setup.
+
+## Getting Started
+
+**1. Install Python 3.14.3 (64-bit).**
+
+**2. Open PowerShell in the project folder and run:**
 
 ```powershell
-Set-Location C:\Users\Hp\Documents\GitHub\CSC3104_G2_CloudProject
 python --version
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe -m pip check
 ```
 
-## Run locally
+**3. Start the Flask application:**
 
 ```powershell
 .\.venv\Scripts\python.exe -m flask --app app:create_app run --host 127.0.0.1 --port 5000
 ```
 
-In a second PowerShell window:
+**4. Open another PowerShell window and test:**
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:5000/health
 ```
 
-Expected response: `status` is `ok`. Stop the server with Ctrl+C. This is Flask's
-local development server; choose a production server when deployment is added.
+Expected response:
 
-When intentionally updating dependencies, install the selected versions into a
-clean `.venv`, then regenerate the complete pins:
-
-```powershell
-.\.venv\Scripts\python.exe -m pip freeze | Set-Content -Encoding ascii requirements.txt
+```json
+{"status": "ok"}
 ```
 
-Existing `src/**/placeholder.txt` files are unused scaffolding and candidates for
-later removal by the team. They are preserved here.
+Press `Ctrl+C` to stop the server.
+
+## Project Files
+
+| File / Folder | Purpose |
+|---|---|
+| `app.py` | Flask application |
+| `requirements.txt` | Python dependencies |
+| `.python-version` | Python version (3.14.3) |
+| `.gitignore` | Excludes local and generated files |
+| `src/` | Placeholder folders for future features |
+
+## Notes
+
+- The `/health` endpoint only confirms that Flask is running.
+- The `src/` folders do not contain working features yet.
+- Add new dependencies only when needed and update `requirements.txt`.
+- Keep local `.venv/`, `.env`, and generated files out of Git.
