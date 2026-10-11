@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify
 from datetime import datetime, timezone
 import uuid
+from admission_control import AdmissionController
 
 app = Flask(__name__)
 
@@ -11,6 +12,13 @@ waiting_room = {
     "B": [],
     "C": []
 }
+
+admission_controller = AdmissionController(
+    window_seconds=10,
+    low_threshold=20,
+    high_threshold=50,
+    max_admissions_per_second=5
+)
 
 @app.route("/submit", methods=["POST"])
 def submit_request():
@@ -32,6 +40,8 @@ def submit_request():
     if not isinstance(user_id, str) or not user_id.strip():
         return jsonify({"error": "Invalid user ID"}), 400
 
+    admission_controller.record_request()
+
     new_request = {
         "request_id": str(uuid.uuid4()),
         "user_id": user_id,
@@ -49,11 +59,13 @@ def submit_request():
 
 @app.route("/status", methods=["GET"])
 def get_status():
+    admission_status = admission_controller.get_status()
     return jsonify({
         "waiting_count": sum(
             len(queue) for queue in waiting_room.values()
         ),
-        "admission_state": "not_configured"
+        # "admission_state": "not_configured"
+        **admission_status
     })
 
 
