@@ -6,6 +6,7 @@ from copy import deepcopy
 import uuid
 import os
 import requests
+import random
 
 app = Flask(__name__)
 app.config["ALLOCATOR_URL"] = os.getenv("ALLOCATOR_URL", "http://localhost:5002").rstrip("/")
@@ -16,7 +17,7 @@ initial_batch = None
 waiting_room_lock = Lock()
 batch_delivery = {}
 allocation_results = {}
-# Global arrival sequence across sections and both entry paths.
+# Latecomer FCFS sequence; waiting-room numbers are local to section + size.
 next_queue_number = 1
 
 # Temporary sitting sections
@@ -112,25 +113,39 @@ def submit_request():
         "section": section,
         "party_size": party_size,
         "entry_type": "waiting_room",
-        "batch_order": None
+        "batch_order": None,
+        "queue_number": None
     }
 
     with waiting_room_lock:
         # Assign the timestamp at enqueue time so concurrent submissions have
         # the same ordering in the timestamp and queue.
         new_request["timestamp"] = datetime.now(timezone.utc).isoformat()
-        # Number requests in server acceptance order, independently of allocation.
-        new_request["queue_number"] = next_queue_number
-        next_queue_number += 1
         if sale_state == "pre_sale":
             waiting_room[section].append(new_request)
         else:
             new_request["entry_type"] = "latecomer"
+            new_request["queue_number"] = next_queue_number
+            next_queue_number += 1
             latecomer_queues[section].append(new_request)
             latecomer_delivery[new_request["request_id"]] = "pending"
             start_latecomer_worker(section)
 
-    return jsonify(new_request), 201
+        # Copy before releasing the lock: sale start may assign numbers next.
+        payload = deepcopy(new_request)
+    return jsonify(payload), 201
+
+
+@app.route("/requests/<request_id>", methods=["GET"])
+def get_request(request_id):
+    """Let waiting-room users retrieve their number after sale start."""
+    with waiting_room_lock:
+        for queues in (waiting_room, latecomer_queues):
+            for queue in queues.values():
+                for party in queue:
+                    if party["request_id"] == request_id:
+                        return jsonify(party), 200
+    return jsonify({"error": "Request not found"}), 404
 
 
 @app.route("/status", methods=["GET"])
@@ -163,6 +178,15 @@ def start_sale():
 
     with waiting_room_lock:
         if sale_state == "pre_sale":
+            # Randomize only within each section/party-size group, exactly once.
+            # The allocator must honor batch_order rather than shuffle again.
+            for queue in waiting_room.values():
+                for size in range(1, 5):
+                    group = [party for party in queue if party["party_size"] == size]
+                    random.SystemRandom().shuffle(group)
+                    for number, party in enumerate(group, start=1):
+                        party["queue_number"] = number
+                        party["batch_order"] = number
             # Freeze the section batches once, before closing the waiting room.
             # Use independent copies for the later allocator handoff.
             initial_batch = deepcopy(waiting_room)
