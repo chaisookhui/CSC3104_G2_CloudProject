@@ -7,6 +7,7 @@ import uuid
 import os
 import requests
 import random
+from admission_control import AdmissionController
 
 app = Flask(__name__)
 app.config["ALLOCATOR_URL"] = os.getenv("ALLOCATOR_URL", "http://localhost:5002").rstrip("/")
@@ -84,6 +85,12 @@ def retry_latecomers():
         for section in latecomer_queues:
             start_latecomer_worker(section)
         return jsonify({"latecomer_delivery": dict(latecomer_delivery)}), 202
+admission_controller = AdmissionController(
+    window_seconds=10,
+    low_threshold=20,
+    high_threshold=50,
+    max_admissions_per_second=5
+)
 
 @app.route("/submit", methods=["POST"])
 def submit_request():
@@ -106,6 +113,8 @@ def submit_request():
 
     if not isinstance(user_id, str) or not user_id.strip():
         return jsonify({"error": "Invalid user ID"}), 400
+
+    admission_controller.record_request()
 
     new_request = {
         "request_id": str(uuid.uuid4()),
@@ -150,6 +159,7 @@ def get_request(request_id):
 
 @app.route("/status", methods=["GET"])
 def get_status():
+    admission_status = admission_controller.get_status()
     with waiting_room_lock:
         waiting_by_section = {
             section: len(queue) for section, queue in waiting_room.items()
@@ -167,7 +177,7 @@ def get_status():
             "latecomer_results": deepcopy(latecomer_results),
             "sale_state": sale_state,
             "batch_delivery": dict(batch_delivery),
-            "admission_state": "not_configured"
+            **admission_status
         })
 
 
