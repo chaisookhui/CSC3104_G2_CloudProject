@@ -18,8 +18,8 @@ initial_batch = None
 waiting_room_lock = Lock()
 batch_delivery = {}
 allocation_results = {}
-# Latecomer FCFS sequence; waiting-room numbers are local to section + size.
-next_queue_number = 1
+# Next number per (section, party_size), continuing after the randomized batch.
+next_queue_numbers = {}
 
 # Temporary sitting sections
 waiting_room = {
@@ -94,8 +94,6 @@ admission_controller = AdmissionController(
 
 @app.route("/submit", methods=["POST"])
 def submit_request():
-    global next_queue_number
-
     data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
@@ -134,8 +132,9 @@ def submit_request():
             waiting_room[section].append(new_request)
         else:
             new_request["entry_type"] = "latecomer"
-            new_request["queue_number"] = next_queue_number
-            next_queue_number += 1
+            group_key = (section, party_size)
+            new_request["queue_number"] = next_queue_numbers[group_key]
+            next_queue_numbers[group_key] += 1
             latecomer_queues[section].append(new_request)
             latecomer_delivery[new_request["request_id"]] = "pending"
             start_latecomer_worker(section)
@@ -190,13 +189,14 @@ def start_sale():
         if sale_state == "pre_sale":
             # Randomize only within each section/party-size group, exactly once.
             # The allocator must honor batch_order rather than shuffle again.
-            for queue in waiting_room.values():
+            for section, queue in waiting_room.items():
                 for size in range(1, 5):
                     group = [party for party in queue if party["party_size"] == size]
                     random.SystemRandom().shuffle(group)
                     for number, party in enumerate(group, start=1):
                         party["queue_number"] = number
                         party["batch_order"] = number
+                    next_queue_numbers[(section, size)] = len(group) + 1
             # Freeze the section batches once, before closing the waiting room.
             # Use independent copies for the later allocator handoff.
             initial_batch = deepcopy(waiting_room)
