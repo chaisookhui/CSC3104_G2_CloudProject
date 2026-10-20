@@ -33,7 +33,9 @@ try {
     }
     $projectPython = Join-Path $PSScriptRoot "..\..\.venv\Scripts\python.exe"
     if (-not (Test-Path -LiteralPath $projectPython)) { throw "Run the root setup.ps1 first." }
-    $backend = & $projectPython -c 'import os; from dotenv import load_dotenv; load_dotenv(); print(os.getenv("POSTGRES_BACKEND", "docker"))'
+    # Send Python code on stdin so Windows PowerShell preserves its string quotes.
+    $backend = 'import os; from dotenv import load_dotenv; load_dotenv(".env"); print(os.getenv("POSTGRES_BACKEND", "docker"))' | & $projectPython -
+    if ($LASTEXITCODE -ne 0) { throw "Could not read POSTGRES_BACKEND from local configuration." }
     if ($NativePostgres -and $backend -ne "native") { throw "Existing .env uses Docker. Preserve it and coordinate a backend change before continuing." }
     if ($backend -eq "native") {
         & $projectPython native_db.py setup

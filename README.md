@@ -18,21 +18,27 @@ payment/waitlist integration and final service contracts remain owner-led work.
 
 ## Windows installation
 
-Install Python **3.14.3 (64-bit)**. Choose one PostgreSQL backend: Docker Desktop
+Install Python **3.15.0 (64-bit)**. Choose one PostgreSQL backend: Docker Desktop
 with Linux containers, or installed native PostgreSQL 17+ server tools. Both use
 the same schema, application role and migrations. Open PowerShell in your repository
 folder. For Docker, start Docker Desktop, wait for its engine, then run:
 
 ```powershell
-python --version
-.\setup.ps1
+py -3.15 --version
+$projectPython315 = py -3.15 -c "import sys; print(sys.executable)"
+.\setup.ps1 -Python $projectPython315
 ```
+
+The version command must print `Python 3.15.0`. Passing the executable explicitly
+avoids using an older Python installation that is still first on PATH. If the
+launcher cannot find Python 3.15, reopen PowerShell after installation or pass its
+installed `python.exe` path directly with `-Python`.
 
 If Docker/WSL is unavailable, install PostgreSQL 17+ and add its `bin` directory
 to PATH (so `initdb` and `pg_ctl` work). Then use:
 
 ```powershell
-.\setup.ps1 -NativePostgres -DatabasePort 5433
+.\setup.ps1 -Python $projectPython315 -NativePostgres -DatabasePort 5433
 ```
 
 This creates an isolated PostgreSQL cluster in the ignored `.local/postgres`
@@ -140,7 +146,7 @@ run passed; check the Actions result after the change is pushed.
 
 ## Shared development conventions
 
-- Use Python 3.14.3, root `.venv`, and `pip`. Runtime dependencies and their
+- Use Python 3.15.0, root `.venv`, and `pip`. Runtime dependencies and their
   transitive versions are pinned in `requirements.txt`; Pytest and its dependencies
   are in `requirements-dev.txt`. Module requirements delegate to these lists.
 - Add dependencies only when actual code needs them. Update the relevant pins,

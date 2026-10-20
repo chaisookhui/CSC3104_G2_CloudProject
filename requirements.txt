@@ -1,5 +1,5 @@
 # Shared runtime dependencies, including transitive dependencies.
-# Verified with Python 3.14.3. Update deliberately and rerun all tests.
+# Python target is recorded in .python-version. Rerun all tests when changing it.
 blinker==1.9.0
 certifi==2026.10.19
 charset-normalizer==3.5.2

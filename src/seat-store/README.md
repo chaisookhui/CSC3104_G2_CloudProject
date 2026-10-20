@@ -13,19 +13,20 @@ the default alternative.
 
 ## Windows quick start
 
-Prerequisites: the team's Python 3.14.3, Docker Desktop using Linux containers,
+Prerequisites: the team's Python 3.15.0, Docker Desktop using Linux containers,
 and Docker Compose v2. Start Docker Desktop and wait for its engine to be ready.
 Run these commands from the repository root:
 
 ```powershell
-.\src\seat-store\setup.ps1
+$projectPython315 = py -3.15 -c "import sys; print(sys.executable)"
+.\src\seat-store\setup.ps1 -Python $projectPython315
 .\src\seat-store\run.ps1
 ```
 
 If Python is not on PATH, pass its executable to setup:
 
 ```powershell
-.\src\seat-store\setup.ps1 -Python 'C:\Python314\python.exe'
+.\src\seat-store\setup.ps1 -Python 'C:\Python315\python.exe'
 ```
 
 Setup generates random passwords in the ignored local `.env`, installs dependencies
