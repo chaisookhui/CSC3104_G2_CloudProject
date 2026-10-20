@@ -1,3 +1,13 @@
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/*.py[cod]
+**/.env
+**/.env.*
+!**/.env.example
+**/coverage.xml
+**/.coverage
+
 # Python cache
 __pycache__/
 *.pyc
