@@ -18,3 +18,4 @@ htmlcov/
 !**/.env.example
 **/coverage.xml
 **/.coverage
+.local/
