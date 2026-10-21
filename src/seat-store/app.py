@@ -45,6 +45,10 @@ def create_app(config=None):
     def seats(section):
         return jsonify(store.list_seats(section))
 
+    @app.get("/holds/<hold_id>")
+    def hold_status(hold_id):
+        return jsonify(store.get_hold(request.args.get("request_id"), hold_id))
+
     @app.post("/seats/hold")
     def hold():
         data = body(("section", "party_size", "request_id"), ("reoffer_key",))

@@ -10,7 +10,8 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 | --- | --- |
 | Root `app.py`, port 5000 | Small Flask application with `/health`. It checks that Flask runs, not the database or the full booking system. |
 | `src/seat-store/`, port 5003 | Existing seat/hold service: PostgreSQL transactions, adjacent holds, confirmation, expiry and retryable expiry callbacks. It has database integration and concurrency tests. |
-| Other `src/` folders | Preserved placeholders. The allocator, waiting room and waitlist/payment implementations on other branches have not been integrated here. |
+| `src/waitlist-payment/`, port 5004 | WY's first slice: durable mock-payment attempts, expiry inbox/recovery and pure waitlist selection. See [WY's README](src/waitlist-payment/README.md) for startup and remaining integration. |
+| Other `src/` folders | Preserved placeholders. The allocator and waiting room implementations on other branches have not been integrated here. |
 
 This is not yet an end-to-end booking system. Seat-store's current schema represents
 one inventory, without `sale_id`. Durable intake/allocation progress, complete

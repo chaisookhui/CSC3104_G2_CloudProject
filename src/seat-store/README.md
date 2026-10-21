@@ -97,6 +97,7 @@ All timestamps are ISO 8601 UTC strings. Request IDs are non-empty strings up to
 |---|---|---|---|
 | GET | `/health` | none | `{status: "ok", service: "seat-store", storage: "postgresql"}` |
 | GET | `/seats/{section}` | none | Array of current seat records |
+| GET | `/holds/{hold_id}?request_id=...` | none | Exact committed hold outcome, including historical attempts; no expiry side effect |
 | POST | `/seats/hold` | `{section, party_size, request_id, reoffer_key?}` | `{success, request_id, hold_id, hold_status, hold_expiry, seats}` |
 | POST | `/seats/confirm` | `{request_id, hold_id?}` | Updated hold outcome and seat records |
 | POST | `/seats/expire` | `{request_id, hold_id?}` | Updated hold outcome and released seat records |

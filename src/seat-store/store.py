@@ -79,6 +79,21 @@ class SeatStore:
                 "hold_id": str(hold["hold_id"]), "hold_status": hold["status"],
                 "hold_expiry": timestamp(expiry), "seats": records}
 
+    def get_hold(self, request_id, hold_id):
+        """Read one committed hold outcome, including historical expired attempts."""
+        validate_text(request_id, "request_id")
+        try:
+            hold_id = UUID(str(hold_id))
+        except (ValueError, TypeError, AttributeError):
+            raise StoreError("invalid_input", "hold_id must be a UUID", 400) from None
+        with self.db.connect() as conn:
+            self._lock_request(conn, request_id)
+            hold = conn.execute("SELECT * FROM holds WHERE request_id = %s AND hold_id = %s",
+                                (request_id, hold_id)).fetchone()
+            if hold is None:
+                raise StoreError("unknown_hold", "Hold does not belong to this request", 404)
+            return self._result(conn, hold)
+
     def hold(self, section, party_size, request_id, reoffer_key=None):
         validate_text(section, "section")
         validate_text(request_id, "request_id")
