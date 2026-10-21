@@ -1,0 +1,13 @@
+# Local development runtimes, database data, installers, and logs
+/.local/
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
+# Local environment secrets (keep example templates trackable)
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
