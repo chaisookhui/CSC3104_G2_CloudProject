@@ -100,6 +100,232 @@ def create_app(store=None):
         return jsonify(sale_state=state["sale_state"], count=len(parties),
                        requests=[request_response(party) for party in parties])
 
+    # changed by zxian
+    
+    @app.post("/queue/claim")
+    def claim_queue():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        request_ids = data.get("request_ids")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if (
+            not isinstance(request_ids, list)
+            or not request_ids
+            or any(
+                not isinstance(rid, str) or not rid
+                for rid in request_ids
+            )
+            or len(request_ids) != len(set(request_ids))
+        ):
+            return jsonify(error="Invalid request IDs"), 400
+
+        
+        def claim(state):
+            if state["sale_state"] != "sale_started":
+                return {"error": "Sale has not started"}, 409
+
+            # Idempotent retry: same requests, same batch.
+            already_claimed = all(
+                rid in state["requests"]
+                and state["requests"][rid]["status"] == "ADMITTED"
+                and state["requests"][rid].get("batch_id") == batch_id
+                for rid in request_ids
+            )
+
+            if already_claimed:
+                return {
+                    "message": "Batch already claimed",
+                    "batch_id": batch_id,
+                    "claimed_count": len(request_ids)
+                }, 200
+
+            # All requests must currently be eligible.
+            for rid in request_ids:
+                party = state["requests"].get(rid)
+
+                if party is None:
+                    return {
+                        "error": f"Unknown request: {rid}"
+                    }, 404
+
+                if party["status"] != "QUEUED":
+                    return {
+                        "error": f"Request not claimable: {rid}"
+                    }, 409
+
+            # Get earliest eligible requests in global order.
+            eligible_ids = [
+                rid for rid in state["queue"]
+                if state["requests"][rid]["status"] == "QUEUED"
+            ]
+
+            expected_ids = eligible_ids[:len(request_ids)]
+
+            if set(request_ids) != set(expected_ids):
+                return {
+                    "error": "Requests are not the next eligible global positions",
+                    "expected_request_ids": expected_ids
+                }, 409
+
+            # Claim the entire batch.
+            for rid in request_ids:
+                state["requests"][rid].update(
+                    status="ADMITTED",
+                    batch_id=batch_id
+                )
+
+            return {
+                "message": "Batch requests claimed",
+                "batch_id": batch_id,
+                "claimed_count": len(request_ids)
+            }, 200
+
+        result, code = store.update(claim)
+        return jsonify(result), code
+
+    
+    @app.post("/queue/requeue")
+    def requeue_requests():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        request_ids = data.get("request_ids")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if (
+            not isinstance(request_ids, list)
+            or any(
+                not isinstance(rid, str) or not rid
+                for rid in request_ids
+            )
+            or len(request_ids) != len(set(request_ids))
+        ):
+            return jsonify(error="Invalid request IDs"), 400
+
+        def requeue(state):
+            for rid in request_ids:
+                party = state["requests"].get(rid)
+
+                if party is None:
+                    return {
+                        "error": f"Unknown request: {rid}"
+                    }, 404
+
+                same_batch_admitted = (
+                    party["status"] == "ADMITTED"
+                    and party.get("batch_id") == batch_id
+                )
+
+                already_requeued = (
+                    party["status"] == "QUEUED"
+                    and party.get("last_batch_id") == batch_id
+                )
+
+                if not (
+                    same_batch_admitted
+                    or already_requeued
+                ):
+                    return {
+                        "error": f"Request not requeueable: {rid}"
+                    }, 409
+
+            for rid in request_ids:
+                party = state["requests"][rid]
+
+                if party["status"] == "ADMITTED":
+                    party.update(
+                        status="QUEUED",
+                        last_batch_id=batch_id
+                    )
+                    party.pop("batch_id", None)
+
+                # queue_number is deliberately unchanged.
+
+            return {
+                "message": "Requests requeued",
+                "batch_id": batch_id,
+                "requeued_count": len(request_ids)
+            }, 200
+
+        result, code = store.update(requeue)
+        return jsonify(result), code
+
+    
+    @app.post("/queue/complete")
+    def complete_requests():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        request_ids = data.get("request_ids")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if (
+            not isinstance(request_ids, list)
+            or any(
+                not isinstance(rid, str) or not rid
+                for rid in request_ids
+            )
+            or len(request_ids) != len(set(request_ids))
+        ):
+            return jsonify(error="Invalid request IDs"), 400
+
+        def complete(state):
+            for rid in request_ids:
+                party = state["requests"].get(rid)
+
+                if party is None:
+                    return {
+                        "error": f"Unknown request: {rid}"
+                    }, 404
+
+                if not (
+                    party["status"] == "ADMITTED"
+                    and party.get("batch_id") == batch_id
+                ) and not (
+                    party["status"] == "ALLOCATION_DONE"
+                    and party.get("last_batch_id") == batch_id
+                ):
+                    return {
+                        "error": f"Invalid completion: {rid}"
+                    }, 409
+
+            for rid in request_ids:
+                party = state["requests"][rid]
+
+                if party["status"] == "ADMITTED":
+                    party.update(
+                        status="ALLOCATION_DONE",
+                        last_batch_id=batch_id
+                    )
+                    party.pop("batch_id", None)
+
+            return {
+                "batch_id": batch_id,
+                "completed_count": len(request_ids),
+                "message": "Allocation statuses updated"
+            }, 200
+
+        result, code = store.update(complete)
+        return jsonify(result), code
+
+
     @app.get("/requests/<request_id>")
     @app.get("/queue/<request_id>")
     def lookup(request_id):
