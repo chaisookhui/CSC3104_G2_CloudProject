@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import os
 import random
 import uuid
+import requests
 
 from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
@@ -22,7 +23,11 @@ def create_app(store=None):
     app.extensions["queue_store"] = store
     controller = AdmissionController(window_seconds=10, low_threshold=20,
                                      high_threshold=50, max_admissions_per_second=5)
-
+    # added by zx
+    dispatcher_url = os.getenv(
+        "DISPATCHER_URL",
+        "http://localhost:5003"
+    )
     @app.errorhandler(Exception)
     def handle_error(exc):
         if isinstance(exc, HTTPException):
@@ -73,22 +78,88 @@ def create_app(store=None):
         controller.record_request()  # Local telemetry; never limits registration.
         return jsonify(request_response(party)), code
 
+    # @app.post("/sale/start")
+    # def start_sale():
+    #     def open_sale(state):
+    #         if state["sale_state"] == "pre_sale":
+    #             ids = list(state["requests"])
+    #             random.SystemRandom().shuffle(ids)  # Across ALL sections and sizes.
+    #             for number, rid in enumerate(ids, 1):
+    #                 state["requests"][rid].update(queue_number=number,
+    #                     status="QUEUED")
+    #             state["queue"] = ids
+    #             state["next_number"] = len(ids) + 1
+    #             state["sale_state"] = "sale_started"
+    #         return {"sale_state": state["sale_state"], "initial_count": sum(
+    #             r["entry_type"] == "waiting_room" for r in state["requests"].values()),
+    #             "next_queue_number": state["next_number"]}
+    #     return jsonify(store.update(open_sale))
+
+    # changed by zx -- replaced to include start 1st dispatcher upon sale start
+    
     @app.post("/sale/start")
     def start_sale():
+
         def open_sale(state):
-            if state["sale_state"] == "pre_sale":
-                ids = list(state["requests"])
-                random.SystemRandom().shuffle(ids)  # Across ALL sections and sizes.
-                for number, rid in enumerate(ids, 1):
-                    state["requests"][rid].update(queue_number=number,
-                        status="QUEUED")
-                state["queue"] = ids
-                state["next_number"] = len(ids) + 1
-                state["sale_state"] = "sale_started"
-            return {"sale_state": state["sale_state"], "initial_count": sum(
-                r["entry_type"] == "waiting_room" for r in state["requests"].values()),
-                "next_queue_number": state["next_number"]}
-        return jsonify(store.update(open_sale))
+            if state["sale_state"] != "pre_sale":
+                return {
+                    "sale_state": state["sale_state"],
+                    "already_started": True,
+                    "initial_count": sum(
+                        r["entry_type"] == "waiting_room"
+                        for r in state["requests"].values()
+                    ),
+                    "next_queue_number": state["next_number"]
+                }
+
+            ids = list(state["requests"])
+            random.SystemRandom().shuffle(ids)
+
+            for number, rid in enumerate(ids, 1):
+                state["requests"][rid].update(
+                    queue_number=number,
+                    status="QUEUED"
+                )
+
+            state["queue"] = ids
+            state["next_number"] = len(ids) + 1
+            state["sale_state"] = "sale_started"
+
+            return {
+                "sale_state": "sale_started",
+                "already_started": False,
+                "initial_count": len(ids),
+                "next_queue_number": state["next_number"]
+            }
+
+        result = store.update(open_sale)
+
+        # Trigger dispatcher only after sale-opening state is saved.
+        if not result["already_started"]:
+            try:
+                response = requests.post(
+                    f"{dispatcher_url}/batches/next",
+                    timeout=10
+                )
+                response.raise_for_status()
+
+                result["dispatcher_triggered"] = True
+                result["dispatcher_response"] = response.json()
+
+            except requests.RequestException as error:
+                app.logger.error(
+                    "Dispatcher trigger failed: %s", error
+                )
+                result["dispatcher_triggered"] = False
+                result["dispatcher_error"] = str(error)
+
+        else:
+            result["dispatcher_triggered"] = False
+            result["message"] = (
+                "Sale already started; dispatcher not triggered again"
+            )
+
+        return jsonify(result), 200
 
     @app.get("/queue")
     def display_queue():
