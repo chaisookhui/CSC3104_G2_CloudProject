@@ -91,6 +91,45 @@ def send_allocation_input(batch_id: str, batch: list[BatchedRequest]) -> dict:
     }
 
 
+def build_allocator_payload(batch_payload: dict) -> dict:
+    """
+    Convert dispatcher grouping into Part 5's input format.
+
+    Dispatcher counts demand only.
+    Part 5 decides the allocation order.
+    """
+    requests = []
+    section_demand = {}
+
+    for section in SECTIONS:
+        data = batch_payload["sections"][section]
+
+        if data["request_count"] == 0:
+            continue
+
+        section_demand[section] = {
+            str(size): data["demand_counts"][size]
+            for size in PARTY_SIZES
+        }
+
+        for size in PARTY_SIZES:
+            for item in data["requests_by_party_size"][size]:
+                requests.append({
+                    "request_id": item["request_id"],
+                    "section": item["section"],
+                    "party_size": item["party_size"],
+                    "global_position": item["global_position"]
+                })
+
+    requests.sort(key=lambda item: item["global_position"])
+
+    return {
+        "batch_id": batch_payload["batch_id"],
+        "requests": requests,
+        "section_demand": section_demand
+    }
+
+
 class BatchDispatcher:
     """In-memory demo. Waiting Room remains authoritative for admission state."""
 
@@ -120,6 +159,8 @@ class BatchDispatcher:
                                   r.party_size, batch_id) for r in snapshot]
         return send_allocation_input(batch_id, batched), snapshot
 
-    def finish_preview(self, snapshot: list[QueueRequest]) -> None:
-        """TEST ONLY: clear local pending state after Part 2 marks requests completed."""
-        self.pending_ids.difference_update(r.request_id for r in snapshot)
+    def finish_batch(self, snapshot: list[QueueRequest]) -> None:
+        """Clear local pending requests after Waiting Room confirms outcomes."""
+        self.pending_ids.difference_update(
+            r.request_id for r in snapshot
+        )

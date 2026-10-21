@@ -96,7 +96,6 @@ def create_app(store=None):
     #     return jsonify(store.update(open_sale))
 
     # changed by zx -- replaced to include start 1st dispatcher upon sale start
-    
     @app.post("/sale/start")
     def start_sale():
 
@@ -172,7 +171,6 @@ def create_app(store=None):
                        requests=[request_response(party) for party in parties])
 
     # changed by zxian
-    
     @app.post("/queue/claim")
     def claim_queue():
         data = request.get_json(silent=True)
@@ -394,6 +392,99 @@ def create_app(store=None):
             }, 200
 
         result, code = store.update(complete)
+        return jsonify(result), code
+    
+    @app.post("/queue/outcomes")
+    def update_allocation_outcomes():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        outcomes = data.get("outcomes")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if not isinstance(outcomes, list) or not outcomes:
+            return jsonify(error="Invalid outcomes"), 400
+
+        statuses = {}
+        for item in outcomes:
+            if not isinstance(item, dict):
+                return jsonify(error="Invalid outcome"), 400
+
+            rid = item.get("request_id")
+            status = item.get("status")
+
+            if (
+                not isinstance(rid, str)
+                or not rid
+                or status not in ("RESERVED", "UNAVAILABLE")
+                or rid in statuses
+            ):
+                return jsonify(error="Invalid or duplicate outcome"), 400
+
+            statuses[rid] = status
+
+        def apply_outcomes(state):
+            # The submitted set must represent the entire batch.
+            batch_ids = {
+                rid
+                for rid, party in state["requests"].items()
+                if (
+                    party.get("batch_id") == batch_id
+                    or party.get("last_batch_id") == batch_id
+                )
+            }
+
+            if set(statuses) != batch_ids:
+                return {
+                    "error": "Outcome IDs do not match claimed batch"
+                }, 409
+
+            # Validate every entry before updating anything.
+            for rid, new_status in statuses.items():
+                party = state["requests"][rid]
+
+                claimed = (
+                    party["status"] == "ADMITTED"
+                    and party.get("batch_id") == batch_id
+                )
+
+                already_completed = (
+                    party["status"] == new_status
+                    and party.get("last_batch_id") == batch_id
+                )
+
+                if not (claimed or already_completed):
+                    return {
+                        "error": f"Conflicting outcome for {rid}"
+                    }, 409
+
+            for rid, new_status in statuses.items():
+                party = state["requests"][rid]
+
+                if party["status"] == "ADMITTED":
+                    party["status"] = new_status
+                    party["last_batch_id"] = batch_id
+                    party.pop("batch_id", None)
+
+            return {
+                "message": "Batch outcomes recorded",
+                "batch_id": batch_id,
+                "reserved_count": sum(
+                    status == "RESERVED"
+                    for status in statuses.values()
+                ),
+                "unavailable_count": sum(
+                    status == "UNAVAILABLE"
+                    for status in statuses.values()
+                )
+            }, 200
+
+        result, code = store.update(apply_outcomes)
         return jsonify(result), code
 
 

@@ -15,7 +15,7 @@ def create_app(store=None):
     app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
     store = store or JobStore(os.environ["ALLOCATION_DATABASE_URL"])
     app.extensions["allocation_store"] = store
-    sections = tuple(os.getenv("ALLOCATION_SECTIONS", "A,B,C").split(","))
+    sections = tuple(os.getenv("ALLOCATION_SECTIONS", "A,B,C,D").split(","))
 
     @app.get("/health")
     def health():
