@@ -1,109 +1,65 @@
+"""Dispatcher handoff API. Admission and worker execution are separate processes."""
+import os
+from flask import Flask, jsonify, request
 
-from flask import Flask, request, jsonify
-
-from algorithm import allocate_section
-from seat_client import hold_seats, SeatStoreError
-from waitlist_client import join_waitlist, WaitlistError
-
-
-app = Flask(__name__)
+if __package__:
+    from .algorithm import prepare_batch
+    from .job_store import JobStore, Conflict
+else:
+    from algorithm import prepare_batch
+    from job_store import JobStore, Conflict
 
 
-@app.route("/allocate/<section>", methods=["POST"])
-def allocate(section):
-    """
-    Allocate seats using the Demand-Cycle Algorithm.
+def create_app(store=None):
+    app = Flask(__name__)
+    app.config["MAX_CONTENT_LENGTH"] = 128 * 1024
+    store = store or JobStore(os.environ["ALLOCATION_DATABASE_URL"])
+    app.extensions["allocation_store"] = store
+    sections = tuple(os.getenv("ALLOCATION_SECTIONS", "A,B,C").split(","))
 
-    Successful requests receive held seats.
-    Unsuccessful requests automatically join Module 4's waitlist.
-    """
+    @app.get("/health")
+    def health():
+        return jsonify(status="ok", service="allocation")
 
-    requests_data = request.get_json(silent=True)
+    @app.get("/ready")
+    def ready():
+        with store.transaction() as execute:
+            execute("SELECT id FROM allocation_scheduler WHERE id=1").fetchone()
+        return jsonify(status="ready")
 
-    # Validate incoming JSON
-    if not isinstance(requests_data, list):
-        return jsonify({
-            "error": "Expected a list of requests"
-        }), 400
+    @app.post("/batches")
+    def submit():
+        payload = request.get_json(silent=True)
+        try:
+            orders, jobs = prepare_batch(payload, sections=sections)
+            created = store.submit(payload, orders, jobs)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        except Conflict as exc:
+            return jsonify(error=str(exc)), 409
+        return jsonify(batch_id=payload["batch_id"], size_order=orders,
+                       status="accepted" if created else "already_accepted"), 202 if created else 200
 
-    # Validate section
-    if section not in ("A", "B", "C"):
-        return jsonify({
-            "error": "Invalid section"
-        }), 400
+    @app.get("/batches/<batch_id>")
+    def status(batch_id):
+        data = store.batch(batch_id)
+        return (jsonify(data), 200) if data else (jsonify(error="Unknown batch"), 404)
 
-    # Validate each request
-    for item in requests_data:
-        if (
-            not isinstance(item, dict)
-            or item.get("section") != section
-            or type(item.get("party_size")) is not int
-            or item["party_size"] not in (1, 2, 3, 4)
-            or not isinstance(item.get("request_id"), str)
-            or not item["request_id"]
-        ):
-            return jsonify({
-                "error": "Invalid request data"
-            }), 400
+    @app.errorhandler(Exception)
+    def failure(exc):
+        from werkzeug.exceptions import HTTPException
+        if isinstance(exc, HTTPException):
+            return jsonify(error=exc.name), exc.code
+        app.logger.exception("Allocation storage failure")
+        return jsonify(error="Storage unavailable; retry the same batch_id and input"), 503
 
-    # Reject duplicate request IDs within the same batch
-    request_ids = [
-        item["request_id"] for item in requests_data
-    ]
-
-    if len(request_ids) != len(set(request_ids)):
-        return jsonify({
-            "error": "Duplicate request IDs in batch"
-        }), 400
-
-    try:
-        # Step 1: Run the allocation algorithm
-        results = allocate_section(
-            section,
-            requests_data,
-            hold_seats=hold_seats
-        )
-
-        # Step 2: Look up original request details
-        requests_lookup = {
-            item["request_id"]: item
-            for item in requests_data
-        }
-
-        # Step 3: Send unsuccessful requests to Module 4
-        for result in results:
-
-            if result["outcome"] == "temporarily_full":
-
-                original_request = requests_lookup[
-                    result["request_id"]
-                ]
-
-                join_waitlist(original_request)
-
-        # Step 4: Return allocation results
-        return jsonify(results), 200
-
-    except SeatStoreError as error:
-        app.logger.error(
-            "Seat Store error: %s", error
-        )
-
-        return jsonify({
-            "error": "Seat Store unavailable",
-            "message": "Allocation could not be completed"
-        }), 503
-
-    except WaitlistError as error:
-        app.logger.error(
-            "Waitlist error: %s", error
-        )
-
-        return jsonify({
-            "error": "Waitlist service unavailable",
-            "message": "Waitlist processing could not be completed"
-        }), 503
+    return app
 
 
 if __name__ == "__main__":
-    app.run(port=5002, debug=True)
+    import sys
+    store = JobStore(os.environ["ALLOCATION_DATABASE_URL"])
+    if sys.argv[1:] == ["init-db"]:
+        store.initialize()
+    else:
+        create_app(store).run(host=os.getenv("HOST", "127.0.0.1"), port=5002, debug=False)

@@ -1,147 +1,61 @@
+"""Pure, fixed-snapshot demand-cycle scheduling; no inventory mutations."""
+from collections import Counter, deque
 
-import random
+SECTIONS = ("A", "B", "C", "D")
 
 
-def group_requests_by_party_size(requests):
+def prepare_batch(payload, sections=SECTIONS):
+    """Validate dispatcher input and return immutable-in-practice scheduled jobs.
+
+    Demand is number of parties, not number of seats. Dispatcher-supplied counts
+    must match the snapshot. No global admission decisions are made here.
     """
-    Step 1: Group ticket requests by party size (1 to 4).
-
-    Each party-size group has its own list of requests.
-    """
-
-    groups = {1: [], 2: [], 3: [], 4: []}
-
-    for request in requests:
-        party_size = request["party_size"]
-
-        if party_size not in groups:
-            raise ValueError("Party size must be between 1 and 4")
-
-        groups[party_size].append(request)
-
-    return groups
-
-
-def shuffle_requests(groups):
-    """
-    Step 2: Randomly shuffle requests within each party-size group.
-
-    This prevents the original submission order from always
-    determining which user receives priority.
-    """
-
-    for size in groups:
-        random.shuffle(groups[size])
-
-    return groups
-
-
-def sort_sizes_by_demand(groups):
-    """
-    Step 3: Sort party sizes by demand, highest first.
-
-    If two party sizes have equal demand, the smaller
-    party size goes first, as specified in Section B0.
-    """
-
-    size_order = sorted(
-        [size for size in groups if len(groups[size]) > 0],
-        key=lambda size: (-len(groups[size]), size)
-    )
-
-    return size_order
-
-
-def allocate_section(section, requests, hold_seats):
-    """
-    Steps 4-6: Execute the Demand-Cycle Allocation algorithm.
-
-    Module 2 determines allocation order.
-
-    The hold_seats function communicates with Module 3,
-    which is responsible for checking seat availability
-    and performing the actual seat reservation.
-
-    Module 2 never modifies seat states directly.
-    """
-
-    # Step 1: Group requests by party size
-    groups = group_requests_by_party_size(requests)
-
-    # Step 2: Randomize requests within each group
-    shuffle_requests(groups)
-
-    # Step 3: Determine allocation priority
-    size_order = sort_sizes_by_demand(groups)
-
-    # Track party sizes that can still be allocated
-    active_sizes = size_order.copy()
-
-    # Store successful and unsuccessful allocation results
-    results = []
-
-    # Step 4: Allocate requests in repeated demand cycles
-    while active_sizes:
-
-        progress_made = False
-
-        # Iterate over a copy because active_sizes may change
-        for size in active_sizes.copy():
-
-            # Skip party sizes without remaining requests
-            if not groups[size]:
-                active_sizes.remove(size)
-                continue
-
-            # Select the next request from the shuffled group
-            party = groups[size].pop(0)
-
-            # Ask Module 3 to reserve adjacent seats
-            response = hold_seats(
-                section,
-                size,
-                party["request_id"]
-            )
-
-            if response["success"]:
-
-                progress_made = True
-
-                # Store successful allocation
-                results.append({
-                    "request_id": party["request_id"],
-                    "outcome": "seated",
-                    "seats": response["seats"],
-                    "hold_expiry": response["hold_expiry"]
-                })
-
-            else:
-
-                # No fitting seats available for this party size
-                # Preserve the unsuccessful request
-                groups[size].insert(0, party)
-
-                # Stop attempting this party size in this batch
-                active_sizes.remove(size)
-
-        # Stop if no allocations succeeded during this cycle
-        if not progress_made:
-            break
-
-    # Step 5: Collect all remaining unseated requests
-    unseated = []
-
-    for size in groups:
-        unseated.extend(groups[size])
-
-    # Step 6: Mark unsuccessful requests as temporarily full
-    for party in unseated:
-
-        results.append({
-            "request_id": party["request_id"],
-            "outcome": "temporarily_full",
-            "seats": [],
-            "hold_expiry": None
-        })
-
-    return results
+    if not isinstance(payload, dict) or set(payload) != {"batch_id", "requests", "section_demand"}:
+        raise ValueError("Expected batch_id, requests and section_demand")
+    batch_id = payload["batch_id"]
+    if not isinstance(batch_id, str) or not batch_id.strip() or len(batch_id) > 128:
+        raise ValueError("batch_id must be a nonempty string of at most 128 characters")
+    parties = payload["requests"]
+    if not isinstance(parties, list) or not 1 <= len(parties) <= 100:
+        raise ValueError("A fixed batch must contain 1 to 100 requests")
+    ids, positions = set(), set()
+    for party in parties:
+        if not isinstance(party, dict) or set(party) != {
+            "request_id", "section", "party_size", "global_position"
+        }:
+            raise ValueError("Each request needs request_id, section, party_size, global_position")
+        rid = party["request_id"]
+        if not isinstance(rid, str) or not rid.strip() or len(rid) > 128 or rid in ids:
+            raise ValueError("request_id must be unique and contain 1 to 128 characters")
+        if party["section"] not in sections:
+            raise ValueError("Unsupported section (current SeatStore defaults to A/B/C)")
+        if type(party["party_size"]) is not int or party["party_size"] not in range(1, 5):
+            raise ValueError("party_size must be an integer from 1 to 4")
+        pos = party["global_position"]
+        if type(pos) is not int or pos < 1 or pos in positions:
+            raise ValueError("global_position must be a unique positive integer within this batch")
+        ids.add(rid)
+        positions.add(pos)
+    demand = payload["section_demand"]
+    present = {p["section"] for p in parties}
+    if not isinstance(demand, dict) or set(demand) != present:
+        raise ValueError("section_demand must contain exactly the sections present in requests")
+    orders, jobs = {}, []
+    for section in sorted(present):
+        counts = demand[section]
+        actual = Counter(p["party_size"] for p in parties if p["section"] == section)
+        if not isinstance(counts, dict) or set(counts) != {"1", "2", "3", "4"}:
+            raise ValueError("Each section demand needs JSON keys 1, 2, 3, 4 (including zeros)")
+        if any(type(counts[str(s)]) is not int or counts[str(s)] != actual[s] for s in range(1, 5)):
+            raise ValueError("section_demand does not match the fixed request snapshot")
+        order = sorted((s for s in range(1, 5) if actual[s]), key=lambda s: (-counts[str(s)], s))
+        orders[section] = order
+        groups = {s: deque(sorted((p for p in parties if p["section"] == section and p["party_size"] == s),
+                                 key=lambda p: p["global_position"])) for s in order}
+        priority = 0
+        while any(groups.values()):
+            for size in order:
+                if groups[size]:
+                    jobs.append({**groups[size].popleft(), "batch_id": batch_id, "priority": priority})
+                    priority += 1
+    return orders, jobs

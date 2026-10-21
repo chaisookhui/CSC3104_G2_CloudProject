@@ -1,3 +1,4 @@
+"""Legacy adapter, unused by fixed-batch workers; retained for owner coordination."""
 
 import os
 import requests
