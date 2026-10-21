@@ -1,0 +1,129 @@
+# Build ticketing-waiting-queue:local and load it into your local cluster first.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: waiting-redis-data
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waiting-redis
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: waiting-redis
+  template:
+    metadata:
+      labels:
+        app: waiting-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          args: [redis-server, --appendonly, 'yes', --appendfsync, always]
+          ports:
+            - containerPort: 6379
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            exec:
+              command: [redis-cli, ping]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: waiting-redis-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waiting-redis
+spec:
+  selector:
+    app: waiting-redis
+  ports:
+    - port: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: waiting-queue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: waiting-queue
+  template:
+    metadata:
+      labels:
+        app: waiting-queue
+    spec:
+      containers:
+        - name: api
+          image: ticketing-waiting-queue:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5001
+          env:
+            - name: REDIS_URL
+              value: redis://waiting-redis:6379/0
+            - name: QUEUE_KEY
+              value: ticketing:default:queue
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5001
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5001
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: waiting-queue
+spec:
+  selector:
+    app: waiting-queue
+  ports:
+    - port: 5001
+      targetPort: 5001
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: waiting-queue
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: waiting-queue
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
