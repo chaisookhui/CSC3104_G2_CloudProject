@@ -1,4 +1,23 @@
-# Local development runtimes, database data, installers, and logs
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Python virtual environments
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Testing cache
+.pytest_cache/
+.coverage
+
+# Temporary Module 2 integration mocks
+/src/allocation/mock_seat_store.py
+/src/allocation/mock_waitlist.py# Local development runtimes, database data, installers, and logs
 .local/
 
 # Python virtual environments and bytecode caches
