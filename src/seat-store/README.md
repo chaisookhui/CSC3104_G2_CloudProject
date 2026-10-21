@@ -18,12 +18,12 @@ and Docker Compose v2. Start Docker Desktop and wait for its engine to be ready.
 Run these commands from the repository root:
 
 ```powershell
-$projectPython315 = py -3.15 -c "import sys; print(sys.executable)"
-.\src\seat-store\setup.ps1 -Python $projectPython315
+.\src\seat-store\setup.ps1
 .\src\seat-store\run.ps1
 ```
 
-If Python is not on PATH, pass its executable to setup:
+Setup uses the root project's local Python 3.15.0 when present, otherwise `python`
+on PATH. If another installation is selected, pass the correct executable:
 
 ```powershell
 .\src\seat-store\setup.ps1 -Python 'C:\Python315\python.exe'

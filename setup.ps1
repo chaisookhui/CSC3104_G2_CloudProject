@@ -1,5 +1,5 @@
 param(
-    [string]$Python = "python",
+    [string]$Python = "",
     [switch]$PythonOnly,
     [switch]$NativePostgres,
     [ValidateRange(1024, 65535)][int]$DatabasePort = 5432
@@ -11,6 +11,11 @@ $originalTemp = $env:TEMP
 $originalTmp = $env:TMP
 try {
     $expectedVersion = (Get-Content -LiteralPath ".python-version" -Raw).Trim()
+    if (-not $Python) {
+        $localPython = Join-Path $PSScriptRoot ".local\python-$expectedVersion\python.exe"
+        if (Test-Path -LiteralPath $localPython) { $Python = $localPython }
+        else { $Python = "python" }
+    }
     $actualVersion = & $Python -c 'import platform; print(platform.python_version())'
     if ($LASTEXITCODE -ne 0 -or $actualVersion -ne $expectedVersion) {
         throw "Use Python $expectedVersion. Pass -Python with its executable path if needed."

@@ -1,5 +1,5 @@
 param(
-    [string]$Python = "python",
+    [string]$Python = "",
     [switch]$SkipPythonSetup,
     [switch]$NativePostgres,
     [ValidateRange(1024, 65535)][int]$DatabasePort = 5432

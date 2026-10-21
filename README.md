@@ -24,21 +24,28 @@ the same schema, application role and migrations. Open PowerShell in your reposi
 folder. For Docker, start Docker Desktop, wait for its engine, then run:
 
 ```powershell
-py -3.15 --version
-$projectPython315 = py -3.15 -c "import sys; print(sys.executable)"
-.\setup.ps1 -Python $projectPython315
+.\setup.ps1
+.\.venv\Scripts\python.exe --version
 ```
 
-The version command must print `Python 3.15.0`. Passing the executable explicitly
-avoids using an older Python installation that is still first on PATH. If the
-launcher cannot find Python 3.15, reopen PowerShell after installation or pass its
-installed `python.exe` path directly with `-Python`.
+The version command must print `Python 3.15.0`. Setup first uses an existing
+project-local `.local/python-3.15.0/python.exe`, otherwise it uses `python` on PATH.
+It checks the exact version before installing anything. If PATH points to an older
+installation, pass the 3.15.0 executable explicitly:
+
+```powershell
+.\setup.ps1 -Python 'C:\path\to\Python315\python.exe'
+```
+
+The Windows `py` launcher is optional. If available, `py -3.15 -c
+"import sys; print(sys.executable)"` can locate the installed executable. This
+checkout's project-local interpreter does not change the system Python on PATH.
 
 If Docker/WSL is unavailable, install PostgreSQL 17+ and add its `bin` directory
 to PATH (so `initdb` and `pg_ctl` work). Then use:
 
 ```powershell
-.\setup.ps1 -Python $projectPython315 -NativePostgres -DatabasePort 5433
+.\setup.ps1 -NativePostgres -DatabasePort 5433
 ```
 
 This creates an isolated PostgreSQL cluster in the ignored `.local/postgres`
@@ -175,6 +182,8 @@ run passed; check the Actions result after the change is pushed.
   setup above if it is unavailable. `-PythonOnly` still supports basic Flask setup.
 - **Wrong Python:** `.python-version` records the supported version; it does not
   install it. Setup refuses a mismatched existing environment rather than deleting it.
+  Preserve the old `.venv` under ignored `.local/venv-backups` before recreating it.
+  Startup and test scripts also reject a mismatched project environment.
 - **Database login fails:** preserve the generated `.env`. Changing its passwords
   does not change an initialized PostgreSQL volume. Do not delete the volume to
   repair credentials; coordinate recovery with the database owner.
