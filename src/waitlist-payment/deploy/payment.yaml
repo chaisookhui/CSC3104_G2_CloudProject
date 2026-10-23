@@ -1,0 +1,63 @@
+# Payment-owned components only. Create payment-config and payment-secrets first;
+# see README for keys. Database/seat-store/admission deployments are owner-managed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: payment-api}
+  template:
+    metadata:
+      labels: {app: payment-api}
+    spec:
+      containers:
+        - name: api
+          image: ticketing-payment:local
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: {name: payment-config}
+            - secretRef: {name: payment-secrets}
+          ports: [{containerPort: 5004}]
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}
+          readinessProbe:
+            httpGet: {path: /ready, port: 5004}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /health, port: 5004}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata: {name: payment-api}
+spec:
+  selector: {app: payment-api}
+  ports: [{port: 5004, targetPort: 5004}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: payment-worker}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: payment-worker}
+  template:
+    metadata:
+      labels: {app: payment-worker}
+    spec:
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: worker
+          image: ticketing-payment:local
+          imagePullPolicy: IfNotPresent
+          command: [python, service.py, worker]
+          envFrom:
+            - configMapRef: {name: payment-config}
+            - secretRef: {name: payment-secrets}
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: '1', memory: 512Mi}

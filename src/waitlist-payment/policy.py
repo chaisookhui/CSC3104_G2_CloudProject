@@ -1,4 +1,7 @@
-"""Pure selection for one sale/section; the worker owns durable execution.
+"""Legacy selection policy retained for compatibility; checkout never calls it.
+
+This is not the current global admission or Demand-Cycle algorithm. Do not wire
+it into rejoining without an explicit agreement with the admission owner.
 
 Entries must already be validated and filtered to eligible waiting requests.
 Initial entries carry batch_order, late/re-entry entries carry arrival_order.

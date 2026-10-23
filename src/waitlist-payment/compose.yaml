@@ -1,0 +1,32 @@
+# Payment-only packaging. Database and seat-store are external dependencies.
+# Run init explicitly: docker compose --profile migration run --rm migrate
+name: csc3104-payment
+x-payment: &payment
+  image: ticketing-payment:local
+  build:
+    context: ../..
+    dockerfile: src/waitlist-payment/Dockerfile
+  environment: &environment
+    PAYMENT_DATABASE_URL: ${PAYMENT_DATABASE_URL:?Configure the payment database URL}
+    SEAT_STORE_URL: ${SEAT_STORE_URL:?Use a URL reachable from inside containers}
+    SEAT_CANCEL_PATH: ${SEAT_CANCEL_PATH:-}
+    PAYMENT_STATUS_URL: ${PAYMENT_STATUS_URL:-}
+    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-}
+services:
+  migrate:
+    <<: *payment
+    profiles: [migration]
+    command: [python, service.py, init-db]
+  api:
+    <<: *payment
+    ports: ['127.0.0.1:5004:5004']
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5004/ready',timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+  worker:
+    <<: *payment
+    command: [python, service.py, worker]
+    restart: unless-stopped
