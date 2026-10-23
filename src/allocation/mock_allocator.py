@@ -33,7 +33,7 @@ app.json.sort_keys = False
 
 DISPATCHER_URL = os.getenv(
     "DISPATCHER_URL",
-    "http://localhost:5003"
+    "http://localhost:5005"
 ).rstrip("/")
 
 lock = RLock()

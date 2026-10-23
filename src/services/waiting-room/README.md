@@ -31,20 +31,45 @@ python3 -m unittest discover -s src/services/waiting-room/tests -v
 
 ## Module boundary
 
-This service stops at assigning and storing global queue positions. It does not
-claim batches, admit requests, rank demand, forward to allocators or record
-allocation outcomes. The dispatcher is owned by a teammate; its handoff contract
-will be agreed during integration. `/batches/claim` and batch completion APIs
-are not provided.
+The dispatcher claims earliest queued requests with `POST /queue/claim` and
+persists allocation outcomes with `POST /queue/outcomes`. These operations are
+atomic and idempotent. Outcome records now include `allocation` with hold_id,
+hold_status, hold_expiry and seat IDs for checkout discovery. Legacy outcomes
+without allocation details remain accepted; discovery can read the allocator batch.
 
-Endpoints: POST `/submit` (alias `/waiting-room`, requires user_id, section and
-party_size), POST `/sale/start`, GET `/requests/<request_id>` (alias
-`/queue/<request_id>`), GET `/status`, GET `/health`, GET `/ready`.
+Local service URLs: DISPATCHER_URL defaults to port 5005, ALLOCATOR_URL to 5002,
+PAYMENT_URL to 5004. Set reachable service DNS in containers. PAYMENT_API_TOKEN,
+if configured, is forwarded to payment. Queue lookup exposes an allocation-stage
+snapshot; checkout refresh is authoritative for subsequent payment/expiry status.
 
-`queued_count` counts requests with assigned positions (QUEUED). This module does
-not decrement it for downstream processing. `waiting_count` and `latecomer_count`
-are registration totals by entry type. Duplicate users retain their existing
-entry; closing entries and rejoining require a future integration contract.
+| Method | Path | Purpose |
+|---|---|---|
+| POST | /submit (alias /waiting-room) | Register user_id, section, party_size |
+| POST | /sale/start | Shuffle once and attempt initial dispatcher trigger |
+| GET | /queue | Queue records for dispatcher |
+| GET | /requests/{id} (alias /queue/{id}) | Registration and allocation snapshot |
+| GET | /requests/{id}/checkout | Discover exact hold, refresh payment/seat-store state |
+| POST | /requests/{id}/cancel | Supply action_key; persist payment cancellation intent |
+| POST | /requests/{id}/rejoin | Supply user_id and optional section/party_size |
+| POST | /queue/claim, /queue/outcomes | Internal dispatcher mutations |
+
+Checkout can discover a RESERVED job while its batch is still running. Missing
+allocation returns 409; unavailable/malformed dependencies return 503 rather than
+pretending a checkout exists. Cancellation is asynchronous: poll checkout or the
+payment cancellation action until terminal. Payment workers must run.
+
+Explicit rejoin is allowed for UNAVAILABLE allocations or authoritative expired/
+cancelled checkouts. Active/confirmed bookings cannot rejoin. It creates one new
+request at the back, preserves the old history, and atomically updates the user's
+active entry. Retrying the old request returns the same successor; changed
+preferences conflict. This is distinct from internal /queue/requeue recovery,
+which retains the original position and must not implement user rejoining.
+
+The dispatcher's periodic worker discovers late arrivals/rejoins and recovers a
+failed sale-start trigger. Run it even when the queue is empty. `queued_count`
+counts currently QUEUED entries, while waiting/latecomer counts are historical
+registration totals. IDs and user_id remain caller supplied, not authenticated
+identities; do not expose these internal APIs as a public authenticated product.
 
 ## Kubernetes / shared storage
 

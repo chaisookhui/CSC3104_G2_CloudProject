@@ -11,6 +11,10 @@ from queue_store import MemoryStore
 
 class QueueTests(unittest.TestCase):
     def setUp(self):
+        # Sale-opening trigger is a network boundary, not a dependency of queue tests.
+        trigger = patch('app.requests.post')
+        trigger.start().return_value.json.return_value = {}
+        self.addCleanup(trigger.stop)
         self.store = MemoryStore()
         self.app = create_app(self.store)
         self.client = self.app.test_client()
@@ -24,7 +28,7 @@ class QueueTests(unittest.TestCase):
         early = [self.submit(i).json for i in range(12)]
         self.assertTrue(all(r['queue_number'] is None for r in early))
         with patch('app.random.SystemRandom.shuffle', side_effect=lambda ids: ids.reverse()) as shuffle:
-            self.client.post('/sale/start')
+            self.assertEqual(self.client.post('/sale/start').status_code, 200)
             assigned = [self.client.get('/requests/' + r['request_id']).json for r in early]
             self.assertEqual([r['queue_number'] for r in assigned], list(range(12, 0, -1)))
             self.assertEqual([r['timestamp'] for r in assigned], [r['timestamp'] for r in early])

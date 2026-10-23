@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent
 
 SEAT_MAPS = {
-    "dev": {"A": 3, "B": 2, "C": 1},
-    "eval": {"A": 20, "B": 10, "C": 5},
+    "dev": {"A": 3, "B": 2, "C": 1, "D": 1},
+    "eval": {"A": 20, "B": 10, "C": 5, "D": 5},
 }
 
 

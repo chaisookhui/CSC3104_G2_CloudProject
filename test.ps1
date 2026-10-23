@@ -10,7 +10,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or $actualVersion -ne $expectedVersion) {
         throw "Recreate the project environment with Python $expectedVersion before testing."
     }
-    & .\.venv\Scripts\python.exe -m pytest tests -q @args
+    & .\.venv\Scripts\python.exe -m pytest tests/test_health.py -q @args
     if ($LASTEXITCODE -ne 0) { throw "Foundation tests failed." }
     if (-not $SmokeOnly) {
         # Separate processes prevent the two existing app.py modules colliding.

@@ -31,7 +31,8 @@ def hold_seats(section, party_size, request_id):
         records = data.get("seats")
         if (data.get("request_id") != request_id or not isinstance(data.get("hold_id"), str)
                 or not data["hold_id"] or data.get("hold_status") not in ("ACTIVE", "CONFIRMED")
-                or not isinstance(data.get("hold_expiry"), str)
+                or (data.get("hold_status") == "ACTIVE" and not isinstance(data.get("hold_expiry"), str))
+                or (data.get("hold_status") == "CONFIRMED" and data.get("hold_expiry") is not None)
                 or not isinstance(records, list) or len(records) != party_size):
             raise SeatStoreError("Incomplete or mismatched SeatStore hold")
         if any(not isinstance(s, dict) or not isinstance(s.get("seat_id"), str)

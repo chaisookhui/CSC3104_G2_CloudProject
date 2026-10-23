@@ -13,6 +13,7 @@ class OutboxDispatcher:
     def __init__(self, database, waitlist_url, timeout=5, sender=None):
         self.db = database
         self.url = waitlist_url.rstrip("/") + "/notify/expired"
+        self.holds_url = waitlist_url.rstrip("/") + "/notify/holds"
         self.timeout = timeout
         self.sender = sender or requests.post
 
@@ -37,7 +38,8 @@ class OutboxDispatcher:
             return False
         delivered = False
         try:
-            response = self.sender(self.url, json=event["payload"], timeout=self.timeout,
+            url = self.holds_url if event["payload"].get("type") else self.url
+            response = self.sender(url, json=event["payload"], timeout=self.timeout,
                                    allow_redirects=False)
             response.raise_for_status()
             body = response.json()

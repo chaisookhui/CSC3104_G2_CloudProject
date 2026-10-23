@@ -79,6 +79,12 @@ spec:
               value: redis://waiting-redis:6379/0
             - name: QUEUE_KEY
               value: ticketing:default:queue
+            - name: DISPATCHER_URL
+              value: http://batch-dispatcher:5005
+            - name: ALLOCATOR_URL
+              value: http://allocation:5002
+            - name: PAYMENT_URL
+              value: http://payment-api:5004
           resources:
             requests:
               cpu: 100m

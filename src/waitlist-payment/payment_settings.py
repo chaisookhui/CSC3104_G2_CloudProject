@@ -14,7 +14,7 @@ def settings():
     result = {
         'database_url': dsn,
         'seat_url': os.getenv('SEAT_STORE_URL', 'http://127.0.0.1:5003').rstrip('/'),
-        'cancel_path': os.getenv('SEAT_CANCEL_PATH', ''),
+        'cancel_path': os.getenv('SEAT_CANCEL_PATH', '/seats/cancel'),
         'status_url': os.getenv('PAYMENT_STATUS_URL', ''),
         'host': os.getenv('PAYMENT_HOST', '127.0.0.1'),
         'port': int(os.getenv('PAYMENT_PORT', '5004')),

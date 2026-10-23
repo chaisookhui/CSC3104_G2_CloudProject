@@ -10,13 +10,16 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 | --- | --- |
 | Root `app.py`, port 5000 | Small Flask application with `/health`. It checks that Flask runs, not the database or the full booking system. |
 | `src/seat-store/`, port 5003 | Existing seat/hold service: PostgreSQL transactions, adjacent holds, confirmation, expiry and retryable expiry callbacks. It has database integration and concurrency tests. |
-| `src/waitlist-payment/`, port 5004 | WY's first slice: durable mock-payment attempts, expiry inbox/recovery and pure waitlist selection. See [WY's README](src/waitlist-payment/README.md) for startup and remaining integration. |
+| `src/waitlist-payment/`, port 5004 | Durable mock checkout/payment, cancellation reconciliation and expiry recovery. |
 | `src/allocation/`, port 5002 | Fixed-batch demand-cycle scheduler, durable job queue and shared allocation workers. Includes dummy dispatcher input; see [allocation setup and integration contract](src/allocation/README.md). |
-| Other `src/` folders | Waiting-room/dispatcher integration remains pending. |
+| `src/services/waiting-room/`, port 5001 | Global queue, atomic claims/outcomes, checkout discovery and explicit rejoin. |
+| `src/batch-dispatcher/`, port 5005 | Persisted batches, idempotent handoff recovery and periodic dispatch. See [dispatcher startup/testing](src/batch-dispatcher/README.md). |
 
-This is not yet an end-to-end booking system. Seat-store's current schema represents
-one inventory, without `sale_id`. Durable intake/allocation progress, complete
-payment/waitlist integration and final service contracts remain owner-led work.
+The service APIs now connect registration, allocation, checkout, cancellation and
+explicit rejoin. Routed integration tests exercise the journey; a deployed frontend,
+full-network acceptance and load evaluation remain outstanding. Seat-store represents
+one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
+for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
 
 ## Windows installation
 
@@ -60,7 +63,7 @@ Setup checks the Python version, installs the pinned runtime and test dependenci
 into the root `.venv`, and checks dependency compatibility. It then uses the
 selected backend to start PostgreSQL, create separate
 `seat_booking` and `seat_booking_test` databases, apply migrations and seed the
-development seats (A/B/C = 30/20/10). The application role is not a superuser.
+development seats (A/B/C/D = 30/20/10/10). The application role is not a superuser.
 Local passwords are generated into the ignored `src/seat-store/.env` file.
 Existing configuration, data volumes and bookings are preserved.
 
@@ -109,8 +112,8 @@ Invoke-RestMethod http://127.0.0.1:5003/health
 
 The first returns `status=ok`; the second also returns `service=seat-store` and
 `storage=postgresql`. These are local development servers. They are not production
-deployment commands. No waitlist service is integrated yet, so expiry callbacks
-remain pending and retry; seat release still works.
+deployment commands. Start the payment API and worker on port 5004 to reconcile callbacks; while
+payment is absent callbacks remain durable and retry, and seat release still works.
 
 Stop an application with Ctrl+C. PostgreSQL stays running and retains its data.
 For Docker, stop only this project's database without deleting it:

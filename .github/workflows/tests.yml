@@ -65,3 +65,11 @@ jobs:
       - name: Run real PostgreSQL integration and concurrency tests
         working-directory: src/seat-store
         run: python -m pytest tests -q
+      - name: Run dispatcher and allocation recovery tests
+        run: python -m pytest src/batch-dispatcher/tests src/allocation/tests -q
+      - name: Run waiting-room contract tests
+        run: python -m unittest discover -s src/services/waiting-room/tests -v
+      - name: Run payment recovery tests
+        run: python -m pytest src/waitlist-payment/tests -q
+      - name: Run five-service PostgreSQL integration tests
+        run: python -m pytest tests/test_booking_integration.py -q

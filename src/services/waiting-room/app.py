@@ -9,9 +9,10 @@ from flask import Flask, jsonify, request
 from werkzeug.exceptions import HTTPException
 from admission_control import AdmissionController
 from queue_store import MemoryStore, RedisStore
+from checkout_routes import install_checkout_routes, validate_allocation
 
 
-def create_app(store=None):
+def create_app(store=None, session=None):
     app = Flask(__name__)
     # Keep curl responses readable even when Flask debug mode is disabled.
     app.json.compact = False
@@ -21,12 +22,14 @@ def create_app(store=None):
         url = os.getenv("REDIS_URL")
         store = RedisStore(url, os.getenv("QUEUE_KEY", "ticketing:default:queue")) if url else MemoryStore()
     app.extensions["queue_store"] = store
+    app.config['MAX_CONTENT_LENGTH'] = 128 * 1024
+    install_checkout_routes(app, store, sections, session or requests)
     controller = AdmissionController(window_seconds=10, low_threshold=20,
                                      high_threshold=50, max_admissions_per_second=5)
     # added by zx
     dispatcher_url = os.getenv(
         "DISPATCHER_URL",
-        "http://localhost:5003"
+        "http://localhost:5005"
     )
     @app.errorhandler(Exception)
     def handle_error(exc):
@@ -78,23 +81,6 @@ def create_app(store=None):
         controller.record_request()  # Local telemetry; never limits registration.
         return jsonify(request_response(party)), code
 
-    # @app.post("/sale/start")
-    # def start_sale():
-    #     def open_sale(state):
-    #         if state["sale_state"] == "pre_sale":
-    #             ids = list(state["requests"])
-    #             random.SystemRandom().shuffle(ids)  # Across ALL sections and sizes.
-    #             for number, rid in enumerate(ids, 1):
-    #                 state["requests"][rid].update(queue_number=number,
-    #                     status="QUEUED")
-    #             state["queue"] = ids
-    #             state["next_number"] = len(ids) + 1
-    #             state["sale_state"] = "sale_started"
-    #         return {"sale_state": state["sale_state"], "initial_count": sum(
-    #             r["entry_type"] == "waiting_room" for r in state["requests"].values()),
-    #             "next_queue_number": state["next_number"]}
-    #     return jsonify(store.update(open_sale))
-
     # changed by zx -- replaced to include start 1st dispatcher upon sale start
     @app.post("/sale/start")
     def start_sale():
@@ -145,7 +131,7 @@ def create_app(store=None):
                 result["dispatcher_triggered"] = True
                 result["dispatcher_response"] = response.json()
 
-            except requests.RequestException as error:
+            except (requests.RequestException, ValueError) as error:
                 app.logger.error(
                     "Dispatcher trigger failed: %s", error
                 )
@@ -411,6 +397,7 @@ def create_app(store=None):
             return jsonify(error="Invalid outcomes"), 400
 
         statuses = {}
+        allocations = {}
         for item in outcomes:
             if not isinstance(item, dict):
                 return jsonify(error="Invalid outcome"), 400
@@ -427,6 +414,13 @@ def create_app(store=None):
                 return jsonify(error="Invalid or duplicate outcome"), 400
 
             statuses[rid] = status
+            if 'allocation' in item:
+                if status != 'RESERVED':
+                    return jsonify(error='Only reserved requests have checkout details'), 400
+                try:
+                    allocations[rid] = validate_allocation(item['allocation'])
+                except ValueError as exc:
+                    return jsonify(error=str(exc)), 400
 
         def apply_outcomes(state):
             # The submitted set must represent the entire batch.
@@ -448,6 +442,10 @@ def create_app(store=None):
             for rid, new_status in statuses.items():
                 party = state["requests"][rid]
 
+                if rid in allocations and (len(allocations[rid]['seats']) != party['party_size']
+                        or any(not seat.startswith(party['section'] + '-') for seat in allocations[rid]['seats'])):
+                    return {'error': 'Checkout seats do not match registered party'}, 409
+
                 claimed = (
                     party["status"] == "ADMITTED"
                     and party.get("batch_id") == batch_id
@@ -462,6 +460,9 @@ def create_app(store=None):
                     return {
                         "error": f"Conflicting outcome for {rid}"
                     }, 409
+                if (rid in allocations and party.get('allocation') is not None
+                        and party['allocation'] != allocations[rid]):
+                    return {'error': 'Conflicting checkout identity'}, 409
 
             for rid, new_status in statuses.items():
                 party = state["requests"][rid]
@@ -470,6 +471,8 @@ def create_app(store=None):
                     party["status"] = new_status
                     party["last_batch_id"] = batch_id
                     party.pop("batch_id", None)
+                if rid in allocations:
+                    party['allocation'] = allocations[rid]
 
             return {
                 "message": "Batch outcomes recorded",

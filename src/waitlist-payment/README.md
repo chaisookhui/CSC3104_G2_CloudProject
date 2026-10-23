@@ -34,29 +34,22 @@ No real charge, refund, external payment provider or financial settlement exists
 
 ## Current integration boundaries
 
-**Seat-store cancellation has NOT been implemented in this change.** Leave
-SEAT_CANCEL_PATH empty until its owner supplies an idempotent endpoint accepting
-`{request_id, hold_id}` and returning the existing hold-result shape with
-`hold_status=CANCELLED` (or the authoritative terminal state that won the race).
-A pending cancellation against an active hold becomes visibly BLOCKED when the
-endpoint is unconfigured or unsupported. No cancellation success or seat release is
-fabricated. After seat-store is upgraded, configure the path and retry the SAME
-blocked work/action; do not create a new offer or payment window.
+Seat-store now provides idempotent POST /seats/cancel accepting the exact
+{request_id, hold_id}. Apply seat-store migration 002 before enabling cancellation.
+SEAT_CANCEL_PATH defaults to /seats/cancel; replace an existing empty local override
+with that path. Retry the SAME blocked action after upgrading; preserve its IDs.
+If confirmation or expiry already won, cancellation returns that terminal state.
 
-Payment does not implement admission's close/rejoin endpoint, assign positions,
-automatically enrol users in a waitlist, or call the legacy policy selector.
-`policy.py` is retained, marked legacy, for owner coordination. A user explicitly
-rejoining needs admission to create one new entry at the back with a new request ID.
-An unavailable allocation can rejoin without any checkout, so admission also owns
-that path. Later checkout cancellation must not rewrite completed batch outcomes.
+Admission now owns GET /requests/{id}/checkout, POST /requests/{id}/cancel and
+POST /requests/{id}/rejoin. RESERVED outcomes carry the hold identity, and admission
+can discover it from allocator results before batch completion. Rejoining is explicit,
+creates a new request at the back and never changes the old allocation outcome.
+Payment does not assign queue positions or call the retained legacy policy selector.
 
-SEAT_STORE_URL retains port 5003 for compatibility. Dispatcher also defaults to
-5003 elsewhere in the repository. Resolve that collision with the owners, then
-configure URLs together; this payment change does not edit their services.
-
-The allocator's confirmed-result null-expiry validation issue, section D inventory,
-request/attempt lookup after a lost hold response, durable admission/dispatcher
-recovery and frontend checkout discovery remain with their respective owners.
+Local ports are seat-store 5003, payment 5004, dispatcher 5005. Section D inventory
+and confirmed-result null-expiry validation are implemented. Durable dispatcher
+recovery is available; admission still requires Redis/PVC for persistence. Full
+external-network, container/cluster and measured-load acceptance remain necessary.
 
 ## Independent local configuration
 
@@ -71,7 +64,7 @@ Required:
 - SEAT_STORE_URL: reachable API base (default http://127.0.0.1:5003).
 
 Optional:
-- SEAT_CANCEL_PATH: empty until the exact-hold cancellation endpoint is ready.
+- SEAT_CANCEL_PATH: /seats/cancel after seat-store migration 002; empty explicitly disables it.
 - PAYMENT_STATUS_URL: terminal checkout event receiver; empty retains unsent events.
 - PAYMENT_HOST / PAYMENT_PORT: 127.0.0.1 / 5004 locally; bind 0.0.0.0 in a container.
 - PAYMENT_HTTP_TIMEOUT / PAYMENT_WORKER_INTERVAL: 5 seconds / 1 second.
@@ -233,8 +226,8 @@ New tests require PAYMENT_TEST_DATABASE_URL (or TEST_DATABASE_URL) naming a dedi
 *_test database. Test-only fixtures may read the existing seat-store local .env for
 that test DSN; runtime does not. Each test creates/drops an isolated schema. They
 use real PostgreSQL persistence and controlled remote holds, plus live HTTP response
-loss and independent worker-process claim tests. Fake cancellation responses model
-the future endpoint; they are NOT proof that current seat-store can cancel.
+loss and independent worker-process claim tests. Unit adapters isolate payment behaviour; the repository integration suite also
+exercises the actual seat-store cancellation API and PostgreSQL transitions.
 
 The existing root CI already exercises seat-store/WY regression tests. Add a separate
 CI command `python -m pytest src/waitlist-payment/tests -q` with its PostgreSQL test DSN
@@ -242,7 +235,7 @@ to include the new suite. This change deliberately leaves teammates' root workfl
 and test runner untouched. Run suites separately to avoid existing generic app/db
 module import collisions.
 
-Remaining end-to-end acceptance: real seat-store cancellation and event contract,
-admission identity/close/rejoin/status receiver, allocator hold handoff/recovery,
-full-network failure tests, container/cluster startup, and measured load/recovery.
+Remaining deployment acceptance: public identity/authorization, optional terminal
+notification consumer, full-network failure tests, container/cluster startup and
+measured load/recovery. Checkout refresh does not depend on a notification consumer.
 The pure legacy waitlist policy is not evidence those flows are implemented.

@@ -271,6 +271,20 @@ class QueueTests(unittest.TestCase):
 
 class ClientTests(unittest.TestCase):
     @patch('src.allocation.seat_client.requests.post')
+    def test_confirmed_hold_retry_accepts_null_expiry(self, post):
+        data = {'success': True, 'request_id': 'r', 'hold_id': 'h', 'hold_status': 'CONFIRMED',
+                'hold_expiry': None, 'seats': [
+                    {'seat_id': 'A-1-1', 'section': 'A', 'row': 1, 'position_in_row': 1,
+                     'state': 'CONFIRMED', 'held_by_request_id': 'r', 'hold_id': 'h'}]}
+        post.return_value = Mock(status_code=200)
+        post.return_value.json.return_value = data
+        self.assertIsNone(hold_seats('A', 1, 'r')['hold_expiry'])
+        data['hold_status'] = 'ACTIVE'
+        data['seats'][0]['state'] = 'HELD'
+        with self.assertRaises(SeatStoreError):
+            hold_seats('A', 1, 'r')
+
+    @patch('src.allocation.seat_client.requests.post')
     def test_invalid_json_shape_and_http_errors(self, post):
         post.return_value = Mock(status_code=200)
         post.return_value.json.return_value = []

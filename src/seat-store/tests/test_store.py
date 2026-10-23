@@ -23,7 +23,7 @@ def count(db, table):
 
 
 def test_dev_map_and_non_destructive_initialization(db, store):
-    assert [len(store.list_seats(s)) for s in "ABC"] == [30, 20, 10]
+    assert [len(store.list_seats(s)) for s in "ABCD"] == [30, 20, 10, 10]
     original = store.hold("A", 4, "retained")
     db.migrate()
     db.seed("dev")
@@ -38,7 +38,7 @@ def test_evaluation_map_uses_same_generator(db):
         conn.execute("TRUNCATE notification_outbox, hold_seats, seats, holds, sections")
     db.seed("eval")
     evaluation = SeatStore(db)
-    assert [len(evaluation.list_seats(s)) for s in "ABC"] == [200, 100, 50]
+    assert [len(evaluation.list_seats(s)) for s in "ABCD"] == [200, 100, 50, 50]
 
 
 def test_leftmost_adjacency_never_crosses_rows(store):
