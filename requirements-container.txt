@@ -1,0 +1,3 @@
+# Container HTTP server; application dependencies stay in requirements.txt.
+-r requirements.txt
+gunicorn==23.0.0

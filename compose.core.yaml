@@ -1,0 +1,87 @@
+# External PostgreSQL: see CONTAINERS.md. No database volume is created or replaced.
+name: csc3104-core
+
+x-seat: &seat
+  image: ticketing-seat-store:local
+  build:
+    context: .
+    dockerfile: src/seat-store/Dockerfile
+  environment:
+    DATABASE_URL: ${CORE_SEAT_DATABASE_URL:?Set CORE_SEAT_DATABASE_URL in deploy/core/.env}
+    SEAT_MAP_TIER: ${SEAT_MAP_TIER:-dev}
+    HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
+    WAITLIST_URL: ${WAITLIST_URL:-http://host.docker.internal:5004}
+  init: true
+
+x-allocation: &allocation
+  image: ticketing-allocation:local
+  build:
+    context: .
+    dockerfile: src/allocation/Dockerfile
+  environment:
+    ALLOCATION_DATABASE_URL: ${CORE_ALLOCATION_DATABASE_URL:?Set CORE_ALLOCATION_DATABASE_URL in deploy/core/.env}
+    SEAT_STORE_URL: http://seat-api:5003
+    ALLOCATION_SECTIONS: A,B,C,D
+    DISPATCHER_COMPLETION_URL: ${DISPATCHER_COMPLETION_URL:-}
+  init: true
+
+services:
+  seat-init:
+    <<: *seat
+    command: [python, manage.py, init-db]
+    restart: "no"
+
+  allocation-init:
+    <<: *allocation
+    command: [python, app.py, init-db]
+    restart: "no"
+
+  seat-api:
+    <<: *seat
+    depends_on:
+      seat-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:5003:5003"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  seat-worker:
+    <<: *seat
+    command: [python, manage.py, worker]
+    depends_on:
+      seat-init:
+        condition: service_completed_successfully
+    stop_grace_period: 45s
+    restart: unless-stopped
+
+  allocation-api:
+    <<: *allocation
+    depends_on:
+      allocation-init:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:5002:5002"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  allocation-worker:
+    <<: *allocation
+    command: [python, worker.py]
+    depends_on:
+      allocation-init:
+        condition: service_completed_successfully
+      seat-api:
+        condition: service_healthy
+    stop_grace_period: 45s
+    restart: unless-stopped

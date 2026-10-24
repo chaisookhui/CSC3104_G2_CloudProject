@@ -1,5 +1,8 @@
 # Module 3 - Seat/Hold State Store
 
+For Docker API/worker setup with PostgreSQL and allocation, see the
+[core container guide](../../CONTAINERS.md).
+
 This Flask service is the only writer of seat ownership. Module 2 decides which
 request gets a turn; this service chooses the leftmost adjacent block and commits
 the entire party together. Module 4 owns payments, waitlist policy and reoffers.

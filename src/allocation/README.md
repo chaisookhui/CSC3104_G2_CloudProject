@@ -1,5 +1,8 @@
 # Demand-cycle scheduler and allocation workers (sections 5 and 7)
 
+For Docker API/worker setup with PostgreSQL and seat-store, see the
+[core container guide](../../CONTAINERS.md).
+
 The dispatcher supplies a **fixed snapshot of up to 100 requests**, plus its party
 counts per section. This module validates the counts, ranks party sizes, persists
 jobs, and lets identical general-purpose workers reserve seats through SeatStore.
