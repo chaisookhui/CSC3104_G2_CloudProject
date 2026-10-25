@@ -1,10 +1,11 @@
-# Demand-cycle scheduler and allocation workers (sections 5 and 7)
+# Demand-cycle scheduler and allocation workers
 
 For Docker API/worker setup with PostgreSQL and seat-store, see the
 [core container guide](../../CONTAINERS.md).
 
-The dispatcher supplies a **fixed snapshot of up to 100 requests**, plus its party
-counts per section. This module validates the counts, ranks party sizes, persists
+The batch dispatcher sends a **fixed batch of up to 50 requests** (its `BATCH_SIZE`
+default; this API rejects more than 100), plus its party counts for each section
+A to D. This module validates the counts, ranks party sizes, persists
 jobs, and lets identical general-purpose workers reserve seats through SeatStore.
 It does not select global admission entries or recalculate a sliding window.
 
@@ -14,11 +15,10 @@ This implements the clarified role agreement: repeating demand cycles, sequentia
 allocation within each section, and shared workers across sections.
 
 - Rank **number of parties**, descending; smaller party size wins equal counts.
-- Preserve original `global_position` order within each party size. The screenshot's
-  within-size shuffle is replaced by the newer PDF's global-position rule.
+- Preserve original `global_position` order within each party size.
 - Dispatch one party per size per cycle: e.g. `4,2,3,1,4,2,3,1,...`.
 - Skip exhausted size groups. Rank again only for the next fixed batch.
-- Workers rotate between nonempty section queues (`A,B,C,...`), skipping empty ones.
+- Workers rotate between nonempty section queues (`A,B,C,D`), skipping empty ones.
   A busy section is skipped until its current party has a saved outcome. There is
   **only one active party per section**; workers are not permanently assigned.
 - Every request gets its own SeatStore attempt. A no-fit party does not stop other sizes.
@@ -34,9 +34,6 @@ the leftmost fitting same-row block. The cycle does not restart at row boundarie
 New batches recalculate demand, preserve occupied seats and can fill earlier gaps.
 A party that cannot fit in an earlier row is placed in a later fitting row.
 
-The original architecture PDF allowed parallel parties in one section and grouped
-size-by-size dispatch. This clarified role agreement supersedes those policies.
-
 ## Files and responsibilities
 
 | File | Responsibility |
@@ -47,12 +44,12 @@ size-by-size dispatch. This clarified role agreement supersedes those policies.
 | `worker.py` | Claim an eligible section's next job, call SeatStore, deliver completion events |
 | `dispatcher_client.py` | Retry batch-completion HTTP notifications with a stable event ID |
 | `seat_client.py` | HTTP hold adapter, response validation, hold ID/expiry preservation |
-| `demo_dispatcher.py` | Dummy snapshots with calculated counts, replacing the pending dispatcher handoff |
+| `demo_dispatcher.py` | Sample batches with calculated counts, for the unit tests and manual local demos |
+| `mock_allocator.py` | Test-only stand-in for this API (no workers or SeatStore) used to test the waiting room and dispatcher flow |
 | `tests/test_allocation.py` | Policy, validation, queue concurrency/recovery, API and client tests |
 
-`waitlist_client.py` is retained as legacy code but is no longer called. Unavailable
-requests are returned as allocation outcomes; exit/rejoin-at-back belongs to the
-admission owner. There is no automatic priority-preserving waitlist enrollment.
+An UNAVAILABLE request is returned to the dispatcher as an outcome and ends there.
+This module does not add it to any waitlist.
 
 ## Dispatcher contract
 
@@ -105,7 +102,8 @@ URL configured in `DISPATCHER_COMPLETION_URL`:
 
 The dispatcher should persist/deduplicate `event_id` (also sent in the
 `Idempotency-Key` header), then respond with HTTP 2xx. It may admit the next batch
-without waiting for payment. No callback path is assumed until owner integration.
+without waiting for payment. The batch dispatcher receives it at
+`POST /allocator/status` (port 5005), the value in `.env.example`.
 Unset URL: the event remains pending; polling `complete` still works.
 
 Delivery is **at least once**: network failure, non-2xx responses or a worker crash
@@ -218,21 +216,20 @@ the same request ID. Do not delete a blocked job or fabricate no-seat results to
 advance the batch. Reconciliation/cancellation tooling and durable historical
 request lookup need owner integration before unattended deployment.
 
-## Remaining owner integration
+## Integration with other modules
 
-- Dispatcher: send real snapshots/counts and accept/deduplicate the completion
-  event (or poll `complete`) before admitting the next batch. It owns durable global admission positions and entry eligibility.
-- SeatStore: current API supports **A/B/C**, so that is the default accepted set.
-  Configure `ALLOCATION_SECTIONS=A,B,C,D` only after the owner adds D inventory.
-- SeatStore currently implements **leftmost adjacent seats**, matching your sketch;
-  the PDF's best-fit fragmentation heuristic is a separate inventory-owner change.
-  Workers delegate selection atomically rather than doing unsafe GET-then-update.
-- SeatStore remains PostgreSQL, not the PDF's MySQL. No inventory schema or payment
-  behaviour was changed by this allocation work. One inventory/event is assumed.
-- Payment/admission: consume exact hold IDs and unavailable outcomes, implement
-  decline/rejoin/cancellation and uncertain-expired-hold reconciliation.
-- Docker/Kubernetes: package this worker command once and replicate it with shared
-  database/service addresses. Deployment replicas/HPA settings are future work.
+- Batch dispatcher: sends batches of up to 50 requests with their counts, polls
+  `complete` and receives the completion event before admitting the next batch.
+  It owns global queue positions and entry eligibility.
+- SeatStore: serves sections **A to D** (`ALLOCATION_SECTIONS=A,B,C,D`) and holds
+  the **leftmost adjacent block in the earliest fitting row**. Workers delegate
+  selection atomically rather than doing unsafe GET-then-update.
+- SeatStore and this queue both use PostgreSQL. This module does not change the
+  inventory schema or payment behaviour. One inventory/event is assumed.
+- Payment: uses the exact hold ID from a RESERVED result. Uncertain expired-hold
+  reconciliation (BLOCKED jobs) still needs manual handling.
+- Docker/Kubernetes: the worker runs as one container image in compose. Kubernetes
+  replicas/HPA settings are still to be added.
 - Before deployment, run real PostgreSQL queue tests, integrated SeatStore
   contention tests, and Pod termination/recovery tests. Local queue tests alone
   cannot establish zero double booking for the whole distributed system.

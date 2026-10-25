@@ -28,7 +28,7 @@ def prepare_batch(payload, sections=SECTIONS):
         if not isinstance(rid, str) or not rid.strip() or len(rid) > 128 or rid in ids:
             raise ValueError("request_id must be unique and contain 1 to 128 characters")
         if party["section"] not in sections:
-            raise ValueError("Unsupported section (current SeatStore defaults to A/B/C)")
+            raise ValueError("section must be one of " + ", ".join(sections))
         if type(party["party_size"]) is not int or party["party_size"] not in range(1, 5):
             raise ValueError("party_size must be an integer from 1 to 4")
         pos = party["global_position"]
