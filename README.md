@@ -12,11 +12,12 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 | `src/seat-store/`, port 5003 | Existing seat/hold service: PostgreSQL transactions, adjacent holds, confirmation, expiry and retryable expiry callbacks. It has database integration and concurrency tests. |
 | `src/waitlist-payment/`, port 5004 | Durable mock checkout/payment, cancellation reconciliation and expiry recovery. |
 | `src/allocation/`, port 5002 | Fixed-batch demand-cycle scheduler, durable job queue and shared allocation workers. Includes dummy dispatcher input; see [allocation setup and integration contract](src/allocation/README.md). |
-| `src/services/waiting-room/`, port 5001 | Global queue, atomic claims/outcomes, checkout discovery and explicit rejoin. |
+| `src/services/waiting-room/`, port 5001 | Global queue, atomic claims/outcomes, checkout discovery and cancellation. |
 | `src/batch-dispatcher/`, port 5005 | Persisted batches, idempotent handoff recovery and periodic dispatch. See [dispatcher startup/testing](src/batch-dispatcher/README.md). |
 
-The service APIs now connect registration, allocation, checkout, cancellation and
-explicit rejoin. Routed integration tests exercise the journey; a deployed frontend,
+The service APIs now connect registration, allocation, checkout and cancellation.
+UNAVAILABLE, expired and cancelled requests are exit points; there is no rejoin or
+waitlist. Routed integration tests exercise the journey; a deployed frontend,
 full-network acceptance and load evaluation remain outstanding. Seat-store represents
 one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
 for distributed allocator/dispatcher workers; memory/SQLite modes are local only.

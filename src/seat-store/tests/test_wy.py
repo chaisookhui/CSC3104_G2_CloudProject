@@ -9,7 +9,6 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'waitlist-payment'))
 from lifecycle import Conflict, Lifecycle
-from policy import select_next
 from service import create_app as wy_app
 
 
@@ -92,18 +91,6 @@ def test_timeout_stays_pending_and_prevents_second_attempt(wy, store):
     assert wy.reconcile(payment['payment_id'])['status'] == 'pending'
     with pytest.raises(Conflict):
         wy.start_payment('timeout', hold['hold_id'], 'success', 'two')
-
-
-def test_waitlist_policy():
-    initial = [{'request_id': 'small', 'party_size': 1, 'batch_order': 1},
-               {'request_id': 'later', 'party_size': 4, 'batch_order': 2},
-               {'request_id': 'large', 'party_size': 4, 'batch_order': 1}]
-    late = [{'request_id': 'old', 'party_size': 4, 'arrival_order': 1},
-            {'request_id': 'young', 'party_size': 1, 'arrival_order': 2}]
-    assert select_next(initial, late, {1, 4})['request_id'] == 'large'
-    assert select_next(initial, late, {1})['request_id'] == 'small'
-    assert select_next([], late, {1}) is None
-    assert select_next([], late, {4})['request_id'] == 'old'
 
 
 def test_confirmation_loses_race_after_active_lookup(wy, store, make_due, monkeypatch):

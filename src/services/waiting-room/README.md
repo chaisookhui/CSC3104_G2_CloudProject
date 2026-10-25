@@ -50,7 +50,6 @@ snapshot; checkout refresh is authoritative for subsequent payment/expiry status
 | GET | /requests/{id} (alias /queue/{id}) | Registration and allocation snapshot |
 | GET | /requests/{id}/checkout | Discover exact hold, refresh payment/seat-store state |
 | POST | /requests/{id}/cancel | Supply action_key; persist payment cancellation intent |
-| POST | /requests/{id}/rejoin | Supply user_id and optional section/party_size |
 | POST | /queue/claim, /queue/outcomes | Internal dispatcher mutations |
 
 Checkout can discover a RESERVED job while its batch is still running. Missing
@@ -58,14 +57,12 @@ allocation returns 409; unavailable/malformed dependencies return 503 rather tha
 pretending a checkout exists. Cancellation is asynchronous: poll checkout or the
 payment cancellation action until terminal. Payment workers must run.
 
-Explicit rejoin is allowed for UNAVAILABLE allocations or authoritative expired/
-cancelled checkouts. Active/confirmed bookings cannot rejoin. It creates one new
-request at the back, preserves the old history, and atomically updates the user's
-active entry. Retrying the old request returns the same successor; changed
-preferences conflict. This is distinct from internal /queue/requeue recovery,
-which retains the original position and must not implement user rejoining.
+UNAVAILABLE allocations and expired or cancelled checkouts are exit points. There
+is no rejoin or waitlist: submitting again with the same user_id returns the
+finished entry. Internal /queue/requeue recovery only retries a dispatcher handoff
+and keeps the original queue position.
 
-The dispatcher's periodic worker discovers late arrivals/rejoins and recovers a
+The dispatcher's periodic worker discovers late arrivals and recovers a
 failed sale-start trigger. Run it even when the queue is empty. `queued_count`
 counts currently QUEUED entries, while waiting/latecomer counts are historical
 registration totals. IDs and user_id remain caller supplied, not authenticated

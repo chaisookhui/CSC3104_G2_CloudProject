@@ -114,7 +114,7 @@ class SeatStore:
             same = next((h for h in previous if h["attempt_key"] == attempt_key), None)
             if same:
                 if same["status"] == "CANCELLED":
-                    raise StoreError("hold_cancelled", "This attempt was cancelled; rejoin with a new request ID")
+                    raise StoreError("hold_cancelled", "This attempt was cancelled and cannot be reused")
                 if same["status"] == "EXPIRED" or (same["status"] == "ACTIVE" and
                         conn.execute("SELECT clock_timestamp() >= %s AS overdue",
                                      (same["hold_expiry"],)).fetchone()["overdue"]):

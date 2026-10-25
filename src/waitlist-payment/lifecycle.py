@@ -333,7 +333,7 @@ class Lifecycle:
                 'original_hold_expiry': row['original_expiry'],
                 'payment_attempts': attempts, 'cancellation': dict(action, recovery=work) if action else None,
                 'can_pay': eligible and not action and not any(a['attempt_status']=='pending' for a in attempts),
-                'can_cancel': eligible and not action, 'rejoin_owner': 'admission',
+                'can_cancel': eligible and not action,
                 'observed_at': row['updated_at'], 'source': 'seat-store' if refresh else 'cached'}
 
     def payment(self, payment_id):

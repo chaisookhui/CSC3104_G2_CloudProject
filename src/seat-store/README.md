@@ -309,5 +309,5 @@ locks as confirmation and expiry, releases the whole active party atomically, an
 commits a hold.cancelled notification in the same transaction. Retries return the
 historical result without releasing seats reused by another booking. Confirmation
 that already won is returned intact. An elapsed active hold expires instead. A
-cancelled request cannot be silently reused; admission rejoin creates a new ID.
+cancelled request cannot be reused; it is an exit point.
 Cancellation events use /notify/holds; legacy expiry events retain /notify/expired.

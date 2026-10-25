@@ -19,7 +19,7 @@ This starts the API and a one-second recovery polling thread. For WSGI use the
 
 At least one worker must run. `/ready` proves storage access, not worker progress.
 Watch current state, attempts and last_error through `/status`. The worker polls
-even when idle: late registrations and rejoins do not depend on a successful
+even when idle: late registrations do not depend on a successful
 sale-start trigger or allocation callback. No recursive Flask test-client calls
 are used in production.
 

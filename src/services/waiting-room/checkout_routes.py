@@ -1,10 +1,10 @@
-"""Exact-hold checkout discovery and explicit, idempotent rejoining.
+"""Exact-hold checkout discovery and cancellation.
 
 These remain trusted prototype APIs: a supplied user_id is not authentication.
 """
 import os
 from datetime import datetime, timezone
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from flask import jsonify, request
 from werkzeug.exceptions import BadRequest, Conflict, NotFound, ServiceUnavailable
@@ -107,60 +107,4 @@ def install_checkout_routes(app, store, sections, http):
         allocation = allocation_for(party)
         result, code = call('POST', payment_url + '/checkouts/cancel', payment=True, json={
             'request_id': rid, 'hold_id': allocation['hold_id'], 'action_key': data['action_key']})
-        return jsonify(result), code
-
-    @app.post('/requests/<rid>/rejoin')
-    def rejoin(rid):
-        data = request.get_json(silent=True)
-        if not isinstance(data, dict) or set(data) - {'user_id', 'section', 'party_size'}:
-            raise BadRequest('Supply user_id and optional section/party_size')
-        old = party_for(rid)
-        if data.get('user_id') != old['user_id']:
-            raise NotFound('Request does not belong to supplied user')
-        section, size = data.get('section', old['section']), data.get('party_size', old['party_size'])
-        if not isinstance(section, str) or section not in sections or type(size) is not int or not 1 <= size <= 4:
-            raise BadRequest('Invalid section or party size')
-
-        def existing(state):
-            current = state['requests'][rid]
-            successor = current.get('rejoin_request_id')
-            if successor:
-                party = state['requests'][successor]
-                if party['section'] != section or party['party_size'] != size:
-                    raise Conflict('Rejoin was already accepted with different preferences')
-                return party
-            return None
-
-        previous = existing(store.read())
-        if previous:
-            return jsonify(previous), 200
-        if old['status'] == 'RESERVED':
-            checkout = refreshed_checkout(old)
-            if checkout['booking_status'] not in ('expired', 'cancelled'):
-                raise Conflict('Only expired or cancelled checkouts can rejoin')
-        elif old['status'] != 'UNAVAILABLE':
-            raise Conflict('Request is still active or has no terminal allocation outcome')
-        new_id = str(uuid4())
-
-        def append(state):
-            previous = existing(state)
-            if previous:
-                return previous, 200
-            current = state['requests'][rid]
-            if (state['sale_state'] != 'sale_started' or current['status'] != old['status']
-                    or state['users'].get(old['user_id']) != rid
-                    or current.get('allocation') != old.get('allocation')):
-                raise Conflict('Registration changed; refresh before rejoining')
-            party = {'request_id': new_id, 'user_id': old['user_id'], 'section': section,
-                     'party_size': size, 'timestamp': datetime.now(timezone.utc).isoformat(),
-                     'entry_type': 'latecomer', 'queue_number': state['next_number'],
-                     'status': 'QUEUED', 'previous_request_id': rid}
-            state['next_number'] += 1
-            state['requests'][new_id] = party
-            state['users'][old['user_id']] = new_id
-            state['queue'].append(new_id)
-            current['rejoin_request_id'] = new_id
-            return party, 201
-
-        result, code = store.update(append)
         return jsonify(result), code

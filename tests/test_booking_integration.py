@@ -124,10 +124,9 @@ def test_checkout_discovered_before_batch_sync_and_confirmed(system):
     lifecycle.reconcile(pay.json['payment_id'])
     assert client.get('/requests/' + rid + '/checkout').json['booking_status'] == 'confirmed'
     assert hold_seats('D', 2, rid)['hold_expiry'] is None
-    assert client.post('/requests/' + rid + '/rejoin', json={'user_id': 'user'}).status_code == 409
 
 
-def test_cancel_lost_response_then_explicit_rejoin_at_back(system):
+def test_cancel_lost_response_recovers_and_exits(system):
     net, db, seats, lifecycle, queue, jobs, state = system
     client, entry, dispatcher = allocate(system)
     dispatcher.tick()
@@ -143,32 +142,22 @@ def test_cancel_lost_response_then_explicit_rejoin_at_back(system):
         lifecycle.reconcile_cancel(cancel.json['action_id'])
     lifecycle.reconcile_cancel(cancel.json['action_id'])
     assert client.get(path + '/checkout').json['booking_status'] == 'cancelled'
-    later = client.post('/submit', json={'user_id': 'later', 'section': 'A', 'party_size': 1}).json
-    rejoin = client.post(path + '/rejoin', json={'user_id': 'user'})
-    assert rejoin.status_code == 201
-    assert rejoin.json['request_id'] != rid
-    assert rejoin.json['queue_number'] > later['queue_number']
-    assert client.post(path + '/rejoin', json={'user_id': 'user'}).json == rejoin.json
-    assert client.post(path + '/rejoin', json={'user_id': 'user', 'section': 'B'}).status_code == 409
-    assert client.post('/submit', json={'user_id': 'user', 'section': 'D', 'party_size': 2}).json['request_id'] == rejoin.json['request_id']
-    # Empty queue polling also discovers late/rejoined users, without a callback.
-    dispatcher.tick()
-    assert state.read()['active']['batch_id'] != state.read()['history'][0]['batch_id']
-    assert rejoin.json['request_id'] in {j['request_id'] for j in state.read()['active']['allocator_input']['requests']}
+    # Cancelling is an exit point: registering again returns the finished entry.
+    assert client.post('/submit', json={'user_id': 'user', 'section': 'D', 'party_size': 2}).json['request_id'] == rid
 
 
-def test_expired_and_unavailable_requests_rejoin_but_active_cannot(system):
+def test_expired_and_unavailable_requests_exit(system):
     net, db, seats, lifecycle, queue, jobs, state = system
     client, entry, dispatcher = allocate(system)
     dispatcher.tick()
     path = '/requests/' + entry['request_id']
-    assert client.post(path + '/rejoin', json={'user_id': 'user'}).status_code == 409
     held = client.get(path + '/checkout').json
     with db.connect() as conn:
         conn.execute("UPDATE holds SET hold_expiry=clock_timestamp()-INTERVAL '1 second' WHERE hold_id=%s", (held['hold_id'],))
     seats.expire_due()
-    assert client.post(path + '/rejoin', json={'user_id': 'user'}).status_code == 201
-    # Exhaust C and process the next fixed batch, including the rejoined request.
+    assert client.get(path + '/checkout').json['booking_status'] == 'expired'
+    assert client.post('/submit', json={'user_id': 'user', 'section': 'D', 'party_size': 2}).json['request_id'] == entry['request_id']
+    # A request with no fitting block in its section ends as UNAVAILABLE.
     for i, size in enumerate((4, 4, 2)):
         seats.hold('C', size, 'fill-' + str(i))
     failed = client.post('/submit', json={'user_id': 'no-fit', 'section': 'C', 'party_size': 1}).json
@@ -178,7 +167,7 @@ def test_expired_and_unavailable_requests_rejoin_but_active_cannot(system):
     dispatcher.tick()
     rid = failed['request_id']
     assert client.get('/requests/' + rid).json['status'] == 'UNAVAILABLE'
-    assert client.post('/requests/' + rid + '/rejoin', json={'user_id': 'no-fit', 'section': 'A'}).status_code == 201
+    assert client.post('/submit', json={'user_id': 'no-fit', 'section': 'A', 'party_size': 1}).json['request_id'] == rid
 
 
 def test_dispatcher_postgres_restart_after_accepted_submission(system):

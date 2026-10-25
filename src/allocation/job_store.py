@@ -99,7 +99,7 @@ class JobStore:
                 raise Conflict("Previous fixed batch is unfinished; retries/BLOCKED jobs also block admission")
             for job in jobs:
                 if execute("SELECT 1 FROM allocation_jobs WHERE request_id=?", (job["request_id"],)).fetchone():
-                    raise Conflict("request_id already belongs to an earlier batch; rejoin needs a new ID")
+                    raise Conflict("request_id already belongs to an earlier batch; each request ID is used once")
             execute("INSERT INTO allocation_batches VALUES (?,?,?)", (payload["batch_id"], snapshot, json.dumps(orders)))
             execute("UPDATE allocation_scheduler SET last_section='' WHERE id=1")
             for job in jobs:

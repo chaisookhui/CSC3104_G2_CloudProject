@@ -6,7 +6,7 @@ batch-0001 or reset durable state to recover a timeout.
 
 Run the regression and five-service PostgreSQL integration commands in that README.
 The suite covers checkout discovery before batch completion, payment confirmation,
-cancellation after response loss, explicit rejoin at the back, Section D and
+cancellation after response loss, expired/unavailable exit points, Section D and
 PostgreSQL dispatcher restart after accepted submission. Dispatcher unit tests cover
 lost claim/submission/outcome replies, lease fencing and duplicate event receipts.
 
@@ -16,8 +16,8 @@ API/worker. Configure shared persistent storage and reachable service URLs. Subm
 {user_id,section,party_size} to waiting-room /submit, POST /sale/start, poll
 /requests/{request_id}/checkout, then use its exact hold_id for POST payment /payments.
 For cancellation POST waiting-room /requests/{request_id}/cancel with {action_key},
-poll checkout until cancelled, then POST /requests/{request_id}/rejoin with {user_id}.
-Retrying the old rejoin must return the same successor and queue position.
+poll checkout until cancelled. A cancelled, expired or UNAVAILABLE request ends
+there: submitting again with the same user_id returns that finished entry.
 
 Restart dispatcher while a batch is active; verify the same batch ID completes.
 Let the queue empty, submit another user and verify periodic dispatch starts without

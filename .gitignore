@@ -17,7 +17,8 @@ venv/
 
 # Temporary Module 2 integration mocks
 /src/allocation/mock_seat_store.py
-/src/allocation/mock_waitlist.py# Local development runtimes, database data, installers, and logs
+
+# Local development runtimes, database data, installers, and logs
 .local/
 
 # Python virtual environments and bytecode caches

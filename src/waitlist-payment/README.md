@@ -2,7 +2,8 @@
 
 This service owns mock payment attempts, checkout projections, cancellation intents,
 recovery jobs and incoming/outgoing event delivery. Seat-store remains the only
-seat/hold writer. Admission owns queue positions, close/rejoin and preference changes.
+seat/hold writer. Admission owns queue positions. An expired or cancelled checkout
+is an exit point; there is no rejoin or waitlist.
 No real charge, refund, external payment provider or financial settlement exists.
 
 ## Implemented behaviour
@@ -40,11 +41,9 @@ SEAT_CANCEL_PATH defaults to /seats/cancel; replace an existing empty local over
 with that path. Retry the SAME blocked action after upgrading; preserve its IDs.
 If confirmation or expiry already won, cancellation returns that terminal state.
 
-Admission now owns GET /requests/{id}/checkout, POST /requests/{id}/cancel and
-POST /requests/{id}/rejoin. RESERVED outcomes carry the hold identity, and admission
-can discover it from allocator results before batch completion. Rejoining is explicit,
-creates a new request at the back and never changes the old allocation outcome.
-Payment does not assign queue positions or call the retained legacy policy selector.
+Admission owns GET /requests/{id}/checkout and POST /requests/{id}/cancel. RESERVED
+outcomes carry the hold identity, and admission can discover it from allocator
+results before batch completion. Payment does not assign queue positions.
 
 Local ports are seat-store 5003, payment 5004, dispatcher 5005. Section D inventory
 and confirmed-result null-expiry validation are implemented. Durable dispatcher
