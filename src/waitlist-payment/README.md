@@ -6,6 +6,9 @@ seat/hold writer. Admission owns queue positions. An expired or cancelled checko
 is an exit point; there is no rejoin or waitlist.
 No real charge, refund, external payment provider or financial settlement exists.
 
+See [reliability coverage and operating guide](RELIABILITY.md) for the eight-area
+review, optional scoped customer access, metrics, audit records and deployment limits.
+
 ## Implemented behaviour
 
 - Existing POST /payments and GET /payments/{id} wire shapes remain supported.
@@ -67,10 +70,14 @@ Optional:
 - PAYMENT_STATUS_URL: terminal checkout event receiver; empty retains unsent events.
 - PAYMENT_HOST / PAYMENT_PORT: 127.0.0.1 / 5004 locally; bind 0.0.0.0 in a container.
 - PAYMENT_HTTP_TIMEOUT / PAYMENT_WORKER_INTERVAL: 5 seconds / 1 second.
-- PAYMENT_API_TOKEN: optional internal Bearer credential on all business endpoints.
-  Existing seat-store expiry sender does not attach this credential. Coordinate its
-  caller before enabling. This token does not establish user ownership; an exposed
+- PAYMENT_API_TOKEN: internal Bearer credential on all business endpoints. Set the
+  SAME value in waiting-room and seat-store (including its expiry/callback workers).
+  Compose/Kubernetes require PAYMENT_REQUIRE_AUTH=true and a token of at least 32
+  characters; local loopback development may leave authentication disabled.
+  This token does not establish user ownership; an exposed
   frontend/gateway must authenticate users and authorize their request/hold IDs.
+  The optional payment-owned customer facade now enforces reservation-scoped signed
+  grants; it does not replace the trusted login/gateway that assigns those grants.
 
 From the repository root, in separate terminals:
 
@@ -101,6 +108,11 @@ requests/crashes; exact-hold idempotency and monotone projections preserve effec
 | POST | /notify/holds | Version 1 hold.expired / hold.cancelled / hold.confirmed events |
 | GET | /health | Process liveness; no DB/dependency probe |
 | GET | /ready | Payment schema/storage readiness and work counts; not proof of worker liveness |
+| GET | /metrics | Internal authenticated Prometheus HTTP/backlog/recovery/heartbeat metrics |
+| GET | /customer/checkout | Optional signed-grant checkout; derives IDs from the grant |
+| POST | /customer/payments | Optional signed-grant payment; accepts attempt_key only |
+| POST | /customer/cancel | Optional signed-grant cancellation; accepts action_key only |
+| GET | /customer/payments/{id}, /customer/cancellations/{id} | Own-resource status only |
 
 Errors are JSON: 400 invalid input, 401 missing internal credential when enabled,
 404 missing resource/hold ownership, 409 conflicting action/key or closed checkout,
@@ -143,7 +155,8 @@ The receiver must acknowledge with HTTP 2xx only after durable acceptance. Blank
 leaves events pending. These notifications are a proposed integration contract;
 no consumer endpoint has been invented or enabled in teammates' services.
 
-Transient failures back off up to 300 seconds and become BLOCKED after 10 failures.
+Transient failures use capped exponential backoff with equal jitter (half to the
+current ceiling, maximum 300 seconds) and become BLOCKED after 10 failures.
 Unsupported cancellation and permanently invalid events block visibly immediately.
 Pending authoritative results are rechecked after 5 seconds; unconfigured outgoing
 notifications after 30 seconds. Independent jobs continue. Inspect and retry:
@@ -158,7 +171,8 @@ be reset; intent IDs and remote idempotency identity never change. Worker handle
 SIGINT/SIGTERM and finishes its current bounded call before exiting. A crash leaves
 an abandoned lease reclaimable after 30 seconds. Work timestamps/errors/counts aid
 monitoring; API /ready alone cannot establish worker progress. Watch oldest pending
-work/last updates and blocked counts externally.
+work/last updates and blocked counts externally. `/metrics` and the `monitor` CLI
+now expose shared backlog/heartbeat observations plus per-process HTTP counters.
 
 ## Migration and permissions
 
@@ -190,8 +204,12 @@ docker build -f src/waitlist-payment/Dockerfile -t ticketing-payment:local .
 ```
 
 The image copies explicit runtime files, not .env, tests or teammates' code. API and
-worker use the same image with different commands. The development Flask server is
-used for this bounded prototype; it is not a measured production serving setup.
+worker use the same image with different commands. `serve` runs Waitress on Windows
+and Linux, with 8 request threads, 100 connections, backlog 100, a 30-second idle
+timeout, and 16 KiB body/header limits. PAYMENT_HTTP_THREADS and
+PAYMENT_HTTP_CONNECTION_LIMIT configure the first two bounds. Untrusted forwarded
+headers are not enabled. Use a TLS gateway and restricted internal network before
+exposing the system; this API accepts caller-selected MOCK outcomes.
 
 Payment-only Compose uses an EXTERNAL database and seat-store:
 
@@ -206,12 +224,51 @@ host.docker.internal for host-based local services, or service DNS in Kubernetes
 
 For deploy/payment.yaml, build/load the image, create ConfigMap payment-config with
 SEAT_STORE_URL and PAYMENT_HOST=0.0.0.0 (and optional cancellation/status URL keys),
-and Secret payment-secrets with PAYMENT_DATABASE_URL (and optional PAYMENT_API_TOKEN).
+and Secret payment-secrets with PAYMENT_DATABASE_URL and PAYMENT_API_TOKEN (32+ chars).
 Run `python service.py init-db` once in a migration Job using those same references
 before starting workloads. The manifest contains only payment API/worker/service;
 database storage/HA, seat-store and admission are outside this change. Worker replicas
 are configurable and do not each get private storage. No actual cluster deployment,
 image build or scaling performance is implied by these files.
+
+## Bounded load and shared rate limits
+
+Run `init-db` before upgrading APIs: migration 003 adds wy_rate_limits. Include this
+table in runtime SELECT/INSERT/UPDATE grants. API startup does not apply migrations.
+No existing attempt, hold or booking is deleted by this migration. Migration 004
+adds audit records, worker heartbeat storage and a pending-attempt index; apply
+both before starting this version.
+
+Payment connections use a lazy per-process psycopg pool. Defaults are a maximum of
+8 connections, 16 queued acquisition requests and a 3-second acquisition timeout
+(PAYMENT_DB_POOL_SIZE, PAYMENT_DB_POOL_WAITING, PAYMENT_DB_POOL_TIMEOUT). Overload
+returns HTTP 503 with Retry-After instead of an unbounded wait. Pool transactions
+commit/rollback before reuse. Budget the SUM of every process/Pod's pool against
+the database connection limit; extra replicas do not provide unlimited capacity.
+
+All API replicas share three service-wide PostgreSQL fixed-window quotas: reads,
+writes and incoming callbacks. Each defaults to 600 requests per 60 seconds. Set
+PAYMENT_RATE_LIMIT and PAYMENT_RATE_WINDOW_SECONDS identically in all API replicas.
+Authentication runs first. Quotas use database time and atomic mutations, never
+caller-supplied IP/forwarded headers. Exhaustion returns 429 with Retry-After; a
+storage failure fails closed with 503. Probes bypass rate limits, and separate
+callback quota prevents ordinary checkout traffic consuming callback capacity.
+Responses are marked no-store and nosniff. Only three quota rows are retained.
+
+These are coarse admission bounds, not per-user fairness or DDoS protection. Fixed
+windows permit bursts near a boundary. The limiter itself uses the database, and
+initial hold validation remains synchronous. A gateway with identity-based quotas,
+TLS, end-user authentication, network isolation and actual capacity tests remain
+deployment requirements. Optional TLS gateway and API HPA definitions are provided;
+they are not evidence of a running cluster. Reservation ownership is enforced by
+the optional customer facade's signed grant, not by caller-supplied identifiers.
+No database HA, real payment provider or measured high-traffic claim is introduced.
+
+New payment attempts are also bounded by PAYMENT_MAX_PENDING (default 5000 unresolved
+attempts across APIs) and PAYMENT_MAX_ATTEMPTS_PER_HOLD (default 10 total attempts).
+The shared backlog check is serialized in the acceptance transaction. At capacity,
+new attempts return 503; saved replays, reads, cancellation and recovery remain
+available. A per-hold attempt limit returns 409. These bounds never extend a hold.
 
 ## Tests and CI handoff
 
@@ -228,13 +285,13 @@ use real PostgreSQL persistence and controlled remote holds, plus live HTTP resp
 loss and independent worker-process claim tests. Unit adapters isolate payment behaviour; the repository integration suite also
 exercises the actual seat-store cancellation API and PostgreSQL transitions.
 
-The existing root CI already exercises seat-store/WY regression tests. Add a separate
-CI command `python -m pytest src/waitlist-payment/tests -q` with its PostgreSQL test DSN
-to include the new suite. This change deliberately leaves teammates' root workflow
-and test runner untouched. Run suites separately to avoid existing generic app/db
-module import collisions.
+Root CI runs payment, seat-store, allocator/dispatcher, waiting-room and five-service
+integration suites in separate processes. Run suites separately locally too, to avoid
+existing generic app/db module import collisions. Payment hardening tests include
+an authenticated live Waitress duplicate burst, independent-process shared quotas,
+bounded pool exhaustion/rollback, and concurrent attempts with different keys.
 
-Remaining deployment acceptance: public identity/authorization, optional terminal
+Remaining deployment acceptance: trusted customer login/token issuance, optional terminal
 notification consumer, full-network failure tests, container/cluster startup and
 measured load/recovery. Checkout refresh does not depend on a notification consumer.
 The pure legacy waitlist policy is not evidence those flows are implemented.

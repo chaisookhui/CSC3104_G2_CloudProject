@@ -189,3 +189,67 @@ def test_dispatcher_postgres_restart_after_accepted_submission(system):
     assert state.read()['active'] is None
     assert state.read()['history'][0]['batch_id'] == saved['batch_id']
     assert client.get('/requests/' + entry['request_id'] + '/checkout').status_code == 200
+
+
+def test_authenticated_payment_handoff_and_confirmation(system,monkeypatch):
+    net,db,seats,lifecycle,queue,jobs,state=system
+    token='integration-only-internal-token-32chars'
+    monkeypatch.setenv('PAYMENT_API_TOKEN',token)
+    net.apps[5004]=payment_app(lifecycle,api_token=token)
+    net.apps[5001]=waiting_api.create_app(queue,session=net)
+    client,entry,dispatcher=allocate(system,user='secured')
+    checkout=client.get('/requests/'+entry['request_id']+'/checkout')
+    assert checkout.status_code==200  # waiting-room forwards its internal token
+    payload={'request_id':entry['request_id'],'hold_id':checkout.json['hold_id'],
+             'outcome':'success','attempt_key':'secure-one'}
+    payment=net.apps[5004].test_client()
+    assert payment.post('/payments',json=payload).status_code==401
+    reply=payment.post('/payments',json=payload,headers={'Authorization':'Bearer '+token})
+    assert reply.status_code==200
+    lifecycle.reconcile(reply.json['payment_id'])
+    assert client.get('/requests/'+entry['request_id']+'/checkout').json['booking_status']=='confirmed'
+
+
+def test_authenticated_seat_expiry_notification(system,monkeypatch):
+    from workers import OutboxDispatcher
+    net,db,seats,lifecycle,queue,jobs,state=system
+    token='integration-only-internal-token-32chars'
+    monkeypatch.setenv('PAYMENT_API_TOKEN',token)
+    net.apps[5004]=payment_app(lifecycle,api_token=token)
+    net.apps[5001]=waiting_api.create_app(queue,session=net)
+    client,entry,dispatcher=allocate(system,user='secure-expiry')
+    checkout=client.get('/requests/'+entry['request_id']+'/checkout').json
+    with db.connect() as conn:
+        conn.execute("UPDATE holds SET hold_expiry=clock_timestamp()-INTERVAL '1 second' WHERE hold_id=%s",(checkout['hold_id'],))
+    seats.expire_due()
+    callbacks=OutboxDispatcher(db,'http://127.0.0.1:5004',api_token=token,
+                              sender=lambda url,**kw: net.request('POST',url,**kw))
+    assert callbacks.deliver_one()
+    lifecycle.recover()
+    with db.connect() as conn:
+        assert conn.execute('SELECT delivered_at FROM notification_outbox').fetchone()['delivered_at'] is not None
+        assert conn.execute('SELECT processed_at FROM wy_expiry_events').fetchone()['processed_at'] is not None
+    assert client.get('/requests/'+entry['request_id']+'/checkout').json['booking_status']=='expired'
+
+
+def test_scoped_customer_checkout_with_real_seat_store(system,monkeypatch):
+    from payment_security import CheckoutTokens
+    net,db,seats,lifecycle,queue,jobs,state=system
+    internal='integration-only-internal-token-32chars'
+    key='integration-only-independent-signing-key'
+    monkeypatch.setenv('PAYMENT_API_TOKEN',internal)
+    net.apps[5004]=payment_app(lifecycle,api_token=internal,checkout_key=key)
+    net.apps[5001]=waiting_api.create_app(queue,session=net)
+    client,entry,dispatcher=allocate(system,user='alice')
+    hold=client.get('/requests/'+entry['request_id']+'/checkout').json['hold_id']
+    issuer=CheckoutTokens(key)
+    alice={'Authorization':'Bearer '+issuer.issue('alice',entry['request_id'],hold)}
+    bob={'Authorization':'Bearer '+issuer.issue('bob','other-request',uuid4())}
+    payment=net.apps[5004].test_client()
+    assert payment.get('/customer/checkout',headers=bob).status_code==404
+    assert payment.post('/customer/payments',json={'attempt_key':'one','hold_id':hold},headers=bob).status_code==400
+    reply=payment.post('/customer/payments',json={'attempt_key':'one'},headers=alice)
+    assert reply.status_code==200
+    assert payment.get('/customer/payments/'+reply.json['payment_id'],headers=bob).status_code==404
+    lifecycle.recover()
+    assert payment.get('/customer/checkout',headers=alice).json['booking_status']=='confirmed'

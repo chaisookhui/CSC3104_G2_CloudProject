@@ -21,6 +21,15 @@ def settings():
         'interval': float(os.getenv('PAYMENT_WORKER_INTERVAL', '1')),
         'timeout': float(os.getenv('PAYMENT_HTTP_TIMEOUT', '5')),
         'api_token': os.getenv('PAYMENT_API_TOKEN', ''),
+        'require_auth': os.getenv('PAYMENT_REQUIRE_AUTH', 'false').lower(),
+        'threads': int(os.getenv('PAYMENT_HTTP_THREADS', '8')),
+        'connection_limit': int(os.getenv('PAYMENT_HTTP_CONNECTION_LIMIT', '100')),
+        'rate_limit': int(os.getenv('PAYMENT_RATE_LIMIT', '600')),
+        'rate_window': int(os.getenv('PAYMENT_RATE_WINDOW_SECONDS', '60')),
+        'max_pending': int(os.getenv('PAYMENT_MAX_PENDING', '5000')),
+        'max_attempts_per_hold': int(os.getenv('PAYMENT_MAX_ATTEMPTS_PER_HOLD', '10')),
+        'checkout_key': os.getenv('PAYMENT_CHECKOUT_SIGNING_KEY',''),
+        'customer_outcome': os.getenv('PAYMENT_CUSTOMER_MOCK_OUTCOME','success'),
     }
     for name in ('seat_url', 'status_url'):
         value = result[name]
@@ -30,4 +39,15 @@ def settings():
         raise ValueError('SEAT_CANCEL_PATH must be an absolute service path')
     if result['interval'] <= 0 or result['timeout'] <= 0 or not 1 <= result['port'] <= 65535:
         raise ValueError('Invalid payment timeout, interval or port')
+    if result['require_auth'] not in ('true', 'false'):
+        raise ValueError('PAYMENT_REQUIRE_AUTH must be true or false')
+    result['require_auth'] = result['require_auth'] == 'true'
+    if result['require_auth'] and len(result['api_token']) < 32:
+        raise ValueError('Authenticated deployment requires PAYMENT_API_TOKEN of at least 32 characters')
+    if any(result[k] < 1 for k in ('threads','connection_limit','rate_limit','rate_window','max_pending','max_attempts_per_hold')):
+        raise ValueError('HTTP and rate-limit bounds must be positive')
+    if result['checkout_key'] and (len(result['checkout_key'])<32 or result['checkout_key']==result['api_token']):
+        raise ValueError('Use a separate checkout signing key of at least 32 characters')
+    if result['customer_outcome'] not in ('success','decline','timeout'):
+        raise ValueError('Invalid server-side customer mock outcome')
     return result

@@ -11,6 +11,7 @@ x-seat: &seat
     SEAT_MAP_TIER: ${SEAT_MAP_TIER:-dev}
     HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
     WAITLIST_URL: ${WAITLIST_URL:-http://host.docker.internal:5004}
+    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-}
   init: true
 
 x-allocation: &allocation

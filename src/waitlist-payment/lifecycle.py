@@ -4,6 +4,9 @@ import logging
 from datetime import datetime
 from pathlib import Path
 from uuid import UUID, uuid4, uuid5, NAMESPACE_URL
+from payment_audit import record as audit
+from payment_retry import retry_delay
+from payment_traffic import consume_rate
 
 import requests
 from psycopg.types.json import Jsonb
@@ -116,9 +119,13 @@ class SeatClient:
 
 
 class Lifecycle:
-    def __init__(self, database, seats, status_url='', sender=None):
+    def __init__(self, database, seats, status_url='', sender=None, *, max_pending=5000, max_attempts_per_hold=10):
         self.db, self.seats = database, seats
         self.status_url, self.sender = status_url, sender or requests.post
+        if max_pending < 1 or max_attempts_per_hold < 1:
+            raise ValueError('Payment admission bounds must be positive')
+        self.max_pending, self.max_attempts_per_hold = max_pending, max_attempts_per_hold
+        self.worker_id = uuid4()
 
     def initialize(self):
         root = Path(__file__).parent
@@ -148,6 +155,10 @@ class Lifecycle:
             return {r['state']: r['n'] for r in conn.execute(
                 'SELECT state,count(*) AS n FROM wy_work GROUP BY state').fetchall()}
 
+    def consume_rate(self, scope, limit, window_seconds):
+        """Database-clock fixed windows; no per-Pod counters or caller-controlled keys."""
+        return consume_rate(self.db, scope, limit, window_seconds)
+
     @staticmethod
     def _lock(conn, hold_id):
         conn.execute('SELECT pg_advisory_xact_lock(hashtextextended(%s,0))', ('wy:' + str(hold_id),))
@@ -173,7 +184,7 @@ class Lifecycle:
             raise Conflict('Idempotency key already has different input')
         return row
 
-    def start_payment(self, request_id, hold_id, outcome, attempt_key):
+    def start_payment(self, request_id, hold_id, outcome, attempt_key, *, actor='system'):
         hold_id = UUID(str(hold_id))
         identifier(request_id, 'request_id')
         identifier(attempt_key, 'attempt_key')
@@ -204,15 +215,26 @@ class Lifecycle:
             checkout = conn.execute('SELECT hold_status FROM wy_checkouts WHERE hold_id=%s', (hold_id,)).fetchone()
             if checkout and checkout['hold_status'] != 'ACTIVE':
                 raise Conflict('Checkout is closed')
+            attempts = conn.execute('SELECT count(*) AS n FROM wy_payments WHERE hold_id=%s', (hold_id,)).fetchone()['n']
+            if attempts >= self.max_attempts_per_hold:
+                raise Conflict('Payment attempt limit reached for this hold')
+            # A short shared lock bounds unresolved attempts across API processes.
+            # Replays above remain available even when admission is full.
+            conn.execute('SELECT pg_advisory_xact_lock(3104005)')
+            pending = conn.execute("SELECT count(*) AS n FROM wy_payments WHERE attempt_status='pending'").fetchone()['n']
+            if pending >= self.max_pending:
+                raise DependencyError('Payment backlog full; retry the same attempt later')
             row = conn.execute('INSERT INTO wy_payments(payment_id,hold_id,attempt_key,request_id,outcome,status,attempt_status) '
                 "VALUES (%s,%s,%s,%s,%s,'pending','pending') RETURNING *",
                 (uuid4(), hold_id, attempt_key, request_id, outcome)).fetchone()
             self._observe(conn, data)
             self._enqueue(conn, 'payment:' + str(row['payment_id']), 'payment', {'payment_id': str(row['payment_id'])})
             self._enqueue(conn, 'checkout:' + str(hold_id), 'checkout', {'request_id': request_id, 'hold_id': str(hold_id)})
+            audit(conn,'payment.accepted',actor=actor,request_id=request_id,hold_id=hold_id,
+                  entity_id=row['payment_id'],outcome=outcome)
             return row
 
-    def start_cancel(self, request_id, hold_id, action_key):
+    def start_cancel(self, request_id, hold_id, action_key, *, actor='system'):
         hold_id = UUID(str(hold_id))
         identifier(request_id, 'request_id')
         identifier(action_key, 'action_key')
@@ -231,6 +253,8 @@ class Lifecycle:
                 'VALUES (%s,%s,%s,%s,%s) RETURNING *', (uuid4(), hold_id, request_id, action_key, status)).fetchone()
             self._observe(conn, data)
             self._enqueue(conn, 'cancel:' + str(row['action_id']), 'cancel', {'action_id': str(row['action_id'])})
+            audit(conn,'cancellation.accepted',actor=actor,request_id=request_id,hold_id=hold_id,
+                  entity_id=row['action_id'],status=status)
             return row
 
     def _observe(self, conn, data):
@@ -251,6 +275,8 @@ class Lifecycle:
             'ON CONFLICT (hold_id) DO UPDATE SET hold_status=EXCLUDED.hold_status,snapshot=EXCLUDED.snapshot,'
             'original_expiry=COALESCE(wy_checkouts.original_expiry,EXCLUDED.original_expiry),updated_at=clock_timestamp()',
             (hold_id, data['request_id'], state, Jsonb(data),timestamp(data['hold_expiry']) if data.get('hold_expiry') else None))
+        if old is None or old['hold_status'] != state:
+            audit(conn,'checkout.observed',request_id=data['request_id'],hold_id=hold_id,state=state)
         if state != 'ACTIVE':
             # Legacy status remains booking projection; attempt_status is independent.
             conn.execute("UPDATE wy_payments SET status=%s,attempt_status=CASE "
@@ -286,8 +312,10 @@ class Lifecycle:
             self._lock(conn, row['hold_id'])
             current = self._observe(conn, data)
             if current['hold_status'] == 'ACTIVE' and row['outcome'] == 'decline':
-                conn.execute("UPDATE wy_payments SET status='failed',attempt_status='declined',updated_at=clock_timestamp() "
-                             "WHERE payment_id=%s AND attempt_status='pending'", (payment_id,))
+                changed=conn.execute("UPDATE wy_payments SET status='failed',attempt_status='declined',updated_at=clock_timestamp() "
+                                    "WHERE payment_id=%s AND attempt_status='pending'", (payment_id,)).rowcount
+                if changed:
+                    audit(conn,'payment.declined',request_id=row['request_id'],hold_id=row['hold_id'],entity_id=payment_id)
             return conn.execute('SELECT * FROM wy_payments WHERE payment_id=%s', (payment_id,)).fetchone()
 
     def reconcile_cancel(self, action_id):
@@ -332,7 +360,8 @@ class Lifecycle:
                 'hold_expiry': snapshot.get('hold_expiry'), 'seats': snapshot['seats'],
                 'original_hold_expiry': row['original_expiry'],
                 'payment_attempts': attempts, 'cancellation': dict(action, recovery=work) if action else None,
-                'can_pay': eligible and not action and not any(a['attempt_status']=='pending' for a in attempts),
+                'can_pay': eligible and not action and len(attempts)<self.max_attempts_per_hold
+                           and not any(a['attempt_status']=='pending' for a in attempts),
                 'can_cancel': eligible and not action,
                 'observed_at': row['updated_at'], 'source': 'seat-store' if refresh else 'cached'}
 
@@ -363,6 +392,9 @@ class Lifecycle:
     def receive_event(self, payload, expired_only=False):
         if not isinstance(payload, dict):
             raise ValueError('Expected event object')
+        if set(payload)-{'event_id','hold_id','request_id','type','version','section','seats',
+                         'expired_at','cancelled_at','confirmed_at'}:
+            raise ValueError('Unexpected hold event fields')
         try:
             event_id, hold_id = UUID(str(payload['event_id'])), UUID(str(payload['hold_id']))
             request_id = identifier(payload['request_id'], 'request_id')
@@ -383,16 +415,19 @@ class Lifecycle:
                 identifier(seat, 'seat_id')
             if len(set(seats)) != len(seats):
                 raise ValueError('Duplicate event seats')
-        for key in ('expired_at','cancelled_at'):
+        for key in ('expired_at','cancelled_at','confirmed_at'):
             if key in payload:
                 timestamp(payload[key])
         with self.db.connect() as conn:
-            conn.execute('INSERT INTO wy_expiry_events(event_id,hold_id,request_id,payload) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING',
-                         (event_id, hold_id, request_id, Jsonb(payload)))
+            inserted=conn.execute('INSERT INTO wy_expiry_events(event_id,hold_id,request_id,payload) VALUES (%s,%s,%s,%s) ON CONFLICT DO NOTHING',
+                                  (event_id, hold_id, request_id, Jsonb(payload))).rowcount
             old = conn.execute('SELECT payload FROM wy_expiry_events WHERE event_id=%s', (event_id,)).fetchone()
             if old['payload'] != payload:
                 raise Conflict('Event ID reused with different payload')
             self._enqueue(conn, 'event:' + str(event_id), 'event', {'event_id': str(event_id)})
+            if inserted:
+                audit(conn,'event.received',actor='seat-store',request_id=request_id,hold_id=hold_id,
+                      entity_id=event_id,event_type=kind)
         return {'success': True}
 
     def _event(self, event_id):
@@ -424,15 +459,20 @@ class Lifecycle:
 
     def _finish(self, work, state, error=None, delay=0, failures=None):
         with self.db.connect() as conn:
-            return conn.execute("UPDATE wy_work SET state=%s,last_error=%s,failures=COALESCE(%s,failures),token=NULL,lease_until=NULL,"
+            changed=conn.execute("UPDATE wy_work SET state=%s,last_error=%s,failures=COALESCE(%s,failures),token=NULL,lease_until=NULL,"
                 "available_at=clock_timestamp()+%s*INTERVAL '1 second',updated_at=clock_timestamp() "
                 "WHERE work_id=%s AND token=%s AND lease_until>clock_timestamp()",
                 (state,error,failures,delay,work['work_id'],work['token'])).rowcount == 1
+            if changed and state=='BLOCKED':
+                audit(conn,'work.blocked',entity_id=work['work_id'],kind=work['kind'])
+            return changed
 
     def retry_work(self, work_id):
         with self.db.connect() as conn:
             row = conn.execute("UPDATE wy_work SET state='READY',attempts=0,failures=0,last_error=NULL,available_at=clock_timestamp(),"
                 "token=NULL,lease_until=NULL WHERE work_id=%s AND state='BLOCKED' RETURNING work_id", (work_id,)).fetchone()
+            if row:
+                audit(conn,'work.operator_retry',actor='operator',entity_id=work_id)
         if not row:
             raise Conflict('Only blocked work can be explicitly retried')
         return row
@@ -440,6 +480,7 @@ class Lifecycle:
     def recover(self, limit=100, max_attempts=10, stop=None):
         """Short atomic claims; HTTP outside transactions. Poison work cannot starve others."""
         processed = 0
+        self.heartbeat(0)
         for _ in range(limit):
             if stop is not None and stop.is_set():
                 break
@@ -479,7 +520,7 @@ class Lifecycle:
                 state = 'READY' if retryable and failures<max_attempts else 'BLOCKED'
                 # Never store exception text from HTTP/database libraries (may contain secrets).
                 reason = str(exc) if isinstance(exc,(DependencyError,NotFound)) else type(exc).__name__
-                self._finish(work,state,reason,delay=min(300,2**min(failures,8)),failures=failures)
+                self._finish(work,state,reason,delay=retry_delay(failures),failures=failures)
                 logging.getLogger(__name__).warning('Payment work=%s kind=%s state=%s reason=%s',
                     work['work_id'],work['kind'],state,reason)
             except (KeyError,TypeError,ValueError,AttributeError) as exc:
@@ -487,4 +528,11 @@ class Lifecycle:
             else:
                 self._finish(work,'DONE')
             processed += 1
+        self.heartbeat(processed)
         return processed
+
+    def heartbeat(self, processed):
+        with self.db.connect() as conn:
+            conn.execute('''INSERT INTO wy_worker_health(id,worker_id,processed) VALUES (1,%s,%s)
+                ON CONFLICT(id) DO UPDATE SET worker_id=EXCLUDED.worker_id,
+                last_seen=clock_timestamp(),processed=EXCLUDED.processed''', (self.worker_id,processed))

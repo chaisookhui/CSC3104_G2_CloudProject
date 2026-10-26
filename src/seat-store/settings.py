@@ -25,6 +25,7 @@ def settings(overrides=None):
         "CALLBACK_INTERVAL": float(os.getenv("CALLBACK_INTERVAL", "1")),
         "CALLBACK_TIMEOUT_SECONDS": float(os.getenv("CALLBACK_TIMEOUT_SECONDS", "5")),
         "WAITLIST_URL": os.getenv("WAITLIST_URL", "http://127.0.0.1:5004").rstrip("/"),
+        "PAYMENT_API_TOKEN": os.getenv("PAYMENT_API_TOKEN", ""),
         "HOST": os.getenv("HOST", "127.0.0.1"),
         "PORT": int(os.getenv("PORT", "5003")),
     }
