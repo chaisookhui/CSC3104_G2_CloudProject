@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fair Seat Allocation</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Fair Seat Allocation</h1>
+    <div class="row header-user">
+      <span id="current-request" class="muted">No user yet</span>
+      <button id="switch-user" class="secondary">Switch user</button>
+    </div>
+  </header>
+
+  <nav id="tabs">
+    <div class="nav-group admin-group">
+      <span class="nav-label">Admin</span>
+      <button data-tab="admin" class="active">Overview</button>
+      <button data-tab="batches">Batches</button>
+      <button data-tab="seats">Seat map</button>
+    </div>
+    <div class="nav-group user-group">
+      <span class="nav-label">User</span>
+      <button data-tab="join">My booking</button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- User > My booking: enter a name, register for the sale, follow the booking, then check out -->
+    <section id="join" class="card">
+      <div id="register-step">
+        <h2>Your name</h2>
+        <form id="register-form">
+          <label>Name <input name="name" required maxlength="40"></label>
+          <button type="submit">Continue</button>
+        </form>
+      </div>
+
+      <div id="join-step" hidden>
+        <h2>Register for the sale</h2>
+        <p id="join-greeting"></p>
+        <form id="join-form">
+          <label>Section
+            <select name="section">
+              <option>A</option><option>B</option><option>C</option><option>D</option>
+            </select>
+          </label>
+          <label>Party size
+            <select name="party_size">
+              <option>1</option><option>2</option><option>3</option><option>4</option>
+            </select>
+          </label>
+          <button type="submit">Register</button>
+        </form>
+      </div>
+      <div id="join-result"></div>
+
+      <div id="booking-step" hidden>
+        <h2>My booking</h2>
+        <div id="booking-result"></div>
+      </div>
+
+      <!-- Checkout (to do): show once the booking is RESERVED; pay, cancel, hold countdown. -->
+      <div id="checkout-step" hidden></div>
+    </section>
+
+    <!-- Admin > Overview: add simulated users, run the sale and watch the queue -->
+    <section id="admin" class="card active">
+      <h2>Overview</h2>
+
+      <h3>Simulate users</h3>
+      <form id="simulate-form">
+        <label>How many <input name="count" type="number" min="1" max="500" value="20"></label>
+        <label>Section
+          <select name="section">
+            <option>Random</option><option>A</option><option>B</option><option>C</option><option>D</option>
+          </select>
+        </label>
+        <label>Party size
+          <select name="party_size">
+            <option>Random</option><option>1</option><option>2</option><option>3</option><option>4</option>
+          </select>
+        </label>
+        <button type="submit">Add users</button>
+      </form>
+
+      <h3>Sale</h3>
+      <div class="row">
+        <button id="start-sale">Start sale</button>
+        <button id="refresh-queue" class="secondary">Refresh</button>
+      </div>
+      <div id="admin-message"></div>
+      <div id="sale-status"></div>
+      <div id="queue-table"></div>
+    </section>
+
+    <!-- Admin > Seat map (to do): seats per section, filling up live -->
+    <section id="seats" class="card">
+      <h2>Seat map</h2>
+      <p class="muted">Not built yet.</p>
+    </section>
+
+    <!-- Admin > Batches: how the allocator ordered each batch (demand cycle) -->
+    <section id="batches" class="card">
+      <h2>Batches</h2>
+      <p class="muted">Per section, party sizes are ranked by demand in the batch (ties: smaller size first),
+        then one party of each size is seated per round, in rank order.</p>
+      <div id="batch-picker" class="row"></div>
+      <div id="batch-detail"></div>
+    </section>
+  </main>
+
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+  <script src="join.js"></script>
+  <script src="admin.js"></script>
+  <script src="booking.js"></script>
+  <script src="batches.js"></script>
+</body>
+</html>
