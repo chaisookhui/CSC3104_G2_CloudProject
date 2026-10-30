@@ -374,3 +374,158 @@ def test_cancel_api_and_cached_checkout_during_outage(lifecycle,seats):
     cached=c.get('/checkouts/'+seats.hold_id,query_string={'request_id':seats.request_id,'cached':'true'})
     assert cached.status_code==200 and cached.json['source']=='cached' and not cached.json['can_pay']
     assert c.get('/checkouts/'+seats.hold_id,query_string={'request_id':seats.request_id}).status_code==503
+
+
+def test_shared_rate_quota_across_independent_processes(lifecycle,db):
+    script = """
+import os
+from payment_db import Database
+from lifecycle import Lifecycle
+db=Database(os.environ['PAYMENT_TEST_DSN'],os.environ['PAYMENT_TEST_SCHEMA'])
+try:
+    life=Lifecycle(db,None)
+    print(sum(life.consume_rate('write',7,2147483647)[0] for _ in range(10)))
+finally:
+    db.close()
+"""
+    env=dict(os.environ,PAYMENT_TEST_DSN=db.dsn,PAYMENT_TEST_SCHEMA=db.schema)
+    def run(_):
+        return subprocess.run([sys.executable,'-c',script],cwd=Path(__file__).resolve().parents[1],
+                              env=env,capture_output=True,text=True,timeout=30)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        replies=list(pool.map(run,range(2)))
+    assert all(r.returncode==0 for r in replies)
+    assert sum(int(r.stdout.strip()) for r in replies)==7
+
+
+def test_rate_limit_retry_header_reset_and_separate_callback_quota(lifecycle,seats,db):
+    first=create_app(lifecycle,rate_limit=1,rate_window=2147483647).test_client()
+    second=create_app(Lifecycle(db,seats),rate_limit=1,rate_window=2147483647).test_client()
+    assert first.get('/payments/'+str(uuid4())).status_code==404
+    limited=second.get('/payments/'+str(uuid4()))
+    assert limited.status_code==429 and int(limited.headers['Retry-After'])>0
+    assert limited.headers['Cache-Control']=='no-store'
+    assert first.get('/health').status_code==first.get('/ready').status_code==200
+    # Exhausting the read bucket cannot starve mutations or seat-store callbacks.
+    assert first.post('/payments',json={}).status_code==400
+    assert first.post('/notify/expired',json={}).status_code==400
+    with db.connect() as conn:
+        conn.execute("UPDATE wy_rate_limits SET window_id=-1 WHERE scope='read'")
+    assert second.get('/payments/'+str(uuid4())).status_code==404
+
+
+def test_unauthorized_calls_do_not_consume_quota(lifecycle,db):
+    c=create_app(lifecycle,api_token='internal-test',rate_limit=1).test_client()
+    assert c.post('/payments',json={}).status_code==401
+    assert c.post('/notify/expired',json={}).status_code==401
+    with db.connect() as conn:
+        assert conn.execute('SELECT count(*) AS n FROM wy_rate_limits').fetchone()['n']==0
+    reply=c.post('/payments',json={},headers={'Authorization':'Bearer internal-test'})
+    assert reply.status_code==400
+
+
+def test_limiter_storage_failure_fails_closed(lifecycle):
+    lifecycle.consume_rate=Mock(side_effect=psycopg.OperationalError('private connection details'))
+    c=create_app(lifecycle).test_client()
+    reply=c.post('/payments',json={})
+    assert reply.status_code==503 and reply.headers['Retry-After']=='3'
+    assert 'private' not in reply.text
+    assert c.get('/health').status_code==200
+
+
+def test_bounded_pool_reuses_connections_and_rolls_back(lifecycle,db):
+    from payment_db import Database
+    pooled=Database(db.dsn,db.schema,max_size=1,timeout=.2,max_waiting=1)
+    try:
+        with pooled.connect() as conn:
+            pid=conn.execute('SELECT pg_backend_pid() AS pid').fetchone()['pid']
+        with pytest.raises(RuntimeError):
+            with pooled.connect() as conn:
+                conn.execute("INSERT INTO wy_rate_limits VALUES ('read',0,1)")
+                raise RuntimeError('rollback')
+        with pooled.connect() as conn:
+            assert conn.execute('SELECT pg_backend_pid() AS pid').fetchone()['pid']==pid
+            assert conn.execute('SELECT count(*) AS n FROM wy_rate_limits').fetchone()['n']==0
+        c=create_app(Lifecycle(pooled,None)).test_client()
+        with pooled.connect():
+            assert c.get('/health').status_code==200
+            assert c.get('/ready').status_code==503
+        assert c.get('/ready').status_code==200
+    finally:
+        pooled.close()
+
+
+def test_different_concurrent_keys_allow_only_one_pending_attempt(lifecycle,seats,db):
+    def attempt(i):
+        try:
+            return Lifecycle(db,seats).start_payment(seats.request_id,seats.hold_id,'success',str(i))
+        except Conflict:
+            return None
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        replies=list(pool.map(attempt,range(16)))
+    assert sum(r is not None for r in replies)==1
+    with db.connect() as conn:
+        assert conn.execute("SELECT count(*) AS n FROM wy_payments WHERE attempt_status='pending'").fetchone()['n']==1
+
+
+def test_authenticated_deployment_refuses_missing_or_short_token(monkeypatch):
+    from payment_settings import settings
+    monkeypatch.setenv('PAYMENT_DATABASE_URL','postgresql://unused/unused')
+    monkeypatch.setenv('PAYMENT_REQUIRE_AUTH','true')
+    for token in ('','short'):
+        monkeypatch.setenv('PAYMENT_API_TOKEN',token)
+        with pytest.raises(ValueError,match='at least 32'):
+            settings()
+    monkeypatch.setenv('PAYMENT_API_TOKEN','t'*32)
+    assert settings()['require_auth'] is True
+
+
+def test_production_cli_uses_bounded_wsgi_server(monkeypatch):
+    import service
+    import waitress
+    config={'database_url':'unused','seat_url':'http://seat','timeout':5,'cancel_path':'/seats/cancel',
+            'status_url':'','api_token':'','rate_limit':600,'rate_window':60,
+            'host':'127.0.0.1','port':5004,'threads':8,'connection_limit':100}
+    monkeypatch.setattr(service,'settings',lambda:config)
+    monkeypatch.setattr(service,'Database',Mock())
+    monkeypatch.setattr(service,'create_app',Mock(return_value='app'))
+    serve=Mock()
+    monkeypatch.setattr(waitress,'serve',serve)
+    monkeypatch.setattr(sys,'argv',['service.py','serve'])
+    service.main()
+    assert serve.call_args.args==('app',)
+    assert serve.call_args.kwargs['threads']==8
+    assert serve.call_args.kwargs['max_request_body_size']==16384
+
+
+def test_live_wsgi_concurrent_duplicate_burst(lifecycle,seats,db):
+    from waitress import create_server
+    app=create_app(lifecycle,api_token='burst-test')
+    socket_map={}
+    server=create_server(app,host='127.0.0.1',port=0,threads=4,map=socket_map,
+                         asyncore_loop_timeout=.05,connection_limit=50)
+    thread=Thread(target=server.run,daemon=True)
+    thread.start()
+    url='http://127.0.0.1:'+str(server.effective_port)+'/payments'
+    payload={'request_id':seats.request_id,'hold_id':seats.hold_id,'outcome':'success','attempt_key':'same'}
+    try:
+        assert requests.post(url,json=payload,timeout=5).status_code==401
+        def send(_):
+            return requests.post(url,json=payload,headers={'Authorization':'Bearer burst-test'},timeout=15)
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            replies=list(pool.map(send,range(36)))
+        assert all(r.status_code==200 for r in replies)
+        assert len({r.json()['payment_id'] for r in replies})==1
+        lifecycle.recover()
+        assert seats.state=='CONFIRMED' and seats.confirm_calls==1
+        with db.connect() as conn:
+            assert conn.execute('SELECT count(*) AS n FROM wy_payments').fetchone()['n']==1
+    finally:
+        server.task_dispatcher.shutdown()
+        # Close sockets on the event-loop thread, avoiding Windows select() races.
+        def close_channels():
+            for channel in list(socket_map.values()):
+                channel.close()
+        server.trigger.pull_trigger(close_channels)
+        thread.join(timeout=5)
+    assert not thread.is_alive()

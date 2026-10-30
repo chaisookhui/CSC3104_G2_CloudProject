@@ -1,0 +1,10 @@
+# Add to compose.yaml explicitly; PAYMENT_TLS_DIR must contain tls.crt and tls.key.
+services:
+  gateway:
+    image: nginx:stable-alpine
+    ports: ['127.0.0.1:5443:8443']
+    volumes:
+      - ./deploy/customer-gateway.conf:/etc/nginx/conf.d/default.conf:ro
+      - ${PAYMENT_TLS_DIR:?Supply a directory with a trusted TLS certificate and key}:/etc/payment-tls:ro
+    depends_on: [api]
+    restart: unless-stopped

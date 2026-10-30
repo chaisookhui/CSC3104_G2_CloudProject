@@ -26,9 +26,11 @@ def db():
     name = 'payment_test_' + uuid4().hex
     with psycopg.connect(dsn, autocommit=True, connect_timeout=5) as conn:
         conn.execute(sql.SQL('CREATE SCHEMA {}').format(sql.Identifier(name)))
+    database = Database(dsn, name)
     try:
-        yield Database(dsn, name)
+        yield database
     finally:
+        database.close()
         with psycopg.connect(dsn, autocommit=True, connect_timeout=5) as conn:
             conn.execute(sql.SQL('DROP SCHEMA {} CASCADE').format(sql.Identifier(name)))
 

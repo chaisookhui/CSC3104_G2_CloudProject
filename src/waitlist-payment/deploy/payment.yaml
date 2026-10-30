@@ -16,6 +16,9 @@ spec:
         - name: api
           image: ticketing-payment:local
           imagePullPolicy: IfNotPresent
+          env:
+            - name: PAYMENT_REQUIRE_AUTH
+              value: 'true'
           envFrom:
             - configMapRef: {name: payment-config}
             - secretRef: {name: payment-secrets}
@@ -55,6 +58,9 @@ spec:
           image: ticketing-payment:local
           imagePullPolicy: IfNotPresent
           command: [python, service.py, worker]
+          env:
+            - name: PAYMENT_REQUIRE_AUTH
+              value: 'true'
           envFrom:
             - configMapRef: {name: payment-config}
             - secretRef: {name: payment-secrets}
