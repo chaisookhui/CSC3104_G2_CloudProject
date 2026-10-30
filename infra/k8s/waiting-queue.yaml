@@ -31,6 +31,13 @@ spec:
           args: [redis-server, --appendonly, 'yes', --appendfsync, always]
           ports:
             - containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: '1'
+              memory: 512Mi
           volumeMounts:
             - name: data
               mountPath: /data
@@ -74,7 +81,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5001
-          env:
+          env: &waiting-env
             - name: REDIS_URL
               value: redis://waiting-redis:6379/0
             - name: QUEUE_KEY
@@ -103,6 +110,18 @@ spec:
               port: 5001
             initialDelaySeconds: 10
             periodSeconds: 10
+        - name: recovery
+          image: ticketing-waiting-queue:local
+          imagePullPolicy: IfNotPresent
+          command: [python, recovery.py]
+          env: *waiting-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
 ---
 apiVersion: v1
 kind: Service

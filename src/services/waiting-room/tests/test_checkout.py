@@ -29,12 +29,17 @@ class CheckoutTests(unittest.TestCase):
             outcome['allocation'] = allocation
         return self.client.post('/queue/outcomes', json={'batch_id': 'b1', 'outcomes': [outcome]})
 
-    def test_unavailable_is_an_exit_point(self):
+    def test_unavailable_requires_explicit_idempotent_rejoin(self):
         self.assertEqual(self.finish().status_code, 200)
         again = self.client.post('/submit', json={'user_id': 'u', 'section': 'A', 'party_size': 1}).json
         self.assertEqual(again['request_id'], self.rid)
         self.assertEqual(again['status'], 'UNAVAILABLE')
-        self.assertEqual(self.client.post(self.path + '/rejoin', json={'user_id': 'u'}).status_code, 404)
+        rejoined = self.client.post(self.path + '/rejoin', json={})
+        self.assertEqual(rejoined.status_code, 201)
+        self.assertEqual(rejoined.json['queue_number'], 2)
+        self.assertEqual(self.client.post(self.path + '/rejoin', json={}).json, rejoined.json)
+        active = self.client.post('/submit', json={'user_id': 'u', 'section': 'A', 'party_size': 1})
+        self.assertEqual(active.json['request_id'], rejoined.json['request_id'])
 
     def test_invalid_or_conflicting_checkout_identity_cannot_change_outcome(self):
         allocation = {'hold_id': str(uuid4()), 'hold_status': 'ACTIVE',
@@ -45,6 +50,35 @@ class CheckoutTests(unittest.TestCase):
         self.assertEqual(self.finish('RESERVED', allocation).status_code, 200)
         self.assertEqual(self.finish('RESERVED', allocation).status_code, 200)
         self.assertEqual(self.finish('RESERVED', dict(allocation, hold_id=str(uuid4()))).status_code, 409)
+
+    def test_expired_payment_allows_one_new_attempt(self):
+        allocation = {'hold_id': str(uuid4()), 'hold_status': 'ACTIVE',
+                      'hold_expiry': '2026-10-23T12:00:00Z', 'seats': ['D-1-1', 'D-1-2']}
+        self.assertEqual(self.finish('RESERVED', allocation).status_code, 200)
+        self.network.request.return_value.status_code = 200
+        self.network.request.return_value.json.return_value = {
+            'request_id':self.rid, 'hold_id':allocation['hold_id'],
+            'booking_status':'active', 'source':'seat-store', 'cached':False}
+        self.assertEqual(self.client.post(self.path + '/rejoin').status_code, 409)
+        self.network.request.return_value.json.return_value['booking_status'] = 'expired'
+        self.assertEqual(self.client.get(self.path + '/checkout').status_code, 200)
+        first = self.client.post(self.path + '/rejoin')
+        self.assertEqual(first.status_code, 201)
+        calls = self.network.request.call_count
+        self.assertEqual(self.client.post(self.path + '/rejoin').json, first.json)
+        self.assertEqual(self.network.request.call_count, calls)
+
+    def test_cancellation_passes_exact_hold_and_retry_key_to_payment(self):
+        allocation = {'hold_id': str(uuid4()), 'hold_status':'ACTIVE',
+                      'hold_expiry':'2026-10-23T12:00:00Z', 'seats':['D-1-1','D-1-2']}
+        self.finish('RESERVED', allocation)
+        self.network.request.return_value.status_code = 200
+        self.network.request.return_value.json.return_value = {'booking_status':'cancelled'}
+        for _ in range(2):
+            self.assertEqual(self.client.post(self.path + '/cancel', json={'action_key':'retry-me'}).status_code, 200)
+            kwargs = self.network.request.call_args.kwargs
+            self.assertEqual(kwargs['json'], {'request_id':self.rid,
+                'hold_id':allocation['hold_id'], 'action_key':'retry-me'})
 
 
 if __name__ == '__main__':

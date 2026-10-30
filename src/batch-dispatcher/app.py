@@ -44,7 +44,7 @@ class Dispatcher:
                 return {'batch_id': active['batch_id'], 'state': active['state']}, 202
             if active is None:
                 queue = self.call('GET', self.waiting + '/queue')
-                if queue.get('sale_state') == 'pre_sale':
+                if queue.get('sale_state') != 'sale_started':
                     return {'message': 'Sale has not started'}, 200
                 records = parse_waiting_room_queue(queue)[:self.batch_size]
                 if not records:

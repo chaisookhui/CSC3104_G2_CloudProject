@@ -1,0 +1,37 @@
+name: csc3104-waiting-room
+x-api: &api
+  image: ticketing-waiting-queue:local
+  build: src/services/waiting-room
+  environment:
+    REDIS_URL: redis://redis:6379/0
+    DISPATCHER_URL: ${DISPATCHER_URL:-http://host.docker.internal:5005}
+    ALLOCATOR_URL: ${ALLOCATOR_URL:-http://host.docker.internal:5002}
+    PAYMENT_URL: ${PAYMENT_URL:-http://host.docker.internal:5004}
+  depends_on:
+    redis:
+      condition: service_healthy
+  restart: unless-stopped
+services:
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes', --appendfsync, always]
+    volumes: [waiting-redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+  waiting-room:
+    <<: *api
+    ports: ['127.0.0.1:5001:5001']
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/ready', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 5
+  recovery:
+    <<: *api
+    command: [python, recovery.py]
+volumes:
+  waiting-redis:
