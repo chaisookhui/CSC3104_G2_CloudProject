@@ -97,11 +97,52 @@
       <div id="queue-table"></div>
     </section>
 
-    <!-- Admin > Seat map (to do): seats per section, filling up live -->
+
+    <!-- Admin > Seat Map -->
     <section id="seats" class="card">
-      <h2>Seat map</h2>
-      <p class="muted">Not built yet.</p>
+      <div class="map-heading">
+        <div>
+          <h2>Live Seat Map</h2>
+          <p class="muted">
+            View the current seat availability across all sections.
+          </p>
+        </div>
+
+        <button id="refresh-seats" class="secondary">
+          Refresh seats
+        </button>
+      </div>
+
+      <!-- Seat status legend -->
+      <div class="map-legend">
+        <span>
+          <span class="map-legend-dot map-seat--available"></span>
+          Available
+        </span>
+
+        <span>
+          <span class="map-legend-dot map-seat--held"></span>
+          Held
+        </span>
+
+        <span>
+          <span class="map-legend-dot map-seat--confirmed"></span>
+          Confirmed
+        </span>
+      </div>
+
+      <!-- Overall statistics -->
+      <div id="seat-map-summary" class="stats"></div>
+
+      <!-- Refresh status -->
+      <p id="seat-map-status" class="muted" aria-live="polite">
+        Open this tab to load seats.
+      </p>
+
+      <!-- Section A, B, C and D -->
+      <div id="seat-map-content" class="map-sections"></div>
     </section>
+
 
     <!-- Admin > Batches: how the allocator ordered each batch (demand cycle) -->
     <section id="batches" class="card">
@@ -119,5 +160,6 @@
   <script src="admin.js"></script>
   <script src="booking.js"></script>
   <script src="batches.js"></script>
+  <script src="seats.js"></script>
 </body>
 </html>
