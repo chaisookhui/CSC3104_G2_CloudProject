@@ -17,10 +17,13 @@ def create_app(store=None, session=None):
     # Keep curl responses readable even when Flask debug mode is disabled.
     app.json.compact = False
     app.json.sort_keys = False
-    sections = tuple(os.getenv("SECTIONS", "A,B,C,D").split(","))
+    sections = tuple("ABCD")
     if store is None:
-        url = os.getenv("REDIS_URL")
-        store = RedisStore(url, os.getenv("QUEUE_KEY", "ticketing:default:queue")) if url else MemoryStore()
+        if os.getenv("WAITING_ROOM_STORAGE") == "memory":
+            store = MemoryStore()  # Explicit single-process development opt-in.
+        else:
+            store = RedisStore(os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
+                               os.getenv("QUEUE_KEY", "ticketing:default:queue"))
     app.extensions["queue_store"] = store
     app.config['MAX_CONTENT_LENGTH'] = 128 * 1024
     install_checkout_routes(app, store, sections, session or requests)
@@ -54,102 +57,38 @@ def create_app(store=None, session=None):
             return jsonify(error="Invalid section"), 400
         if type(size) is not int or not 1 <= size <= 4:
             return jsonify(error="Party size must be 1-4"), 400
-        if not isinstance(user, str) or not user.strip():
+        if not isinstance(user, str) or not 1 <= len(user.strip()) <= 128:
             return jsonify(error="Invalid user ID"), 400
         user = user.strip()
         request_id = str(uuid.uuid4())
 
-        def register(state):
-            # Repeated submissions return the existing active entry and position.
-            if user in state["users"]:
-                return state["requests"][state["users"][user]], 200
-            party = {"request_id": request_id, "user_id": user, "section": section,
-                     "party_size": size, "timestamp": datetime.now(timezone.utc).isoformat(),
-                     "entry_type": "waiting_room", "queue_number": None,
-                     "status": "REGISTERED"}
-            if state["sale_state"] == "sale_started":
-                number = state["next_number"]
-                state["next_number"] += 1
-                party.update(entry_type="latecomer", queue_number=number,
-                             status="QUEUED")
-                state["queue"].append(request_id)
-            state["requests"][request_id] = party
-            state["users"][user] = request_id
-            return party, 201
-
-        party, code = store.update(register)
+        party, code = store.register({
+            "request_id": request_id, "user_id": user, "section": section,
+            "party_size": size, "timestamp": datetime.now(timezone.utc).isoformat(),
+            "entry_type": "waiting_room", "queue_number": None, "status": "REGISTERED"})
         controller.record_request()  # Local telemetry; never limits registration.
         return jsonify(request_response(party)), code
 
-    # changed by zx -- replaced to include start 1st dispatcher upon sale start
     @app.post("/sale/start")
     def start_sale():
-
-        def open_sale(state):
-            if state["sale_state"] != "pre_sale":
-                return {
-                    "sale_state": state["sale_state"],
-                    "already_started": True,
-                    "initial_count": sum(
-                        r["entry_type"] == "waiting_room"
-                        for r in state["requests"].values()
-                    ),
-                    "next_queue_number": state["next_number"]
-                }
-
-            ids = list(state["requests"])
-            random.SystemRandom().shuffle(ids)
-
-            for number, rid in enumerate(ids, 1):
-                state["requests"][rid].update(
-                    queue_number=number,
-                    status="QUEUED"
-                )
-
-            state["queue"] = ids
-            state["next_number"] = len(ids) + 1
-            state["sale_state"] = "sale_started"
-
-            return {
-                "sale_state": "sale_started",
-                "already_started": False,
-                "initial_count": len(ids),
-                "next_queue_number": state["next_number"]
-            }
-
-        result = store.update(open_sale)
-
-        # Trigger dispatcher only after sale-opening state is saved.
-        if not result["already_started"]:
+        # Each call makes bounded progress. A recovery worker resumes OPENING.
+        result = store.open_sale()
+        result["dispatcher_triggered"] = False
+        if result["sale_state"] == "sale_started":
             try:
                 response = requests.post(
-                    f"{dispatcher_url}/batches/next",
-                    timeout=10
-                )
+                    f"{dispatcher_url}/batches/next", timeout=10)
                 response.raise_for_status()
-
                 result["dispatcher_triggered"] = True
                 result["dispatcher_response"] = response.json()
-
             except (requests.RequestException, ValueError) as error:
-                app.logger.error(
-                    "Dispatcher trigger failed: %s", error
-                )
-                result["dispatcher_triggered"] = False
-                result["dispatcher_error"] = str(error)
-
-        else:
-            result["dispatcher_triggered"] = False
-            result["message"] = (
-                "Sale already started; dispatcher not triggered again"
-            )
-
-        return jsonify(result), 200
+                app.logger.warning("Dispatcher handoff pending retry: %s", error)
+        return jsonify(result), 202 if result["sale_state"] == "opening" else 200
 
     @app.get("/queue")
     def display_queue():
         state = store.read()
-        if state["sale_state"] == "pre_sale":
+        if state["sale_state"] != "sale_started":
             parties = list(state["requests"].values())
         else:
             parties = [state["requests"][rid] for rid in state["queue"]]
@@ -494,7 +433,7 @@ def create_app(store=None, session=None):
     @app.get("/requests/<request_id>")
     @app.get("/queue/<request_id>")
     def lookup(request_id):
-        party = store.read()["requests"].get(request_id)
+        party = store.get_request(request_id)
         return (jsonify(request_response(party)), 200) if party else (jsonify(error="Request not found"), 404)
 
     @app.get("/status")
@@ -517,7 +456,7 @@ def create_app(store=None, session=None):
 
     @app.get("/ready")
     def ready():
-        store.read()
+        store.ready()
         return jsonify(status="ready")
 
     return app
