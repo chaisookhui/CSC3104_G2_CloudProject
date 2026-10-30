@@ -1,0 +1,20 @@
+Ticket-inspired checkout integration for CSC3104.
+
+Files in this ZIP:
+frontend/static/checkout.js   NEW
+frontend/static/checkout.css  NEW
+frontend/static/booking.js    UPDATED: renders checkout when booking updates
+
+IMPORTANT: Do NOT overwrite index.html or style.css. Keep your working Seat Map changes.
+
+In frontend/static/index.html, add in <head> just after style.css:
+<link rel="stylesheet" href="checkout.css">
+
+Add after existing script imports (especially after booking.js):
+<script src="checkout.js"></script>
+
+The existing <div id="checkout-step" hidden></div> is used automatically.
+
+Payment service must be running on localhost:5004, and your frontend server must proxy /api/payment. Your current demo.py does NOT start payment. This zip is frontend-only; it does not change payment backend or demo.py. Never enter a real card number; all payment actions are mock.
+
+Limitations: current frontend has no login/access-control. The payment proxy cannot be considered secure for a public deployment. Do not expose it publicly until customer authorization and server-side ownership validation are implemented.

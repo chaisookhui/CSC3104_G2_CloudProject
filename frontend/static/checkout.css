@@ -1,0 +1,61 @@
+
+/* Ticketing checkout: familiar summary and countdown, using this app's pink palette. */
+.ticket-checkout { margin-top: 28px; border-top: 1px solid var(--border); padding-top: 24px; }
+.ticket-checkout-topline { display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.ticket-eyebrow { font-size:.7rem; font-weight:750; letter-spacing:.13em; color:var(--pink-dark); }
+.ticket-pill { border-radius:100px; padding:5px 10px; color:#205b3c; background:#e3f4ea; font-size:.76rem; font-weight:700; }
+.ticket-checkout-heading { margin:12px 0 18px; }
+.ticket-checkout-heading h2 { margin:0 0 5px; font-size:1.5rem; }
+.ticket-checkout-heading p { color:var(--muted); margin:0; }
+.ticket-countdown { display:flex; align-items:center; flex-wrap:wrap; gap:12px; background:#fff4e2; border:1px solid #edce8b; border-radius:10px; padding:14px 16px; margin-bottom:20px; }
+.ticket-countdown.is-urgent, .ticket-countdown.is-expired { background:#fff0ef; border-color:#efb1aa; }
+.ticket-timer-symbol { font-size:1.9rem; color:#a77019; }
+.ticket-countdown>div { display:flex; flex-direction:column; gap:3px; }
+.ticket-timer-label { font-size:.82rem; color:#725b3b; }
+#ticket-clock { font-size:1.5rem; font-variant-numeric:tabular-nums; letter-spacing:.03em; }
+.ticket-countdown small { font-size:.8rem; color:#725b3b; margin-left:auto; }
+.ticket-checkout-grid { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(270px, 1fr); align-items:start; gap:16px; }
+.ticket-checkout-main { display:grid; gap:14px; min-width:0; }
+.ticket-panel { border:1px solid var(--border); border-radius:12px; padding:18px; background:white; min-width:0; }
+.ticket-panel h3 { margin:0; font-size:1rem; color:var(--text); }
+.ticket-panel-head { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.ticket-step-number { display:grid; place-items:center; width:26px; height:26px; border-radius:50%; background:var(--pink-light); color:var(--pink-dark); font-weight:750; font-size:.85rem; }
+.ticket-event { display:flex; gap:12px; align-items:center; margin-bottom:18px; }
+.ticket-event>div:last-child { display:grid; gap:4px; }
+.ticket-event span { color:var(--muted); font-size:.86rem; }
+.ticket-event-icon { display:grid; place-items:center; width:55px; height:64px; flex-shrink:0; border-radius:8px; background:linear-gradient(140deg,var(--pink),var(--pink-dark)); color:white; font-size:1.6rem; font-weight:800; }
+.ticket-row { display:flex; align-items:start; justify-content:space-between; gap:14px; padding:11px 0; border-top:1px solid #f2e9ed; font-size:.88rem; }
+.ticket-row>span:first-child { color:#62626b; }
+.ticket-row strong { text-align:right; }
+.ticket-ref { text-align:right; overflow-wrap:anywhere; max-width:62%; font-size:.75rem; }
+.ticket-helper { color:#71717b; line-height:1.5; font-size:.79rem; margin:12px 0 0; }
+.ticket-payment-method { display:flex; align-items:center; gap:10px; border:1px solid var(--pink); background:#fff7fa; padding:13px; border-radius:8px; }
+.ticket-method-icon { color:var(--pink-dark); font-size:1.5rem; }
+.ticket-payment-method>div { display:grid; gap:3px; }
+.ticket-payment-method small { color:#71717b; }
+.ticket-selected { margin-left:auto; color:var(--pink-dark); font-size:.78rem; }
+.ticket-summary { position:sticky; top:16px; }
+.ticket-summary h3 { margin-bottom:15px; }
+.ticket-summary-event { font-weight:700; margin-bottom:14px; }
+.ticket-total { display:flex; justify-content:space-between; gap:12px; padding-top:17px; border-top:2px solid #efe7eb; font-weight:700; }
+.ticket-summary button { width:100%; display:block; margin-top:10px; min-height:43px; }
+.ticket-primary { background:var(--pink-dark); font-weight:700; }
+.ticket-outline { background:white; color:var(--pink-dark); border:1px solid var(--pink); }
+.ticket-outline:hover { background:var(--pink-light); }
+.ticket-text-btn { background:transparent; color:#6b5260; text-decoration:underline; }
+.ticket-text-btn:hover { background:var(--pink-light); }
+.ticket-summary button:disabled { opacity:.5; cursor:not-allowed; }
+.ticket-feedback { margin-top:13px; padding:10px 12px; border-radius:7px; background:var(--pink-light); line-height:1.45; font-size:.8rem; overflow-wrap:anywhere; }
+@media(max-width:700px) { .ticket-checkout-grid { grid-template-columns:1fr; } .ticket-summary { position:static; } .ticket-countdown small { margin-left:0; width:100%; } .ticket-panel { padding:14px; } }
+
+/* Terminal checkout state: show confirmation instead of payment actions. */
+.ticket-confirmation-banner { display:flex; align-items:center; gap:16px; padding:20px; margin:18px 0; background:#eaf7ef; border:1px solid #98d2ae; border-radius:12px; }
+.ticket-confirmation-check { display:grid; place-items:center; width:48px; height:48px; flex-shrink:0; border-radius:50%; background:#237548; color:#fff; font-size:1.6rem; font-weight:800; }
+.ticket-confirmation-banner h2 { margin:0 0 4px; color:#205b3c; font-size:1.4rem; }
+.ticket-confirmation-banner p { margin:0; color:#365c45; }
+.ticket-confirmation-grid { display:grid; grid-template-columns:minmax(0, 1.5fr) minmax(250px, 1fr); align-items:start; gap:16px; }
+.ticket-confirmation-grid .ticket-event { margin-top:18px; }
+.ticket-confirmation-note { background:#fafdfa; }
+.ticket-confirmation-note h3 { color:#205b3c; }
+.ticket-confirmation-note p { color:#54665a; font-size:.87rem; line-height:1.55; }
+@media(max-width:700px) { .ticket-confirmation-grid { grid-template-columns:1fr; } .ticket-confirmation-banner { align-items:flex-start; } }
