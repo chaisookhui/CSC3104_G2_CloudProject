@@ -23,6 +23,61 @@ even when idle: late registrations do not depend on a successful
 sale-start trigger or allocation callback. No recursive Flask test-client calls
 are used in production.
 
+## Containers (dispatcher only)
+
+From the repository root, with Docker Desktop running in Linux-container mode:
+
+```powershell
+docker compose -f compose.batch-dispatcher.yaml config --quiet
+docker compose -f compose.batch-dispatcher.yaml up -d --build
+docker compose -f compose.batch-dispatcher.yaml ps -a
+Invoke-RestMethod http://127.0.0.1:5005/ready
+docker compose -f compose.batch-dispatcher.yaml logs --tail 100 dispatcher-worker
+```
+
+This builds one non-root image and runs a Gunicorn API on port 5005 plus a
+separate recovery worker. Stop any host dispatcher API and worker first.
+No other services are started or changed. Start the waiting room and allocator
+separately. Their default addresses are `http://host.docker.internal:5001` and
+`http://host.docker.internal:5002`. Host services must listen on an interface
+reachable from Docker (the waiting room's direct Python startup binds to
+`0.0.0.0` already). Restrict access
+to these trusted development APIs. If another Compose stack publishes a backend
+only on host loopback, verify Docker-to-host connectivity; its published port
+alone does not prove reachability from this container.
+
+Override `WAITING_ROOM_URL`, `ALLOCATOR_URL` and `BATCH_SIZE` through PowerShell
+environment variables or a private file supplied with Compose's `--env-file`.
+Other containers on separate Compose networks can reach this API through
+`http://host.docker.internal:5005` only if its host port binding is reachable;
+otherwise join a shared Docker network and use `http://dispatcher-api:5005`.
+Set their `DISPATCHER_URL` accordingly. Allocator completion callbacks can use
+that address with `/allocator/status`; polling also recovers without callbacks.
+
+By default both processes share SQLite at `/data/dispatcher.sqlite3` in the named
+`dispatcher-data` volume. This is a single Docker host setup, with fresh state
+independent of the existing repository `.local/dispatcher.sqlite3`. Do not run
+two independent dispatchers against the same live sale. For multiple hosts,
+set the same `DISPATCHER_DATABASE_URL=postgresql://...` on every API and worker;
+the database must already exist and allow dispatcher table creation. Keep
+credentials in private configuration, never in the image.
+
+`/ready` checks storage only. Check `/status`, worker logs and a real batch through
+the existing booking flow to verify dependency connectivity and worker progress.
+
+Stop while preserving state:
+
+```powershell
+docker compose -f compose.batch-dispatcher.yaml down
+```
+
+Do not add `--volumes` if you need to retain dispatcher batches and history.
+To build the image without starting any processes:
+
+```powershell
+docker build -f src/batch-dispatcher/Dockerfile -t ticketing-batch-dispatcher:local .
+```
+
 State defaults to the persistent repository `.local/dispatcher.sqlite3` file.
 Preserve it across local restarts. Multiple machines/Pods must use the SAME
 `DISPATCHER_DATABASE_URL=postgresql://...` and provision runtime table permissions;

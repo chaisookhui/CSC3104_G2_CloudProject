@@ -123,8 +123,12 @@ class Dispatcher:
 def create_app(store=None, session=None):
     app = Flask(__name__)
     app.config['MAX_CONTENT_LENGTH'] = 128 * 1024
-    default = 'sqlite:///' + str(Path(__file__).resolve().parents[2] / '.local' / 'dispatcher.sqlite3')
-    store = store or StateStore(os.getenv('DISPATCHER_DATABASE_URL', default))
+    if store is None:
+        database_url = os.getenv('DISPATCHER_DATABASE_URL')
+        if not database_url:
+            database_url = 'sqlite:///' + str(
+                Path(__file__).resolve().parents[2] / '.local' / 'dispatcher.sqlite3')
+        store = StateStore(database_url)
     dispatcher = Dispatcher(store, session, int(os.getenv('BATCH_SIZE', '50')))
     app.extensions['dispatcher'] = dispatcher
 
