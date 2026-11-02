@@ -1,0 +1,39 @@
+name: csc3104-batch-dispatcher
+
+x-dispatcher: &dispatcher
+  image: ticketing-batch-dispatcher:local
+  build:
+    context: .
+    dockerfile: src/batch-dispatcher/Dockerfile
+  environment:
+    DISPATCHER_DATABASE_URL: ${DISPATCHER_DATABASE_URL:-sqlite:////data/dispatcher.sqlite3}
+    WAITING_ROOM_URL: ${WAITING_ROOM_URL:-http://host.docker.internal:5001}
+    ALLOCATOR_URL: ${ALLOCATOR_URL:-http://host.docker.internal:5002}
+    BATCH_SIZE: ${BATCH_SIZE:-50}
+  volumes:
+    - dispatcher-data:/data
+  init: true
+  restart: unless-stopped
+
+services:
+  dispatcher-api:
+    <<: *dispatcher
+    ports:
+      - "127.0.0.1:5005:5005"
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5005/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dispatcher-worker:
+    <<: *dispatcher
+    command: [python, app.py, worker]
+    depends_on:
+      dispatcher-api:
+        condition: service_healthy
+    stop_grace_period: 45s
+
+volumes:
+  dispatcher-data:
