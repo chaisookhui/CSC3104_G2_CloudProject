@@ -1,166 +1,112 @@
-# Allocation and seat-store containers
+# Complete project in Docker
 
-Run all commands below from the repository root in PowerShell. These Linux images
-package the existing code without changing the allocation policy or seat logic.
-Each service has one image, reused by its API, worker and initialization job.
+Run all commands from the repository root. Start Docker Desktop in Linux-container
+mode. Python is needed only for the launcher; it uses standard libraries.
 
-## Local database and configuration
-
-Cloud deployment is on hold. `compose.core.yaml` runs PostgreSQL 17 together with
-seat-store and allocation. Both APIs and workers connect to `postgres:5432` over
-the Compose network. Migration jobs wait for PostgreSQL to become healthy, and
-APIs/workers wait for their migrations to finish.
-
-Generate local credentials (no host Python installation is required):
+## One main startup command
 
 ```powershell
-.\deploy\core\configure.ps1
+python demo.py
 ```
 
-This creates ignored `src/seat-store/.env` with random passwords, or preserves an
-existing file. It uses the same credentials as the database-only Windows setup.
-For a new setup with an occupied port, pass `-DatabasePort 5433`. For an existing
-file, change `POSTGRES_PORT` and its two host database URLs together. Containers
-always use port 5432 internally. Generated passwords are URL-safe; encode special
-characters in the password when manually constructing connection URLs.
+This launches **one Compose project, csc3104-core**, using `compose.core.yaml`:
+frontend, five APIs, five background workers, PostgreSQL and Redis. The three
+initialization/migration containers should exit successfully; that is normal.
+Open **http://127.0.0.1:18080**. Only the frontend is published on host loopback;
+backend services communicate through internal Docker DNS and container ports.
+The existing service-specific Compose files remain available for independent
+module development, but are not needed for the full project.
 
-The persistent volume remains `csc3104-seat-store_postgres_data`, preserving the
-original Docker database. Bootstrap creates the non-superuser `seat_store` role,
-`seat_booking` and the separate `seat_booking_test` database on an empty volume.
-Seat-store and allocation use separate tables in `seat_booking` for this local
-setup. Existing volumes retain their original credentials; changing `.env` does
-not change their passwords. Native PostgreSQL data is separate and is not copied
-into Docker by these commands.
+On first launch, `demo.py` creates ignored `.env.core` with random database
+credentials and an internal payment token. It preserves the file and all data on
+later launches. `core.env.example` documents the available settings; editing an
+initialized database's passwords in the file alone does not rotate its stored
+credentials. Keep `.env.core` private and retain it with your development volumes.
+The application password must be URL-safe because Compose inserts it into DSNs.
+The generated hexadecimal values meet that requirement.
 
-If the old database-only project is running, stop it once before switching:
+The frontend defaults to port 18080 to avoid other local projects. Override a port
+or batch size for one invocation with `python demo.py --port 18082 --batch-size 10`.
+Edit `.env.core` for persistent settings. Holds default to 300 seconds.
+
+Equivalent direct Compose command (after `.env.core` exists):
 
 ```powershell
-docker compose -p csc3104-seat-store --env-file src/seat-store/.env -f src/seat-store/compose.yaml stop postgres
+docker compose --env-file .env.core -f compose.core.yaml up -d --build --wait
 ```
 
-The restored database-only Compose file and core stack now share the
-`csc3104-core` project and database service. Use the core file to manage the full
-stack. Never run two PostgreSQL processes against the same data volume.
+The full stack now provisions its OWN PostgreSQL/Redis volumes. It does not reuse
+`src/seat-store/.env`, the legacy database volume, or the old external-core URLs.
+The PostgreSQL initialization script runs only for a new volume and creates four
+service-owned databases with non-superuser roles. This local setup shares one
+application password across those roles; deployment-specific credentials and
+least-privilege migration/runtime grants remain cloud hardening work.
+Allocator and dispatcher both use PostgreSQL, not SQLite. Waiting room uses Redis,
+not in-memory state. No API/worker container contains durable booking data.
 
-The core stack reads `src/seat-store/.env`; the previous database URL settings in
-`deploy/core/.env` are no longer used. Optional callback overrides may be supplied
-with a second `--env-file deploy/core/.env` after `--env-file src/seat-store/.env`.
-Set `CORE_WAITLIST_URL` to a payment URL reachable from containers, for example
-`http://host.docker.internal:5004` (the host-only `.env` value is not used by core).
-For a complete container setup, this guide covers the core database, seat-store
-and allocation. Waiting-room, dispatcher, frontend and payment retain their
-existing Compose files. Payment containers can reach this database through
-`host.docker.internal` at `POSTGRES_PORT`; configure their URL and run their
-payment migrations as described in the payment README. Dispatcher retains its
-persistent SQLite default for the local single-host demo.
+The standalone PostgreSQL setup in `src/seat-store/compose.yaml` and
+`deploy/core/configure.ps1` remains available for module development. Its
+`csc3104-seat-store_postgres_data` volume is not overwritten or automatically
+migrated into the main stack. Do not invoke the main Compose file with only
+`src/seat-store/.env`: the full stack uses `.env.core` and its service-owned
+databases. This keeps the current main project's existing data and credentials
+consistent after integrating the standalone PostgreSQL changes.
+Module-only database commands use the separate legacy project identity so they
+cannot replace the main stack's PostgreSQL container with another volume.
 
-Stop any host allocation API on 5002 and host seat-store API on 5003 before starting
-their container replacements. Also stop their host worker processes to keep the
-demo's worker count predictable. The core stack manages PostgreSQL too. A host dispatcher can
-continue using `http://127.0.0.1:5002`. A host payment service can continue using
-`SEAT_STORE_URL=http://127.0.0.1:5003`.
-
-If a host dispatcher is running, set:
-
-```dotenv
-DISPATCHER_COMPLETION_URL=http://host.docker.internal:5005/allocator/status
-```
-
-That dispatcher must listen on an interface reachable from Docker, rather than
-only loopback. Payment callbacks similarly require a reachable payment listener
-(for the existing payment CLI, set `PAYMENT_HOST=0.0.0.0`). Restrict host firewall
-access appropriately. Payment may remain absent for an allocation-only demo:
-holds still expire, and callbacks remain in the durable outbox for retry.
-
-## Build and start
-
-Build only (no database connection is made):
+## Check or stop the project
 
 ```powershell
-docker build -f src/allocation/Dockerfile -t ticketing-allocation:local .
-docker build -f src/seat-store/Dockerfile -t ticketing-seat-store:local .
+docker compose --env-file .env.core -f compose.core.yaml ps -a
+docker compose --env-file .env.core -f compose.core.yaml logs --tail 100
+python demo.py --stop
 ```
 
-Or build and start the complete core setup including PostgreSQL:
+Stopping preserves the PostgreSQL and Redis volumes and all bookings. Restarting
+also preserves confirmed seats and queue state: it is not a fresh-sale reset.
+Do not delete volumes to fix credentials or unresolved jobs. The launcher never
+resets seats, removes dispatcher state, or stops another Compose project.
+
+API health/readiness does not establish worker progress. Payment's shared worker
+heartbeat/backlog can be inspected with:
 
 ```powershell
-docker compose --env-file src/seat-store/.env -f compose.core.yaml config --quiet
-docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --build
-docker compose --env-file src/seat-store/.env -f compose.core.yaml ps -a
-Invoke-RestMethod http://127.0.0.1:5003/health
-Invoke-RestMethod http://127.0.0.1:5002/ready
+docker compose --env-file .env.core -f compose.core.yaml exec -T payment-worker python service.py monitor
 ```
 
-`seat-init` runs `python manage.py init-db` (migrations and non-destructive seed).
-`allocation-init` runs `python app.py init-db`. Both should exit with code 0;
-they are one-shot jobs. APIs and workers wait for their initialization job to
-succeed. Existing seat maps must match `SEAT_MAP_TIER`; initialization fails rather
-than replacing an incompatible map. These commands preserve existing bookings/jobs.
+## Repeat the full-network acceptance check
 
-PostgreSQL runs alongside these four application services:
-
-| Compose service | Process | Dependency |
-| --- | --- | --- |
-| `seat-api` | Gunicorn on 5003 | Seat PostgreSQL tables |
-| `seat-worker` | `python manage.py worker` | Same seat tables; payment callback URL |
-| `allocation-api` | Gunicorn on 5002 | Allocation PostgreSQL tables |
-| `allocation-worker` | `python worker.py` | Same allocation tables; `http://seat-api:5003` |
-
-The seat worker expires holds and delivers callbacks. API containers do not start
-these background tasks. The allocation worker claims jobs and calls seat-store;
-it has no published port. Worker progress must be checked separately from API
-health. Images run as a non-root user and exclude local configuration/data through
-the root `.dockerignore`.
-
-## Exercise the real container network
-
-Use a development database with spare Section A seats. This creates a real hold
-that will expire normally; it is not a mocked or read-only check:
+The checker creates real mock bookings, including confirmed seats, and requires an
+empty pre-sale queue. Use a dedicated disposable project, not existing bookings.
+It sends all booking operations through the frontend proxy over real HTTP and
+lets the actual workers process them. In PowerShell:
 
 ```powershell
-$batchId = 'container-' + [guid]::NewGuid().ToString()
-$requestId = [guid]::NewGuid().ToString()
-$payload = @{
-    batch_id = $batchId
-    requests = @(@{
-        request_id = $requestId
-        section = 'A'
-        party_size = 1
-        global_position = 1
-    })
-    section_demand = @{ A = @{ '1' = 1; '2' = 0; '3' = 0; '4' = 0 } }
-} | ConvertTo-Json -Depth 6
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5002/batches -ContentType application/json -Body $payload
-Invoke-RestMethod "http://127.0.0.1:5002/batches/$batchId" | ConvertTo-Json -Depth 10
+$env:FRONTEND_PORT = '18081'
+$env:HOLD_TTL_SECONDS = '30'
+try {
+    docker compose -p csc3104-booking-check --env-file .env.core -f compose.core.yaml up -d --build --wait
+    if ($LASTEXITCODE -ne 0) { throw 'Test stack failed to start' }
+    python tests/docker_booking_smoke.py --base-url http://127.0.0.1:18081 --allow-bookings
+    if ($LASTEXITCODE -ne 0) { throw 'Booking acceptance failed' }
+} finally {
+    docker compose -p csc3104-booking-check --env-file .env.core -f compose.core.yaml down --volumes
+    Remove-Item Env:FRONTEND_PORT
+    Remove-Item Env:HOLD_TTL_SECONDS
+}
 ```
 
-Repeat the final GET until `complete` is true. With available seats, expect
-`RESERVED` and an exact hold ID; otherwise expect `UNAVAILABLE`. A previous
-unfinished batch returns 409: let it finish or reconcile it instead of deleting
-durable state. Do this standalone test before starting dispatcher-driven batches,
-because the allocator intentionally accepts only one active fixed batch.
+`down --volumes` in this example intentionally deletes ONLY the named disposable
+test project's data. Use that project name only for tests. The main project's data
+is separate. The 30-second holds accelerate expiry testing; normal holds remain
+five minutes. The check covers frontend assets, service proxying, Redis admission,
+automatic batching/allocation, duplicate submissions/payments, successful payment,
+decline/retry with unchanged deadline, cancellation, unavailable capacity, expiry
+and rejection of late payment.
 
-To test more allocation workers:
-
-```powershell
-docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --scale allocation-worker=4
-docker compose --env-file src/seat-store/.env -f compose.core.yaml logs --tail 100 allocation-worker seat-worker
-```
-
-Use a batch spanning A-D to observe concurrency. One party per section remains the
-policy, so a batch containing only Section A will still allocate sequentially.
-API replicas are not configured for Compose scaling here because their fixed host
-ports would collide; put a gateway/load balancer in front before scaling those.
-
-To stop the core containers while preserving PostgreSQL data in the named volume:
-
-```powershell
-docker compose --env-file src/seat-store/.env -f compose.core.yaml down
-```
-
-Do not add `--volumes` / `-v` to `down`: that deletes the database volume.
-
-The database test suites still need a separate `*_test` PostgreSQL database and
-`TEST_DATABASE_URL`; do not point automated database tests at development bookings.
-See the service READMEs for their existing test commands. A successful build or
-health check alone does not prove booking, restart recovery or load behavior.
+This is a local development/demo stack. The frontend still exposes trusted admin
+and internal payment operations through its proxy; keep it on loopback. Customer
+identity/authorization, authoritative UI refresh on every terminal outcome,
+Kubernetes deployment, injected network/Pod failures and load/fairness/cost
+measurements remain separate acceptance work. Persistent volumes alone do not
+provide database high availability or backups.

@@ -6,6 +6,13 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 
 ## What currently works?
 
+For the complete Docker stack, start Docker Desktop and run **`python demo.py`**
+from this directory. This uses `compose.core.yaml` for frontend, all APIs/workers,
+PostgreSQL and Redis, and creates ignored local credentials on first use. Open
+http://127.0.0.1:18080. Stop with `python demo.py --stop`; bookings are preserved.
+See [the full-stack Docker runbook](CONTAINERS.md) for configuration and acceptance
+checks. The Windows installation steps below are for native/module development.
+
 | Component | Current purpose |
 | --- | --- |
 | Root `app.py`, port 5000 | Small Flask application with `/health`. It checks that Flask runs, not the database or the full booking system. |
@@ -18,24 +25,26 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 The service APIs now connect registration, allocation, checkout and cancellation.
 UNAVAILABLE, expired and cancelled requests are exit points; there is no rejoin or
 waitlist. Routed integration tests exercise the journey; a deployed frontend,
-full-network acceptance and load evaluation remain outstanding. Seat-store represents
+cluster failure acceptance and load evaluation remain outstanding. Seat-store represents
 one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
 for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
 
 ## Local containers (current deployment)
 
-Cloud deployment is on hold. PostgreSQL runs locally with the seat-store and
-allocation containers; see [CONTAINERS.md](CONTAINERS.md) for configuration,
-existing database reuse, the other service containers and verification.
+Cloud deployment is on hold. The main local project includes PostgreSQL, Redis,
+frontend and all APIs/workers. See [CONTAINERS.md](CONTAINERS.md) for configuration,
+persistent storage and full-network verification.
 
 ```powershell
-.\deploy\core\configure.ps1
-docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --build
+python demo.py
 ```
 
-This path needs Docker Desktop with Linux containers and does not need host
-Python. Database data persists across restarts and `docker compose down`.
+This path needs Docker Desktop with Linux containers and host Python only for the
+standard-library launcher. Database data persists across restarts and shutdown.
+The standalone seat-store database setup and its existing volume remain available
+for module development; the main stack preserves its own core-project volume.
 The Windows installation below remains available for running Python on the host.
+
 ## Windows installation
 
 Install Python **3.15.0 (64-bit)**. Choose one PostgreSQL backend: Docker Desktop

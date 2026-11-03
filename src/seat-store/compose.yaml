@@ -1,4 +1,5 @@
-name: csc3104-core
+# Module-only database commands must not replace the full stack's postgres service.
+name: csc3104-seat-store
 services:
   postgres:
     image: postgres:17

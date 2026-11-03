@@ -107,6 +107,24 @@ def allocate(system, user='user', section='D', size=2):
     return client, entry, dispatcher
 
 
+def test_dispatcher_concurrent_first_start(system):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    _, database, _, _, _, _, state = system
+    with database.connect() as conn:
+        conn.execute('DROP TABLE dispatcher_state')
+    barrier = Barrier(4)
+
+    def initialize(_):
+        barrier.wait(timeout=10)
+        return StateStore(state.url).read()
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(initialize, range(4)))
+    assert results == [{'active': None, 'history': [], 'events': {}}] * 4
+
+
 def test_checkout_discovered_before_batch_sync_and_confirmed(system):
     net, db, seats, lifecycle, queue, jobs, state = system
     client, entry, dispatcher = allocate(system)

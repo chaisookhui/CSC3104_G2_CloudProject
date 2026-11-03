@@ -1,4 +1,4 @@
-# Local PostgreSQL, APIs and workers. See CONTAINERS.md.
+# Complete local development stack. Never point this at existing project volumes.
 name: csc3104-core
 
 x-seat: &seat
@@ -6,98 +6,235 @@ x-seat: &seat
   build:
     context: .
     dockerfile: src/seat-store/Dockerfile
-  environment:
-    DATABASE_URL: postgresql://seat_store:${SEAT_STORE_DB_PASSWORD:?Run deploy/core/configure.ps1 first}@postgres:5432/seat_booking
-    SEAT_MAP_TIER: ${SEAT_MAP_TIER:-dev}
-    HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
-    WAITLIST_URL: ${CORE_WAITLIST_URL:-http://host.docker.internal:5004}
-    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-}
   init: true
+  environment:
+    DATABASE_URL: postgresql://seat_service:${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}@postgres:5432/seats
+    SEAT_MAP_TIER: dev
+    HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
+    WAITLIST_URL: http://payment-api:5004
+    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:?Set PAYMENT_API_TOKEN}
 
 x-allocation: &allocation
   image: ticketing-allocation:local
   build:
     context: .
     dockerfile: src/allocation/Dockerfile
+  init: true
   environment:
-    ALLOCATION_DATABASE_URL: postgresql://seat_store:${SEAT_STORE_DB_PASSWORD:?Run deploy/core/configure.ps1 first}@postgres:5432/seat_booking
+    ALLOCATION_DATABASE_URL: postgresql://allocation_service:${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}@postgres:5432/allocation
     SEAT_STORE_URL: http://seat-api:5003
     ALLOCATION_SECTIONS: A,B,C,D
-    DISPATCHER_COMPLETION_URL: ${DISPATCHER_COMPLETION_URL:-}
+    DISPATCHER_COMPLETION_URL: http://dispatcher-api:5005/allocator/status
+
+x-waiting: &waiting
+  image: ticketing-waiting-queue:local
+  build: src/services/waiting-room
   init: true
+  environment:
+    REDIS_URL: redis://redis:6379/0
+    WAITING_ROOM_STORAGE: redis
+    QUEUE_KEY: ticketing:core:queue
+    DISPATCHER_URL: http://dispatcher-api:5005
+    ALLOCATOR_URL: http://allocation-api:5002
+    PAYMENT_URL: http://payment-api:5004
+    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:?Set PAYMENT_API_TOKEN}
+
+x-dispatcher: &dispatcher
+  image: ticketing-batch-dispatcher:local
+  build:
+    context: .
+    dockerfile: src/batch-dispatcher/Dockerfile
+  init: true
+  environment:
+    DISPATCHER_DATABASE_URL: postgresql://dispatcher_service:${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}@postgres:5432/dispatcher
+    WAITING_ROOM_URL: http://waiting-room:5001
+    ALLOCATOR_URL: http://allocation-api:5002
+    BATCH_SIZE: ${BATCH_SIZE:-50}
+
+x-payment: &payment
+  image: ticketing-payment:local
+  build:
+    context: .
+    dockerfile: src/waitlist-payment/Dockerfile
+  init: true
+  environment:
+    PAYMENT_DATABASE_URL: postgresql://payment_service:${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}@postgres:5432/payment
+    SEAT_STORE_URL: http://seat-api:5003
+    PAYMENT_HOST: 0.0.0.0
+    PAYMENT_PORT: '5004'
+    PAYMENT_REQUIRE_AUTH: 'true'
+    PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:?Set PAYMENT_API_TOKEN}
+    PAYMENT_STATUS_URL: ''
+
+x-http-health: &http-health
+  interval: 5s
+  timeout: 4s
+  retries: 12
+  start_period: 10s
 
 services:
   postgres:
-    extends:
-      file: src/seat-store/compose.yaml
-      service: postgres
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      APP_DATABASE_PASSWORD: ${APP_DATABASE_PASSWORD:?Set APP_DATABASE_PASSWORD}
+    volumes:
+      - core-postgres:/var/lib/postgresql/data
+      - ./infra/docker/init-core-db.sh:/docker-entrypoint-initdb.d/10-services.sh:ro
+    healthcheck:
+      test: [CMD, pg_isready, -h, '127.0.0.1', -U, postgres]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes', --appendfsync, always]
+    volumes: [core-redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
 
   seat-init:
     <<: *seat
     command: [python, manage.py, init-db]
-    restart: "no"
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres: {condition: service_healthy}
 
   allocation-init:
     <<: *allocation
     command: [python, app.py, init-db]
-    restart: "no"
     depends_on:
-      postgres:
-        condition: service_healthy
+      postgres: {condition: service_healthy}
+
+  payment-migrate:
+    <<: *payment
+    command: [python, service.py, init-db]
+    depends_on:
+      postgres: {condition: service_healthy}
 
   seat-api:
     <<: *seat
     depends_on:
-      seat-init:
-        condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:5003:5003"
+      seat-init: {condition: service_completed_successfully}
     healthcheck:
+      <<: *http-health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5003/health', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     restart: unless-stopped
 
   seat-worker:
     <<: *seat
     command: [python, manage.py, worker]
     depends_on:
-      seat-init:
-        condition: service_completed_successfully
+      seat-init: {condition: service_completed_successfully}
+      payment-api: {condition: service_healthy}
     stop_grace_period: 45s
     restart: unless-stopped
 
   allocation-api:
     <<: *allocation
     depends_on:
-      allocation-init:
-        condition: service_completed_successfully
-    ports:
-      - "127.0.0.1:5002:5002"
+      allocation-init: {condition: service_completed_successfully}
     healthcheck:
+      <<: *http-health
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5002/ready', timeout=3)"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
     restart: unless-stopped
 
   allocation-worker:
     <<: *allocation
     command: [python, worker.py]
     depends_on:
-      allocation-init:
-        condition: service_completed_successfully
-      seat-api:
-        condition: service_healthy
+      allocation-init: {condition: service_completed_successfully}
+      seat-api: {condition: service_healthy}
     stop_grace_period: 45s
     restart: unless-stopped
 
+  waiting-room:
+    <<: *waiting
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck:
+      <<: *http-health
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/ready', timeout=3)"]
+    restart: unless-stopped
+
+  waiting-recovery:
+    <<: *waiting
+    command: [python, recovery.py]
+    depends_on:
+      waiting-room: {condition: service_healthy}
+      dispatcher-api: {condition: service_healthy}
+    stop_grace_period: 45s
+    restart: unless-stopped
+
+  dispatcher-api:
+    <<: *dispatcher
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      <<: *http-health
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5005/ready', timeout=3)"]
+    restart: unless-stopped
+
+  dispatcher-worker:
+    <<: *dispatcher
+    command: [python, app.py, worker]
+    depends_on:
+      dispatcher-api: {condition: service_healthy}
+      waiting-room: {condition: service_healthy}
+      allocation-api: {condition: service_healthy}
+    stop_grace_period: 45s
+    restart: unless-stopped
+
+  payment-api:
+    <<: *payment
+    depends_on:
+      payment-migrate: {condition: service_completed_successfully}
+    healthcheck:
+      <<: *http-health
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5004/ready', timeout=3)"]
+    restart: unless-stopped
+
+  payment-worker:
+    <<: *payment
+    command: [python, service.py, worker]
+    depends_on:
+      payment-migrate: {condition: service_completed_successfully}
+      seat-api: {condition: service_healthy}
+    stop_grace_period: 45s
+    restart: unless-stopped
+
+  frontend:
+    image: csc3104-frontend:local
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    init: true
+    environment:
+      FRONTEND_HOST: 0.0.0.0
+      FRONTEND_PORT: '8080'
+      WAITING_ROOM_URL: http://waiting-room:5001
+      ALLOCATION_URL: http://allocation-api:5002
+      SEAT_STORE_URL: http://seat-api:5003
+      PAYMENT_URL: http://payment-api:5004
+      DISPATCHER_URL: http://dispatcher-api:5005
+      PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:?Set PAYMENT_API_TOKEN}
+    ports: ['127.0.0.1:${FRONTEND_PORT:-18080}:8080']
+    depends_on:
+      waiting-room: {condition: service_healthy}
+      dispatcher-api: {condition: service_healthy}
+      allocation-api: {condition: service_healthy}
+      seat-api: {condition: service_healthy}
+      payment-api: {condition: service_healthy}
+    healthcheck:
+      <<: *http-health
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/', timeout=3)"]
+    restart: unless-stopped
+
 volumes:
-  postgres_data:
-    name: csc3104-seat-store_postgres_data
+  core-postgres:
+  core-redis:

@@ -16,6 +16,10 @@ class StateStore:
         elif not url.startswith(('postgresql://', 'postgres://')):
             raise ValueError('Use PostgreSQL or a persistent sqlite:/// file')
         with self.transaction() as run:
+            if not self.sqlite:
+                # PostgreSQL IF NOT EXISTS alone does not serialize concurrent
+                # first-start DDL from multiple Gunicorn processes/replicas.
+                run('SELECT pg_advisory_xact_lock(3104006)')
             run('''CREATE TABLE IF NOT EXISTS dispatcher_state (
                 id INTEGER PRIMARY KEY, payload TEXT NOT NULL,
                 token TEXT, lease_until DOUBLE PRECISION NOT NULL DEFAULT 0)''')

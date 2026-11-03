@@ -17,31 +17,32 @@ Set `PAYMENT_API_TOKEN` if the payment service requires it.
 
 ## Run
 
-Easiest: one command from the repository root starts a fresh demo (Docker services,
-waiting room, dispatcher and this frontend), and Ctrl+C stops it. Run it again to reset.
+From the repository root, start Docker Desktop and run:
 
-```
+```powershell
 python demo.py
 ```
 
-It frees seats still held from the last run and clears the dispatcher's saved batches.
-Paid (CONFIRMED) seats cannot be freed. Options: `--skip-docker`, `--keep-seats`,
-`--verbose` (show the repeating GET logs), `--batch-size N` (dispatcher batch size
-for this run, 1-100; normal is 50). Checkout will also need the payment service:
-add it to `SERVICES` in `demo.py`.
+This is the main project launcher. It starts frontend, all five service APIs,
+their workers, PostgreSQL and Redis using `compose.core.yaml`. It generates ignored
+`.env.core` credentials on first use and preserves data on subsequent runs.
+Open http://127.0.0.1:18080. Stop with `python demo.py --stop`.
+See [the full-stack runbook](../CONTAINERS.md) for networking, configuration,
+health checks and the isolated full-network booking test. The standalone
+`compose.frontend.yaml` remains available for frontend-only development.
 
-The dev seat map has 70 seats. Two demo setups that work well:
+The dev seat map has 70 seats. Use `python demo.py --batch-size 10` for a small
+batch demonstration. Confirmed seats remain booked between runs; startup never
+resets reservations or deletes dispatcher progress.
 
-- `python demo.py --batch-size 10` with ~25 simulated users: several batches, mostly RESERVED.
-- `python demo.py` with 60-70 simulated users: two batches of the real size, sells out in batch 1.
+For native frontend-only development with separately running backends:
 
-Or run only the frontend, with the services already running:
-
-```
+```powershell
 python frontend/server.py
 ```
 
-Open http://127.0.0.1:8080.
+That standalone process uses port 8080 by default; the main container stack uses
+host port 18080. Set the documented backend environment variables as needed.
 
 ## Demo users
 
@@ -64,14 +65,14 @@ window and User > My booking in another, side by side.
 | --- | --- | --- | --- |
 | Admin | Overview (simulate users, start sale, queue with batch and latecomer tags) | `admin.js` | Done |
 | Admin | Batches (allocator demand cycle per section) | `batches.js` | Done |
-| Admin | Seat map (seats per section filling up live) | `seats.js` | To do |
+| Admin | Seat map (seats per section filling up live) | `seats.js` | Implemented |
 | User | My booking (your name, register, then live status) | `join.js`, `booking.js` | Done |
-| User | Checkout, inside My booking below the status | `checkout.js` | To do |
+| User | Checkout, inside My booking below the status | `checkout.js` | Implemented |
 
-**Checkout** belongs in the `#checkout-step` placeholder at the bottom of My booking,
+**Checkout** is implemented in the `#checkout-step` container at the bottom of My booking,
 shown once the request is RESERVED (`getCurrentRequest().allocation` has the
 `hold_id`, seats and `hold_expiry`). The booking status stops refreshing at RESERVED,
-so checkout needs its own refresh. Existing endpoints: waiting room
+and checkout polls payment/cancellation operations. Authoritative expiry refresh remains follow-up work. Existing endpoints: waiting room
 `GET /requests/<id>/checkout` (booking status from payment) and
 `POST /requests/<id>/cancel` (`{action_key}`); payment `POST /payments`
 (`{request_id, hold_id, outcome, attempt_key}`) and `GET /payments/<id>`. Reuse
