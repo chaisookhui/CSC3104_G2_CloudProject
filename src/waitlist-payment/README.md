@@ -211,16 +211,62 @@ PAYMENT_HTTP_CONNECTION_LIMIT configure the first two bounds. Untrusted forwarde
 headers are not enabled. Use a TLS gateway and restricted internal network before
 exposing the system; this API accepts caller-selected MOCK outcomes.
 
-Payment-only Compose uses an EXTERNAL database and seat-store:
+Payment-only Compose uses an EXTERNAL PostgreSQL database and seat-store. Run from
+the repository root in PowerShell:
 
-```text
-docker compose -f src/waitlist-payment/compose.yaml --profile migration run --rm migrate
-docker compose -f src/waitlist-payment/compose.yaml up -d api worker
+```powershell
+Copy-Item src/waitlist-payment/container.env.example src/waitlist-payment/.env.container
 ```
 
-Supply variables from the invoking environment or the explicit payment env file.
-Container localhost is not the host or another Pod. Use reachable addresses such as
-host.docker.internal for host-based local services, or service DNS in Kubernetes.
+Edit the ignored `.env.container` before starting: set the actual database URL,
+seat-store URL and a private `PAYMENT_API_TOKEN` of at least 32 characters. The
+example values are placeholders. Use the same internal token in trusted callers
+(frontend proxy, waiting room and seat-store callbacks). Keep the optional checkout
+signing key separate. Compose always binds the API to `0.0.0.0:5004` inside the
+container and publishes it only on host loopback port 5004.
+
+Container localhost is not the host or another container. The template uses
+`host.docker.internal` for Docker Desktop host-based services. If integrating
+Compose projects, connect them to an agreed shared network and use service DNS;
+separate projects' default networks do not provide cross-project discovery.
+No payment data is stored in the API/worker containers: both use the same external
+PostgreSQL database. Database provisioning and seat-store startup are separate.
+
+```powershell
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml config --quiet
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml build
+# Run explicitly against the intended database before starting/upgrading runtime processes.
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml --profile migration run --rm migrate
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml up -d api worker
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml ps -a
+Invoke-RestMethod http://127.0.0.1:5004/health
+Invoke-RestMethod http://127.0.0.1:5004/ready
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml exec -T worker python service.py monitor
+```
+
+Do not run migrations against an existing shared database without coordinating its
+backup/upgrade with its owner. The migration profile is deliberately explicit; API
+and worker startup never apply migrations. If migrating with a separate owner
+credential, supply it to the migration command only, then use the runtime role's
+URL for API/worker as described above.
+
+`/health` checks the API process; `/ready` checks database access and migration
+presence. Neither proves seat-store connectivity or worker progress. The `monitor`
+command should show a recent worker heartbeat; use a real checkout to verify the
+remote booking path. Logs are available with the same Compose arguments followed
+by `logs --tail 100 api worker`. The worker has a 45-second shutdown grace period
+to finish bounded work; abandoned claims remain recoverable after their leases.
+
+Stop only payment with:
+
+```powershell
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml down
+```
+
+This leaves the external database and other Compose projects running. Optional
+terminal notifications remain pending when `PAYMENT_STATUS_URL` is empty; checkout
+refresh and confirmation do not require that consumer. Customer login/grant delivery
+and public deployment authorization remain separate integration work.
 
 For deploy/payment.yaml, build/load the image, create ConfigMap payment-config with
 SEAT_STORE_URL and PAYMENT_HOST=0.0.0.0 (and optional cancellation/status URL keys),
@@ -230,6 +276,17 @@ before starting workloads. The manifest contains only payment API/worker/service
 database storage/HA, seat-store and admission are outside this change. Worker replicas
 are configurable and do not each get private storage. No actual cluster deployment,
 image build or scaling performance is implied by these files.
+
+Container verification on 2026-11-03: built `ticketing-payment:local` with Python
+3.15.0 and passed `pip check`. All 49 payment regression tests passed from that
+image against a disposable PostgreSQL 17 database with a non-superuser test role.
+Real container-network checks against seat-store and its worker passed successful
+payment, duplicate attempt replay, decline/retry without deadline extension,
+cancellation/seat release, expiry/late-payment rejection and worker heartbeat.
+Expiry checks used a 12-second test hold; the normal default remains 300 seconds.
+Migration replay and API/worker restart preserved the test payment records. The
+isolated test containers were removed afterwards. These checks do not establish
+full frontend integration, cluster recovery or measured scaling performance.
 
 ## Bounded load and shared rate limits
 
