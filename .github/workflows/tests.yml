@@ -23,6 +23,11 @@ jobs:
       - name: Test the foundation without PostgreSQL
         shell: pwsh
         run: ./test.ps1 -SmokeOnly
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Test browser booking recovery and concurrent tabs
+        run: node --test frontend/tests/recovery.test.cjs
 
   seat-store:
     runs-on: ubuntu-latest

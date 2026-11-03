@@ -29,17 +29,16 @@ class CheckoutTests(unittest.TestCase):
             outcome['allocation'] = allocation
         return self.client.post('/queue/outcomes', json={'batch_id': 'b1', 'outcomes': [outcome]})
 
-    def test_unavailable_requires_explicit_idempotent_rejoin(self):
+    def test_unavailable_registration_recovers_original_and_cannot_rejoin(self):
         self.assertEqual(self.finish().status_code, 200)
         again = self.client.post('/submit', json={'user_id': 'u', 'section': 'A', 'party_size': 1}).json
         self.assertEqual(again['request_id'], self.rid)
         self.assertEqual(again['status'], 'UNAVAILABLE')
-        rejoined = self.client.post(self.path + '/rejoin', json={})
-        self.assertEqual(rejoined.status_code, 201)
-        self.assertEqual(rejoined.json['queue_number'], 2)
-        self.assertEqual(self.client.post(self.path + '/rejoin', json={}).json, rejoined.json)
-        active = self.client.post('/submit', json={'user_id': 'u', 'section': 'A', 'party_size': 1})
-        self.assertEqual(active.json['request_id'], rejoined.json['request_id'])
+        before = self.store.read()
+        for _ in range(2):
+            self.assertEqual(self.client.post(self.path + '/rejoin', json={}).status_code, 410)
+        self.assertEqual(self.store.read(), before)
+        self.assertEqual(self.client.get(self.path).json['request_id'], self.rid)
 
     def test_invalid_or_conflicting_checkout_identity_cannot_change_outcome(self):
         allocation = {'hold_id': str(uuid4()), 'hold_status': 'ACTIVE',
@@ -51,7 +50,7 @@ class CheckoutTests(unittest.TestCase):
         self.assertEqual(self.finish('RESERVED', allocation).status_code, 200)
         self.assertEqual(self.finish('RESERVED', dict(allocation, hold_id=str(uuid4()))).status_code, 409)
 
-    def test_expired_payment_allows_one_new_attempt(self):
+    def test_checkout_refresh_preserves_identity_and_terminal_requests_never_rejoin(self):
         allocation = {'hold_id': str(uuid4()), 'hold_status': 'ACTIVE',
                       'hold_expiry': '2026-10-23T12:00:00Z', 'seats': ['D-1-1', 'D-1-2']}
         self.assertEqual(self.finish('RESERVED', allocation).status_code, 200)
@@ -59,14 +58,20 @@ class CheckoutTests(unittest.TestCase):
         self.network.request.return_value.json.return_value = {
             'request_id':self.rid, 'hold_id':allocation['hold_id'],
             'booking_status':'active', 'source':'seat-store', 'cached':False}
-        self.assertEqual(self.client.post(self.path + '/rejoin').status_code, 409)
-        self.network.request.return_value.json.return_value['booking_status'] = 'expired'
-        self.assertEqual(self.client.get(self.path + '/checkout').status_code, 200)
-        first = self.client.post(self.path + '/rejoin')
-        self.assertEqual(first.status_code, 201)
-        calls = self.network.request.call_count
-        self.assertEqual(self.client.post(self.path + '/rejoin').json, first.json)
-        self.assertEqual(self.network.request.call_count, calls)
+        before = self.store.read()
+        for status in ('active', 'confirmed', 'expired', 'cancelled'):
+            with self.subTest(status=status):
+                self.network.request.return_value.json.return_value['booking_status'] = status
+                checkout = self.client.get(self.path + '/checkout')
+                self.assertEqual(checkout.status_code, 200)
+                self.assertEqual(checkout.json['hold_id'], allocation['hold_id'])
+                self.assertEqual(checkout.json['booking_status'], status)
+                self.assertEqual(self.client.post(self.path + '/rejoin').status_code, 410)
+                restored = self.client.post('/submit', json={'user_id': 'u', 'section': 'A', 'party_size': 1}).json
+                self.assertEqual(restored['request_id'], self.rid)
+                self.assertEqual(restored['queue_number'], before['requests'][self.rid]['queue_number'])
+                self.assertEqual(restored['allocation'], allocation)
+                self.assertEqual(self.store.read(), before)
 
     def test_cancellation_passes_exact_hold_and_retry_key_to_payment(self):
         allocation = {'hold_id': str(uuid4()), 'hold_status':'ACTIVE',

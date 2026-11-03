@@ -8,24 +8,11 @@
   let timer = null;
   let busy = false;
   let activeRequest = null;
-  let paymentId = null;
-  let paymentStatus = null;
   let cancelActionId = null;
   let confirmed = false;
   let cancelled = false;
   let outcomeText = '';
 
-  const keyFor = (kind, requestId) => `checkout:${kind}:${requestId}`;
-  function stableKey(kind, requestId) {
-    const key = keyFor(kind, requestId);
-    let value = load(key);
-    if (!value) {
-      value = (globalThis.crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      save(key, value);
-    }
-    return value;
-  }
-  function newKey(kind, requestId) { save(keyFor(kind, requestId), null); }
   function active() {
     const request = getCurrentRequest();
     return request?.status === 'RESERVED' && Boolean(request?.allocation?.hold_id);
@@ -40,7 +27,8 @@
     return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
   }
   function hasEnded() {
-    return confirmed || cancelled || Boolean(cancelActionId) || ['confirmed','succeeded','success','completed','paid'].includes(String(paymentStatus).toLowerCase());
+    return confirmed || cancelled || Boolean(cancelActionId)
+      || window.getCurrentCheckout()?.booking_status === 'expired';
   }
   function draw() {
     if (!active()) { root.hidden = true; clearInterval(timer); timer = null; return; }
@@ -48,21 +36,26 @@
     const a = r.allocation;
     if (activeRequest !== r.request_id) {
       activeRequest = r.request_id;
-      paymentId = load(`checkout:payment:${activeRequest}`);
-      cancelActionId = load(`checkout:cancel-id:${activeRequest}`);
-      paymentStatus = null; confirmed = false; cancelled = false; outcomeText = '';
+      busy = false; outcomeText = '';
     }
+    const checkout = window.getCurrentCheckout();
+    confirmed = checkout?.booking_status === 'confirmed';
+    cancelled = checkout?.booking_status === 'cancelled';
+    cancelActionId = checkout?.cancellation?.status === 'pending' ? checkout.cancellation.action_id : null;
     root.hidden = false;
-    const secs = remaining(a.hold_expiry);
-    const expired = secs === 0;
+    const secs = remaining(checkout?.original_hold_expiry || a.hold_expiry);
+    const expired = checkout?.booking_status === 'expired';
     const done = hasEnded();
-    const blocked = busy || expired || done;
+    const verified = window.isCheckoutVerified();
+    const blocked = busy || !verified || !checkout?.can_pay || secs === 0 || done;
+    const cancelBlocked = busy || !verified || !checkout?.can_cancel || done;
     const user = getCurrentUser();
-    const seatLabels = Array.isArray(a.seats) ? a.seats.join(', ') : 'Assigned seats';
+    const seats = checkout?.seats?.map(s => typeof s === 'string' ? s : s.seat_id) || a.seats;
+    const seatLabels = Array.isArray(seats) ? seats.join(', ') : 'Assigned seats';
 
     // Cancellation is a separate terminal state: never display a countdown or
     // payment actions after cancellation has been requested or completed.
-    if (cancelled || cancelActionId) {
+    if (!confirmed && (cancelled || cancelActionId)) {
       const isComplete = cancelled;
       root.innerHTML = `
         <div class="ticket-checkout ticket-confirmation" aria-label="Reservation cancellation">
@@ -85,7 +78,7 @@
 
     // A completed payment is a terminal booking, not an active checkout.
     // Show a ticket-style confirmation without a timer or further actions.
-    if (confirmed || ['confirmed', 'succeeded', 'success', 'completed', 'paid'].includes(String(paymentStatus).toLowerCase())) {
+    if (confirmed) {
       root.innerHTML = `
         <div class="ticket-checkout ticket-confirmation" aria-label="Booking confirmation">
           <div class="ticket-checkout-topline">
@@ -119,6 +112,24 @@
         </div>`;
       return;
     }
+
+    if (expired) {
+      root.innerHTML = `<div class="ticket-checkout ticket-confirmation">
+        <h2>Reservation expired</h2>
+        <p>Your original hold has ended. These seats are no longer reserved for you.</p>
+        <div class="ticket-row"><span>Previous seats</span><strong>${esc(seatLabels)}</strong></div>
+        <div class="ticket-row"><span>Request ID</span><span class="ticket-ref">${esc(r.request_id)}</span></div>
+        <p>This request cannot be paid or rejoined.</p></div>`;
+      return;
+    }
+
+    const latest = checkout?.payment_attempts?.at(-1);
+    const feedback = !verified ? 'Checking your saved reservation. Actions are paused until the server responds.'
+      : latest?.attempt_status === 'pending' ? 'Payment is processing. Reconnecting will recover this same attempt.'
+      : outcomeText || (latest?.attempt_status === 'declined'
+        ? 'Payment declined. Retry before the original hold deadline.'
+        : secs === 0 ? 'The hold deadline has elapsed. Checking the final booking outcome.'
+        : 'Your seats are temporarily reserved.');
 
     root.innerHTML = `
       <div class="ticket-checkout" aria-label="Reservation checkout">
@@ -154,8 +165,8 @@
             <p class="ticket-helper">No ticket price or currency is provided by the current backend, so no amount is charged or displayed.</p>
             <button id="ticket-pay" class="ticket-primary" ${blocked ? 'disabled' : ''}>${busy ? 'Processing…' : confirmed ? 'Payment completed' : 'Complete mock payment'}</button>
             <button id="ticket-decline" class="ticket-outline" ${blocked ? 'disabled' : ''}>Simulate decline</button>
-            <button id="ticket-cancel" class="ticket-text-btn" ${blocked ? 'disabled' : ''}>Cancel reservation</button>
-            <div id="ticket-feedback" class="ticket-feedback" role="status" aria-live="polite">${esc(outcomeText || (expired ? 'Your hold is no longer valid. Please start a new request.' : 'Your seats are temporarily reserved.'))}</div>
+            <button id="ticket-cancel" class="ticket-text-btn" ${cancelBlocked ? 'disabled' : ''}>Cancel reservation</button>
+            <div id="ticket-feedback" class="ticket-feedback" role="status" aria-live="polite">${esc(feedback)}</div>
           </aside>
         </div>
       </div>`;
@@ -163,89 +174,72 @@
     root.querySelector('#ticket-decline')?.addEventListener('click', () => sendPayment('decline'));
     root.querySelector('#ticket-cancel')?.addEventListener('click', cancelBooking);
   }
-  async function queryPayment() {
-    if (!paymentId) return;
-    try {
-      const p = await api(`payment/payments/${encodeURIComponent(paymentId)}`);
-      paymentStatus = p.status;
-      const s = String(p.status || '').toLowerCase();
-      if (['confirmed', 'succeeded','success','completed','paid'].includes(s)) {
-        confirmed = true;
-        outcomeText = 'Payment completed. Your booking is confirmed.';
-        // Payment GET is authoritative for the checkout outcome. Update the
-        // booking summary only after confirming this exact payment/hold.
-        window.updateBookingPaymentStatus?.(activeRequest, getCurrentRequest()?.allocation?.hold_id, 'confirmed');
-      } else if (['declined', 'failed', 'rejected'].includes(s)) {
-        outcomeText = 'Payment declined. You can retry before your hold expires.';
-        newKey('pay', activeRequest);
-        paymentId = null;
-        save(`checkout:payment:${activeRequest}`, null);
-      } else { outcomeText = `Payment status: ${p.status || 'pending'}`; }
-    } catch { /* Temporary backend errors should not clear the attempt key. */ }
-    draw();
-  }
   async function sendPayment(outcome) {
     const r = getCurrentRequest();
-    if (!r?.allocation?.hold_id || busy || hasEnded() || remaining(r.allocation.hold_expiry) === 0) return;
-    busy = true; outcomeText = 'Submitting payment attempt…'; draw();
+    const original = window.getCurrentCheckout();
+    if (!r?.allocation?.hold_id || busy || !window.isCheckoutVerified() || !original?.can_pay || hasEnded()) return;
+    const holdId = r.allocation.hold_id;
+    const expectedAttempts = original.payment_attempts.length;
+    const current = () => getCurrentRequest()?.request_id === r.request_id
+      && getCurrentUser()?.user_id === r.user_id;
+    busy = true; outcomeText = 'Submitting payment attempt...'; draw();
     try {
-      // Each deliberate decline uses a separate simulated attempt. Pay retries reuse their key.
-      const kind = outcome === 'success' ? 'pay' : 'decline';
-      const key = stableKey(kind, r.request_id);
-      const response = await api('payment/payments', {
-        request_id: r.request_id, hold_id: r.allocation.hold_id,
-        outcome, attempt_key: key,
+      await withBrowserLock('checkout:' + holdId, async () => {
+        await window.refreshBooking(r.request_id);
+        const checkout = window.getCurrentCheckout();
+        if (!current() || !window.isCheckoutVerified() || !checkout?.can_pay
+            || checkout.payment_attempts.length !== expectedAttempts) return;
+        // The server-observed attempt number gives every tab the same identity.
+        // A conflicting simultaneous Pay/Decline cannot create a second attempt.
+        await api('payment/payments', {
+          request_id: r.request_id, hold_id: holdId, outcome,
+          attempt_key: `browser:${holdId}:${expectedAttempts}`,
+        });
+        if (current()) {
+          outcomeText = 'Payment submitted. Waiting for the verified booking outcome.';
+          await window.refreshBooking(r.request_id);
+        }
       });
-      paymentId = response.payment_id || null;
-      paymentStatus = response.status || null;
-      if (paymentId) save(`checkout:payment:${r.request_id}`, paymentId);
-      outcomeText = `Payment submitted: ${paymentStatus || 'processing'}.`;
-      if (outcome === 'decline') newKey('decline', r.request_id);
-      if (paymentId) await queryPayment();
-    } catch (e) { outcomeText = `Payment could not be confirmed: ${e.message}. Retry will reuse the same attempt key.`; }
-    finally { busy = false; draw(); }
+    } catch (e) {
+      if (current()) {
+        outcomeText = 'Payment response unavailable. Checking the saved attempt before any retry.';
+        await window.refreshBooking(r.request_id);
+      }
+    } finally {
+      if (current()) { busy = false; draw(); }
+    }
   }
   async function cancelBooking() {
     const r = getCurrentRequest();
-    if (!r?.allocation?.hold_id || busy || hasEnded()) return;
+    if (!r?.allocation?.hold_id || busy || !window.isCheckoutVerified()
+        || !window.getCurrentCheckout()?.can_cancel || hasEnded()) return;
     if (!window.confirm('Cancel this reservation and release the held seats?')) return;
-    busy = true; outcomeText = 'Requesting cancellation…'; draw();
+    const holdId = r.allocation.hold_id;
+    const current = () => getCurrentRequest()?.request_id === r.request_id
+      && getCurrentUser()?.user_id === r.user_id;
+    busy = true; outcomeText = 'Requesting cancellation...'; draw();
     try {
-      const response = await api('payment/checkouts/cancel', {
-        request_id: r.request_id, hold_id: r.allocation.hold_id,
-        action_key: stableKey('cancel', r.request_id)
+      await withBrowserLock('checkout:' + holdId, async () => {
+        await window.refreshBooking(r.request_id);
+        if (!current() || !window.isCheckoutVerified() || !window.getCurrentCheckout()?.can_cancel) return;
+        await api('payment/checkouts/cancel', {
+          request_id: r.request_id, hold_id: holdId, action_key: 'browser-cancel:' + holdId,
+        });
+        if (current()) await window.refreshBooking(r.request_id);
       });
-      cancelActionId = response.action_id || null;
-      if (cancelActionId) save(`checkout:cancel-id:${r.request_id}`, cancelActionId);
-      outcomeText = `Cancellation requested: ${response.status || 'pending'}.`;
-      if (['cancelled','completed'].includes(String(response.status).toLowerCase())) {
-        cancelled = true;
-        window.updateBookingCancellationStatus?.(r.request_id, r.allocation.hold_id, 'cancelled');
+    } catch (e) {
+      if (current()) {
+        outcomeText = 'Cancellation response unavailable. Checking the saved action before retrying.';
+        await window.refreshBooking(r.request_id);
       }
-    } catch (e) { outcomeText = `Cancellation could not be confirmed: ${e.message}. Retrying will use the same cancellation key.`; }
-    finally { busy = false; draw(); }
-  }
-  async function poll() {
-    if (!active()) { draw(); return; }
-    if (!root.closest('#join')?.classList.contains('active')) return;
-    const r = getCurrentRequest();
-    if (paymentId && !confirmed) await queryPayment();
-    if (cancelActionId && !cancelled) {
-      try {
-        const x = await api(`payment/cancellations/${encodeURIComponent(cancelActionId)}`);
-        if (['cancelled','completed','succeeded'].includes(String(x.status).toLowerCase())) {
-          cancelled = true; outcomeText = 'Reservation cancellation completed.';
-          window.updateBookingCancellationStatus?.(r.request_id, r.allocation.hold_id, 'cancelled');
-        }
-      } catch { /* Keep polling while backend is temporarily unavailable. */ }
+    } finally {
+      if (current()) { busy = false; draw(); }
     }
-    // Update the countdown even when payment services are unavailable.
-    if (r?.request_id === getCurrentRequest()?.request_id) draw();
   }
   window.renderCheckout = function renderCheckout() {
     draw();
     if (timer !== null) clearInterval(timer);
-    if (active()) timer = setInterval(poll, 1000);
+    timer = active() && !hasEnded() ? setInterval(draw, 1000) : null;
   };
   window.stopCheckout = function stopCheckout() {
     clearInterval(timer); timer = null; root.hidden = true;

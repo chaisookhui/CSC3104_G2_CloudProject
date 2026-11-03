@@ -50,11 +50,42 @@ host port 18080. Set the documented backend environment variables as needed.
   so the page creates a unique `user_id` and keeps it in this browser.
 - **Register** (User > My booking) registers for the sale with a section and party size
   (waiting room `/submit`, status REGISTERED), matching the waiting-room slides.
-- **More real users:** open another browser or a private window; each keeps its
-  own user. "Switch user" in the header starts over in the same window.
+- **More demo users:** open another browser or a private window; each keeps its
+  own user. "Switch user" deliberately starts over across this origin's tabs.
 - **Simulated users:** Admin > Overview > Simulate users registers many `sim-...` users
   through the same `/submit` endpoint, with a fixed or random section and party size.
   Add them before starting the sale; ones added afterwards join as latecomers.
+
+## Reconnect and terminal-outcome policy
+
+Reloading or reopening this same browser profile/origin restores the saved user
+and original request. Queue position, hold identity, seats and deadline do not
+change. A lost registration response is replayed with the same user and payload.
+Booking polling retries connection failures and refreshes exact-hold checkout
+state before enabling actions. Confirmed, cancelled, expired and unavailable
+outcomes remain ended; there is no rejoin/new-attempt action for that user.
+
+Tabs on the same origin share identity/request storage. Web Locks serialize
+actions where supported; payment keys also use the hold and server-observed
+attempt number so concurrent tabs cannot create two attempts for the same step.
+A deliberate retry after a verified decline uses the next attempt number, without
+changing the hold deadline. The backend remains responsible for atomic effects.
+
+Use a modern browser on localhost with local storage enabled for recovery across
+reloads. If storage is blocked/cleared, the in-memory fallback cannot recover a
+closed page. Another browser, private profile, port or device has separate storage.
+"Switch user" explicitly changes the demo identity across tabs; it is not a
+verified login or a way to recover the old identity. Cross-device recovery and
+preventing users from inventing new identities require the future auth layer.
+
+Run the frontend recovery/concurrency tests without additional npm packages:
+
+```powershell
+node --test frontend/tests/recovery.test.cjs
+```
+
+These execute the shipped scripts in isolated tab contexts with controlled HTTP,
+storage and locks; deployed browser acceptance remains a separate check (TESTING.md B6).
 
 ## Tabs
 
@@ -71,8 +102,9 @@ window and User > My booking in another, side by side.
 
 **Checkout** is implemented in the `#checkout-step` container at the bottom of My booking,
 shown once the request is RESERVED (`getCurrentRequest().allocation` has the
-`hold_id`, seats and `hold_expiry`). The booking status stops refreshing at RESERVED,
-and checkout polls payment/cancellation operations. Authoritative expiry refresh remains follow-up work. Existing endpoints: waiting room
+`hold_id`, seats and `hold_expiry`). Booking and checkout state refresh while active;
+the countdown keeps the original deadline and terminal outcomes are restored from
+the server even without a locally saved payment/action ID. Existing endpoints: waiting room
 `GET /requests/<id>/checkout` (booking status from payment) and
 `POST /requests/<id>/cancel` (`{action_key}`); payment `POST /payments`
 (`{request_id, hold_id, outcome, attempt_key}`) and `GET /payments/<id>`. Reuse

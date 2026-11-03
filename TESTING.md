@@ -263,9 +263,10 @@ pending” period is normal.
 Allow the worker's scan/processing time; release is not guaranteed at the exact
 millisecond the browser countdown reaches zero.
 
-**Known issue:** the booking summary can still display RESERVED/ACTIVE after
-expiry. Record this as a UI failure even if the backend correctly rejects payment.
-Do not use that stale label as the only evidence of the actual seat state.
+The booking summary now refreshes authoritative checkout state and should display
+EXPIRED once the backend observes expiry. During a dependency outage it preserves
+the last known record, reports the connection problem and pauses actions. Verify
+the outcome after reconnecting; a browser countdown alone is not a backend result.
 
 ### Test B5: no suitable adjacent seats remain
 
@@ -280,7 +281,8 @@ seats are free” is not sufficient if they are scattered rather than adjacent.
 
 ### Test B6: refresh, leave and return
 
-**Partly ready; some required behavior needs code changes.**
+**Ready now for the same browser profile/origin with storage enabled. Cross-device
+recovery still needs trusted identity integration.**
 
 | Try this | Correct result |
 | --- | --- |
@@ -291,13 +293,21 @@ seats are free” is not sufficient if they are scattered rather than adjacent.
 | Return after expiry/cancellation | Correct ended state; no revived old hold |
 | Use another browser/device | Must use verified identity to restore the right customer; localStorage alone cannot do this |
 
-We must also decide what **rejoin** means. Recommended rule: reconnecting restores
-the same request; an ended attempt does not automatically gain a new queue entry.
-If new attempts are allowed, they need a new ID and a position at the end.
+The implemented rule is **reconnect, never requeue**: an ended attempt cannot gain
+a new queue entry. The old rejoin route returns HTTP 410 without changing state.
+There is no customer-facing new-attempt feature. "Switch user" is only a demo
+identity change, not recovery or verified login. Browser storage does not restore
+identity on another port/profile/device; disabling or clearing it loses recovery.
 
-**Current problem:** documentation says “no rejoin,” but a rejoin API still exists.
-Choose the rule, update the code and documentation, then test it. This guide does
-not silently remove the endpoint. Mark the requirement unfinished until both agree.
+Also interrupt the network while queued and after submitting payment, then reload
+and reconnect. Keep the same request/hold IDs, queue position and original deadline.
+Open two same-origin tabs and click Pay together; inspect payment records to verify
+one attempt. After a deliberate decline, a new intentional retry is allowed but
+cannot change the hold. Confirm/cancel in one tab and reload the other: it should
+recover the terminal outcome without needing that tab's local operation IDs.
+
+Automated script-level coverage: `node --test frontend/tests/recovery.test.cjs`.
+This does not replace running the above checks against the deployed UI.
 
 ### Quick automated check
 
@@ -947,9 +957,9 @@ A private coursework demonstration and a production service are different target
 
 ### Known work still needed
 
-The current app still needs a consistent rejoin rule; trusted customer/admin
-authorization; checkout-key delivery; correct forwarding of retry/security
-headers; expiry-state UI refresh; clearer queue/stage timing and per-request
+The current app still needs trusted customer/admin authorization; cross-device
+identity recovery; checkout-key delivery; correct forwarding of retry/security
+headers; clearer queue/stage timing and per-request
 measurements; full-stack metrics/HPA setup; an FCFS evaluation tool; stronger
 database credential/permission separation; registration overload protection;
 and an agreed allocator repair procedure. Tests should expose these gaps, not
