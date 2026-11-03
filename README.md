@@ -13,6 +13,21 @@ http://127.0.0.1:18080. Stop with `python demo.py --stop`; bookings are preserve
 See [the full-stack Docker runbook](CONTAINERS.md) for configuration and acceptance
 checks. The Windows installation steps below are for native/module development.
 
+For the same stack on local Kubernetes, run `python demo.py --kubernetes --verify`
+and open http://127.0.0.1:18090. See [the local Kubernetes runbook](infra/k8s/README.md)
+for persistent storage, configuration, resource limits, probes and validation limits.
+
+To clear the main local Kubernetes demo at **port 18090** and repeat the simulation,
+run `python demo.py --kubernetes --reset-demo`. This deletes its bookings, payments
+and queue, then recreates the initial seats and pre-sale state. Reload the page
+and click **Switch user** before registering again. `--reset-test-env` resets only
+the separate lab at **port 18100**.
+
+See [the full test and cloud-readiness guide](TESTING.md) for deployment checks,
+in-flight failures, overload/scaling, reconnect rules, fairness comparisons, cost
+measurement and release gates. Proposed experiments are distinguished from
+already demonstrated behavior.
+
 | Component | Current purpose |
 | --- | --- |
 | Root `app.py`, port 5000 | Small Flask application with `/health`. It checks that Flask runs, not the database or the full booking system. |

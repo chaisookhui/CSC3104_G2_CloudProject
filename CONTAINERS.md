@@ -17,6 +17,10 @@ backend services communicate through internal Docker DNS and container ports.
 The existing service-specific Compose files remain available for independent
 module development, but are not needed for the full project.
 
+Local Kubernetes uses the same project/images: `python demo.py --kubernetes --verify`.
+Its browser port is 18090 and its data is separate from Compose. See the
+[Kubernetes runbook](infra/k8s/README.md) before stopping or removing cluster storage.
+
 On first launch, `demo.py` creates ignored `.env.core` with random database
 credentials and an internal payment token. It preserves the file and all data on
 later launches. `core.env.example` documents the available settings; editing an

@@ -1,0 +1,466 @@
+# Managed by the main local Kubernetes deployment. No credentials in this file.
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "seat-api"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "seat-api"
+  template:
+    metadata:
+      labels:
+        app: "seat-api"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "ticketing-seat-store:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "SEAT_DATABASE_URL"
+          ports:
+            - name: "http"
+              containerPort: 5003
+          readinessProbe:
+            httpGet:
+              path: "/health"
+              port: 5003
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/health"
+              port: 5003
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            tcpSocket:
+              port: 5003
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 6
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "allocation-api"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "allocation-api"
+  template:
+    metadata:
+      labels:
+        app: "allocation-api"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "ticketing-allocation:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "ALLOCATION_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "ALLOCATION_DATABASE_URL"
+          ports:
+            - name: "http"
+              containerPort: 5002
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: 5002
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/ready"
+              port: 5002
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: "/health"
+              port: 5002
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "dispatcher-api"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "dispatcher-api"
+  template:
+    metadata:
+      labels:
+        app: "dispatcher-api"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "ticketing-batch-dispatcher:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "DISPATCHER_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "DISPATCHER_DATABASE_URL"
+          ports:
+            - name: "http"
+              containerPort: 5005
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: 5005
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/ready"
+              port: 5005
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: "/health"
+              port: 5005
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "waiting-room"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "waiting-room"
+  template:
+    metadata:
+      labels:
+        app: "waiting-room"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "ticketing-waiting-queue:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+          ports:
+            - name: "http"
+              containerPort: 5001
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: 5001
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/ready"
+              port: 5001
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: "/health"
+              port: 5001
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "payment-api"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "payment-api"
+  template:
+    metadata:
+      labels:
+        app: "payment-api"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "ticketing-payment:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "PAYMENT_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_DATABASE_URL"
+          ports:
+            - name: "http"
+              containerPort: 5004
+          readinessProbe:
+            httpGet:
+              path: "/ready"
+              port: 5004
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/ready"
+              port: 5004
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: "/health"
+              port: 5004
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "frontend"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "frontend"
+  template:
+    metadata:
+      labels:
+        app: "frontend"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "api"
+          image: "csc3104-frontend:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+          ports:
+            - name: "http"
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: "/"
+              port: 8080
+            periodSeconds: 3
+            timeoutSeconds: 3
+            failureThreshold: 60
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          command:
+            - "python"
+            - "-m"
+            - "waitress"
+            - "--listen=0.0.0.0:8080"
+            - "--call"
+            - "frontend.server:create_app"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
