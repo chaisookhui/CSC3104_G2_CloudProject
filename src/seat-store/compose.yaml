@@ -1,4 +1,4 @@
-name: csc3104-seat-store
+name: csc3104-core
 services:
   postgres:
     image: postgres:17
@@ -20,4 +20,6 @@ services:
     restart: unless-stopped
 volumes:
   postgres_data:
+    # Preserve the volume created by the original database-only project.
+    name: csc3104-seat-store_postgres_data
 

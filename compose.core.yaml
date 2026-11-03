@@ -1,4 +1,4 @@
-# External PostgreSQL: see CONTAINERS.md. No database volume is created or replaced.
+# Local PostgreSQL, APIs and workers. See CONTAINERS.md.
 name: csc3104-core
 
 x-seat: &seat
@@ -7,10 +7,10 @@ x-seat: &seat
     context: .
     dockerfile: src/seat-store/Dockerfile
   environment:
-    DATABASE_URL: ${CORE_SEAT_DATABASE_URL:?Set CORE_SEAT_DATABASE_URL in deploy/core/.env}
+    DATABASE_URL: postgresql://seat_store:${SEAT_STORE_DB_PASSWORD:?Run deploy/core/configure.ps1 first}@postgres:5432/seat_booking
     SEAT_MAP_TIER: ${SEAT_MAP_TIER:-dev}
     HOLD_TTL_SECONDS: ${HOLD_TTL_SECONDS:-300}
-    WAITLIST_URL: ${WAITLIST_URL:-http://host.docker.internal:5004}
+    WAITLIST_URL: ${CORE_WAITLIST_URL:-http://host.docker.internal:5004}
     PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:-}
   init: true
 
@@ -20,22 +20,33 @@ x-allocation: &allocation
     context: .
     dockerfile: src/allocation/Dockerfile
   environment:
-    ALLOCATION_DATABASE_URL: ${CORE_ALLOCATION_DATABASE_URL:?Set CORE_ALLOCATION_DATABASE_URL in deploy/core/.env}
+    ALLOCATION_DATABASE_URL: postgresql://seat_store:${SEAT_STORE_DB_PASSWORD:?Run deploy/core/configure.ps1 first}@postgres:5432/seat_booking
     SEAT_STORE_URL: http://seat-api:5003
     ALLOCATION_SECTIONS: A,B,C,D
     DISPATCHER_COMPLETION_URL: ${DISPATCHER_COMPLETION_URL:-}
   init: true
 
 services:
+  postgres:
+    extends:
+      file: src/seat-store/compose.yaml
+      service: postgres
+
   seat-init:
     <<: *seat
     command: [python, manage.py, init-db]
     restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   allocation-init:
     <<: *allocation
     command: [python, app.py, init-db]
     restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   seat-api:
     <<: *seat
@@ -86,3 +97,7 @@ services:
         condition: service_healthy
     stop_grace_period: 45s
     restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: csc3104-seat-store_postgres_data

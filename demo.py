@@ -24,9 +24,7 @@ ROOT = Path(__file__).resolve().parent
 PY = sys.executable
 
 DOCKER = [
-    ["docker", "compose", "--env-file", "src/seat-store/.env", "-f", "src/seat-store/compose.yaml",
-     "up", "-d", "postgres"],
-    ["docker", "compose", "--env-file", "deploy/core/.env", "-f", "compose.core.yaml", "up", "-d"],
+    ["docker", "compose", "--env-file", "src/seat-store/.env", "-f", "compose.core.yaml", "up", "-d"],
 ]
 DOCKER_READY = {"seat-store": "http://127.0.0.1:5003/health", "allocation": "http://127.0.0.1:5002/ready"}
 
@@ -79,7 +77,7 @@ def port_in_use(port):
 
 def start_docker():
     step("Starting Docker services (PostgreSQL, seat-store, allocation)")
-    for env_file in ("src/seat-store/.env", "deploy/core/.env"):
+    for env_file in ("src/seat-store/.env",):
         if not (ROOT / env_file).exists():
             fail(f"{env_file} is missing. Follow CONTAINERS.md to create it first.")
     for command in DOCKER:

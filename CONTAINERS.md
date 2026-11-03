@@ -4,51 +4,59 @@ Run all commands below from the repository root in PowerShell. These Linux image
 package the existing code without changing the allocation policy or seat logic.
 Each service has one image, reused by its API, worker and initialization job.
 
-## Does PostgreSQL need to be set up first?
+## Local database and configuration
 
-Building images does **not** require PostgreSQL. Running seat-store, or testing
-real holds/confirmation/expiry, requires a reachable PostgreSQL server and database.
-This Compose file uses external PostgreSQL; it does not install PostgreSQL or
-replace your existing database volume. It initializes application tables before
-starting the APIs and workers. Allocation also uses PostgreSQL here so worker
-replicas share the same jobs.
+Cloud deployment is on hold. `compose.core.yaml` runs PostgreSQL 17 together with
+seat-store and allocation. Both APIs and workers connect to `postgres:5432` over
+the Compose network. Migration jobs wait for PostgreSQL to become healthy, and
+APIs/workers wait for their migrations to finish.
 
-If you already ran `setup.ps1`, reuse that project's database and credentials.
-For the existing Docker database, start Docker Desktop in Linux-container mode,
-then start PostgreSQL with its existing configuration:
+Generate local credentials (no host Python installation is required):
 
 ```powershell
-docker compose --env-file src/seat-store/.env -f src/seat-store/compose.yaml up -d postgres
+.\deploy\core\configure.ps1
 ```
 
-For a first setup, use `./setup.ps1` as described in README.md. It creates the
-database, role, local credentials and seat migrations. The native PostgreSQL option
-also works, provided Docker Desktop containers can reach that server. A native
-server listening only on loopback may need explicit listener, firewall and
-`pg_hba.conf` configuration for Docker's network; keep access restricted. The
-existing Docker PostgreSQL option is the simplest path for this runbook.
+This creates ignored `src/seat-store/.env` with random passwords, or preserves an
+existing file. It uses the same credentials as the database-only Windows setup.
+For a new setup with an occupied port, pass `-DatabasePort 5433`. For an existing
+file, change `POSTGRES_PORT` and its two host database URLs together. Containers
+always use port 5432 internally. Generated passwords are URL-safe; encode special
+characters in the password when manually constructing connection URLs.
 
-## Configure the containers
+The persistent volume remains `csc3104-seat-store_postgres_data`, preserving the
+original Docker database. Bootstrap creates the non-superuser `seat_store` role,
+`seat_booking` and the separate `seat_booking_test` database on an empty volume.
+Seat-store and allocation use separate tables in `seat_booking` for this local
+setup. Existing volumes retain their original credentials; changing `.env` does
+not change their passwords. Native PostgreSQL data is separate and is not copied
+into Docker by these commands.
+
+If the old database-only project is running, stop it once before switching:
 
 ```powershell
-Copy-Item deploy/core/.env.example deploy/core/.env
+docker compose -p csc3104-seat-store --env-file src/seat-store/.env -f src/seat-store/compose.yaml stop postgres
 ```
 
-Edit `deploy/core/.env` with the username, password, database and port from your
-existing database configuration. Do not print or commit credentials. For Docker
-Desktop, change the URL host from `127.0.0.1` to `host.docker.internal`; retain the
-actual published PostgreSQL port. URL-encode special characters in credentials.
-The example's `replace_me` is not a working password.
+The restored database-only Compose file and core stack now share the
+`csc3104-core` project and database service. Use the core file to manage the full
+stack. Never run two PostgreSQL processes against the same data volume.
 
-For local development, both URLs can target the same `seat_booking` database:
-seat-store and allocation use separate tables. The role needs permission to create
-their tables. Separate service databases/roles can be supplied later without code
-changes. All replicas of a service must use the same database. Do not connect this
-demo to a database containing an unrelated or incompatible allocation workload.
+The core stack reads `src/seat-store/.env`; the previous database URL settings in
+`deploy/core/.env` are no longer used. Optional callback overrides may be supplied
+with a second `--env-file deploy/core/.env` after `--env-file src/seat-store/.env`.
+Set `CORE_WAITLIST_URL` to a payment URL reachable from containers, for example
+`http://host.docker.internal:5004` (the host-only `.env` value is not used by core).
+For a complete container setup, this guide covers the core database, seat-store
+and allocation. Waiting-room, dispatcher, frontend and payment retain their
+existing Compose files. Payment containers can reach this database through
+`host.docker.internal` at `POSTGRES_PORT`; configure their URL and run their
+payment migrations as described in the payment README. Dispatcher retains its
+persistent SQLite default for the local single-host demo.
 
 Stop any host allocation API on 5002 and host seat-store API on 5003 before starting
 their container replacements. Also stop their host worker processes to keep the
-demo's worker count predictable. PostgreSQL stays running. A host dispatcher can
+demo's worker count predictable. The core stack manages PostgreSQL too. A host dispatcher can
 continue using `http://127.0.0.1:5002`. A host payment service can continue using
 `SEAT_STORE_URL=http://127.0.0.1:5003`.
 
@@ -73,12 +81,12 @@ docker build -f src/allocation/Dockerfile -t ticketing-allocation:local .
 docker build -f src/seat-store/Dockerfile -t ticketing-seat-store:local .
 ```
 
-Or build and start the complete core setup once PostgreSQL is reachable:
+Or build and start the complete core setup including PostgreSQL:
 
 ```powershell
-docker compose --env-file deploy/core/.env -f compose.core.yaml config --quiet
-docker compose --env-file deploy/core/.env -f compose.core.yaml up -d --build
-docker compose --env-file deploy/core/.env -f compose.core.yaml ps -a
+docker compose --env-file src/seat-store/.env -f compose.core.yaml config --quiet
+docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --build
+docker compose --env-file src/seat-store/.env -f compose.core.yaml ps -a
 Invoke-RestMethod http://127.0.0.1:5003/health
 Invoke-RestMethod http://127.0.0.1:5002/ready
 ```
@@ -89,7 +97,7 @@ they are one-shot jobs. APIs and workers wait for their initialization job to
 succeed. Existing seat maps must match `SEAT_MAP_TIER`; initialization fails rather
 than replacing an incompatible map. These commands preserve existing bookings/jobs.
 
-The four long-running services are:
+PostgreSQL runs alongside these four application services:
 
 | Compose service | Process | Dependency |
 | --- | --- | --- |
@@ -135,8 +143,8 @@ because the allocator intentionally accepts only one active fixed batch.
 To test more allocation workers:
 
 ```powershell
-docker compose --env-file deploy/core/.env -f compose.core.yaml up -d --scale allocation-worker=4
-docker compose --env-file deploy/core/.env -f compose.core.yaml logs --tail 100 allocation-worker seat-worker
+docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --scale allocation-worker=4
+docker compose --env-file src/seat-store/.env -f compose.core.yaml logs --tail 100 allocation-worker seat-worker
 ```
 
 Use a batch spanning A-D to observe concurrency. One party per section remains the
@@ -144,11 +152,13 @@ policy, so a batch containing only Section A will still allocate sequentially.
 API replicas are not configured for Compose scaling here because their fixed host
 ports would collide; put a gateway/load balancer in front before scaling those.
 
-To stop the application containers while preserving external database contents:
+To stop the core containers while preserving PostgreSQL data in the named volume:
 
 ```powershell
-docker compose --env-file deploy/core/.env -f compose.core.yaml down
+docker compose --env-file src/seat-store/.env -f compose.core.yaml down
 ```
+
+Do not add `--volumes` / `-v` to `down`: that deletes the database volume.
 
 The database test suites still need a separate `*_test` PostgreSQL database and
 `TEST_DATABASE_URL`; do not point automated database tests at development bookings.

@@ -22,6 +22,20 @@ full-network acceptance and load evaluation remain outstanding. Seat-store repre
 one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
 for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
 
+## Local containers (current deployment)
+
+Cloud deployment is on hold. PostgreSQL runs locally with the seat-store and
+allocation containers; see [CONTAINERS.md](CONTAINERS.md) for configuration,
+existing database reuse, the other service containers and verification.
+
+```powershell
+.\deploy\core\configure.ps1
+docker compose --env-file src/seat-store/.env -f compose.core.yaml up -d --build
+```
+
+This path needs Docker Desktop with Linux containers and does not need host
+Python. Database data persists across restarts and `docker compose down`.
+The Windows installation below remains available for running Python on the host.
 ## Windows installation
 
 Install Python **3.15.0 (64-bit)**. Choose one PostgreSQL backend: Docker Desktop
