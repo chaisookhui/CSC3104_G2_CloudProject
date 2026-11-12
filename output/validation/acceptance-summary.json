@@ -1,0 +1,30 @@
+{
+  "namespace": "csc3104-check",
+  "scope": "Bounded integration acceptance, not statistical fairness or load capacity",
+  "cases": {
+    "F01": "PASS",
+    "B1-B5/Q01": "PASS - real-network booking checker",
+    "W2": {
+      "status": "PASS",
+      "request_id": "cdc239c1-6790-460a-a8f1-d7b7093acad9",
+      "hold_id": "d4270ecb-3b98-49ab-a073-da831fddafc0"
+    },
+    "W1": {
+      "status": "PASS",
+      "payment_id": "3e65b6e5-1573-40b2-bbf9-e330c518611c",
+      "request_id": "cdc239c1-6790-460a-a8f1-d7b7093acad9"
+    },
+    "R3": {
+      "status": "PASS",
+      "request_id": "35a5dce8-ceba-4a0a-869d-905398692b0e",
+      "payment_id": "c17bc527-5b78-4886-95eb-3192fcc999cb"
+    },
+    "R2": {
+      "status": "PASS",
+      "same_pvc_uids": true,
+      "same_holds_payments_queue": true,
+      "new_booking_confirmed": true
+    }
+  },
+  "status": "PASS"
+}

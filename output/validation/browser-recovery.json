@@ -1,0 +1,45 @@
+{
+  "status": "PASS",
+  "scope": "Live Chromium UI: create/register, close lab tab, reopen, select saved user; no new registration",
+  "user_id": "dee09ccf071749f29b021711b1a6cd35",
+  "request_id": "ccf76a53-10cc-4ec8-b1d6-b053ffeee156",
+  "hold_id": "8387a49a-bfb3-40fb-b7b8-fa5d55609741",
+  "queue_number": 4,
+  "seats": [
+    "D-1-1"
+  ],
+  "before_displayed_deadline": "10:50:37 PM",
+  "after_displayed_deadline": "10:50:37 PM",
+  "before_countdown": "04:49",
+  "after_countdown": "03:58",
+  "same_request_and_hold": true,
+  "registrations_for_user": 1,
+  "authoritative_checkout": {
+    "booking_reference": null,
+    "booking_status": "active",
+    "can_cancel": true,
+    "can_pay": true,
+    "cancellation": null,
+    "hold_expiry": "2026-11-12T14:50:37.857175Z",
+    "hold_id": "8387a49a-bfb3-40fb-b7b8-fa5d55609741",
+    "observed_at": "2026-11-12T14:48:17.634470+00:00",
+    "original_hold_expiry": "2026-11-12T14:50:37.857175+00:00",
+    "payment_attempts": [],
+    "request_id": "ccf76a53-10cc-4ec8-b1d6-b053ffeee156",
+    "seats": [
+      {
+        "held_by_request_id": "ccf76a53-10cc-4ec8-b1d6-b053ffeee156",
+        "hold_expiry": "2026-11-12T14:50:37.857175Z",
+        "hold_id": "8387a49a-bfb3-40fb-b7b8-fa5d55609741",
+        "position_in_row": 1,
+        "row": 1,
+        "seat_id": "D-1-1",
+        "section": "D",
+        "state": "HELD"
+      }
+    ],
+    "source": "seat-store"
+  },
+  "admin_password_input_type": "password",
+  "test_case_navigation_visible": false
+}

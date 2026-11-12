@@ -1,0 +1,12 @@
+{
+  "seat-store": {
+    "status": "PASS",
+    "exit_code": 0,
+    "log": ".local\\implementation-seat-store-pytest.log"
+  },
+  "waitlist-payment": {
+    "status": "PASS",
+    "exit_code": 0,
+    "log": ".local\\implementation-waitlist-payment-pytest.log"
+  }
+}

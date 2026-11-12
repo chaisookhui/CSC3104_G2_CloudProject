@@ -16,14 +16,14 @@ else:
 log = logging.getLogger(__name__)
 
 
-def process_one(store, hold=hold_seats, lease_seconds=30, max_attempts=5):
+def process_one(store, hold=hold_seats, lease_seconds=30, max_attempts=0):
     claim = store.claim(lease_seconds=lease_seconds, max_attempts=max_attempts)
     if claim is None:
         return False
     job = claim["job"]
     try:
         response = hold(job["section"], job["party_size"], job["request_id"])
-        result = ({**response, "state": "RESERVED"} if response["success"] else
+        result = ({**response, "state": response.get('hold_status') if response.get('hold_status') in ('EXPIRED','CANCELLED') else 'RESERVED'} if response["success"] else
                   {"state": "UNAVAILABLE", "success": False, "seats": [], "hold_expiry": None})
         accepted = store.finish(claim, result=result)
         log.info("request=%s section=%s outcome=%s ack=%s", job["request_id"], job["section"], result["state"], accepted)

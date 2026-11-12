@@ -11,10 +11,27 @@
   <header>
     <h1>Fair Seat Allocation</h1>
     <div class="row header-user">
-      <span id="current-request" class="muted">No user yet</span>
+      <div class="header-identity">
+        <span id="current-request" class="muted">No user yet</span>
+        <span id="current-user-id" class="muted"></span>
+      </div>
       <button id="switch-user" class="secondary">Switch user</button>
+      <button id="admin-access" class="secondary">Administrator sign in</button>
     </div>
   </header>
+
+  <dialog id="admin-login-dialog" aria-labelledby="admin-login-title">
+    <form id="admin-login-form">
+      <h2 id="admin-login-title">Administrator sign in</h2>
+      <p class="muted">Enter the password supplied by the local deployment.</p>
+      <label>Password <input id="admin-password" type="password" autocomplete="current-password" required maxlength="128"></label>
+      <div id="admin-login-error" role="status" aria-live="polite"></div>
+      <div class="row">
+        <button id="admin-login-submit" type="submit">Sign in</button>
+        <button id="admin-login-close" type="button" class="secondary">Cancel</button>
+      </div>
+    </form>
+  </dialog>
 
   <nav id="tabs">
     <div class="nav-group admin-group">
@@ -32,6 +49,18 @@
   <main>
     <!-- User > My booking: enter a name, register for the sale, follow the booking, then check out -->
     <section id="join" class="card">
+      <div class="demo-user-picker">
+        <h2>Demo users</h2>
+        <p class="muted">Each browser tab can view a different user. Keep Overview open in another tab to watch the sale.</p>
+        <label for="demo-user-select">View an existing user</label>
+        <div class="row">
+          <select id="demo-user-select"><option value="">Choose a user</option></select>
+          <button id="view-demo-user" type="button" disabled>View user</button>
+          <button id="new-demo-user" type="button" class="secondary">New user</button>
+          <button id="refresh-demo-users" type="button" class="secondary">Refresh users</button>
+        </div>
+        <div id="demo-user-message" role="status" aria-live="polite"></div>
+      </div>
       <div id="register-step">
         <h2>Your name</h2>
         <form id="register-form">
@@ -157,6 +186,7 @@
 
   <script src="api.js"></script>
   <script src="app.js"></script>
+  <script src="access.js"></script>
   <script src="join.js"></script>
   <script src="admin.js"></script>
   <script src="booking.js"></script>

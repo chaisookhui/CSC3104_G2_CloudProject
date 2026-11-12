@@ -13,6 +13,20 @@ from queue_store import RedisStore
 
 
 class RedisCorrectnessTests(unittest.TestCase):
+    def test_replay_fixture_is_lab_only_and_reproduces_queue_numbers(self):
+        parties = {str(i): self.submit(i)[1] for i in range(4)}
+        order = ['2','0','3','1']
+        with patch.dict(os.environ, {'EXPERIMENT_NAMESPACE':'csc3104'}):
+            with self.assertRaises(RuntimeError): self.store.prepare_replay(order)
+        with patch.dict(os.environ, {'EXPERIMENT_NAMESPACE':'csc3104-lab'}):
+            with self.assertRaises(ValueError): self.store.prepare_replay(['0','0'])
+            self.assertEqual(self.store.prepare_replay(order),4)
+            self.store.open_sale()
+            actual = [self.store.get_request(parties[user]['request_id']) for user in order]
+            self.assertEqual([party['queue_number'] for party in actual],[1,2,3,4])
+            self.assertTrue(all(party['eligible_at'] > 0 for party in actual))
+            with self.assertRaises(Exception): self.store.prepare_replay(order)
+
     def setUp(self):
         self.namespace = 'test:waiting:' + str(uuid4())
         self.store = RedisStore(os.getenv('TEST_REDIS_URL', 'redis://localhost:6379/15'), self.namespace)

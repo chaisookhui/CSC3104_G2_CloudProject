@@ -78,7 +78,7 @@ class SeatStore:
                    hold_id=hold["hold_id"] if state != "AVAILABLE" else None)) for row in rows]
         return {"success": True, "request_id": hold["request_id"],
                 "hold_id": str(hold["hold_id"]), "hold_status": hold["status"],
-                "hold_expiry": timestamp(expiry), "seats": records}
+                "hold_expiry": timestamp(expiry), "original_hold_expiry":timestamp(hold['hold_expiry']), "seats": records}
 
     def get_hold(self, request_id, hold_id):
         """Read one committed hold outcome, including historical expired attempts."""
@@ -94,6 +94,15 @@ class SeatStore:
             if hold is None:
                 raise StoreError("unknown_hold", "Hold does not belong to this request", 404)
             return self._result(conn, hold)
+
+    def initial_hold(self, request_id):
+        """Recover the original committed attempt after a lost reply, without reoffering."""
+        validate_text(request_id,'request_id')
+        with self.db.connect() as conn:
+            self._lock_request(conn,request_id)
+            hold=conn.execute("SELECT * FROM holds WHERE request_id=%s AND attempt_key='initial'",(request_id,)).fetchone()
+            if hold is None: raise StoreError('unknown_hold','No original hold exists',404)
+            return {**self._result(conn,hold),'original_hold_expiry':timestamp(hold['hold_expiry'])}
 
     def hold(self, section, party_size, request_id, reoffer_key=None):
         validate_text(section, "section")

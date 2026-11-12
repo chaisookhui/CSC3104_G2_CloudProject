@@ -83,12 +83,12 @@ class Dispatcher:
                 if (not isinstance(jobs, list) or any(not isinstance(j, dict) for j in jobs)
                         or len(jobs) != len(expected)
                         or {j.get('request_id') for j in jobs} != expected
-                        or any(j.get('state') not in ('RESERVED', 'UNAVAILABLE') for j in jobs)):
+                        or any(j.get('state') not in ('RESERVED', 'UNAVAILABLE', 'EXPIRED', 'CANCELLED') for j in jobs)):
                     raise ValueError('Mismatched or unsupported allocator outcomes')
                 outcomes = []
                 for job in jobs:
                     outcome = {'request_id': job['request_id'], 'status': job['state']}
-                    if job['state'] == 'RESERVED':
+                    if job['state'] in ('RESERVED','EXPIRED','CANCELLED'):
                         result = job.get('result')
                         if not isinstance(result, dict) or not result.get('hold_id'):
                             raise ValueError('Reserved outcome missing checkout identity')

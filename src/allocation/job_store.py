@@ -85,9 +85,13 @@ class JobStore:
                else "SELECT EXTRACT(EPOCH FROM clock_timestamp()) AS now")
         return float(execute(sql).fetchone()["now"])
 
-    def submit(self, payload, orders, jobs):
+    def submit(self, payload, orders, jobs, policy='demand-cycle'):
         # Canonical snapshot makes response-loss retries idempotent.
         canonical = {**payload, "requests": sorted(payload["requests"], key=lambda p: p["global_position"])}
+        if policy not in ('demand-cycle', 'fcfs'):
+            raise ValueError('Unknown allocation policy')
+        if policy != 'demand-cycle':
+            canonical['allocation_policy'] = policy
         snapshot = json.dumps(canonical, sort_keys=True)
         with self.transaction() as execute:
             previous = execute("SELECT snapshot FROM allocation_batches WHERE batch_id=?", (payload["batch_id"],)).fetchone()
@@ -95,7 +99,7 @@ class JobStore:
                 if previous["snapshot"] != snapshot:
                     raise Conflict("batch_id already exists with different input")
                 return False
-            if execute("SELECT 1 FROM allocation_jobs WHERE state NOT IN ('RESERVED','UNAVAILABLE','CANCELLED') LIMIT 1").fetchone():
+            if execute("SELECT 1 FROM allocation_jobs WHERE state NOT IN ('RESERVED','UNAVAILABLE','CANCELLED','EXPIRED') LIMIT 1").fetchone():
                 raise Conflict("Previous fixed batch is unfinished; retries/BLOCKED jobs also block admission")
             for job in jobs:
                 if execute("SELECT 1 FROM allocation_jobs WHERE request_id=?", (job["request_id"],)).fetchone():
@@ -113,15 +117,16 @@ class JobStore:
             now = self._now(execute)
             execute("""UPDATE allocation_jobs SET state='RETRY', token=NULL, error='Worker lease expired'
                        WHERE state='IN_PROGRESS' AND lease_until<=?""", (now,))
-            execute("""UPDATE allocation_jobs SET state='BLOCKED', error='Retry limit reached; reconcile manually'
-                       WHERE state='RETRY' AND attempts>=?""", (max_attempts,))
+            if max_attempts:
+                execute("""UPDATE allocation_jobs SET state='BLOCKED', error='Retry limit reached; reconcile manually'
+                           WHERE state='RETRY' AND attempts>=?""", (max_attempts,))
             # Only the first unfinished party in each section is eligible. An
             # in-flight, retrying or blocked party prevents that section advancing.
             heads = execute("""SELECT j.* FROM allocation_jobs j
                 WHERE j.state IN ('QUEUED','RETRY') AND j.available_at<=?
                 AND NOT EXISTS (SELECT 1 FROM allocation_jobs earlier
                     WHERE earlier.batch_id=j.batch_id AND earlier.section=j.section
-                    AND earlier.priority<j.priority AND earlier.state NOT IN ('RESERVED','UNAVAILABLE','CANCELLED'))
+                    AND earlier.priority<j.priority AND earlier.state NOT IN ('RESERVED','UNAVAILABLE','CANCELLED','EXPIRED'))
                 ORDER BY j.section""", (now,)).fetchall()
             if not heads:
                 return None
@@ -138,16 +143,19 @@ class JobStore:
             now = self._now(execute)
             if error is None:
                 state = result["state"]
-                if state not in ("RESERVED", "UNAVAILABLE"):
+                if state not in ("RESERVED", "UNAVAILABLE", "EXPIRED", "CANCELLED"):
                     raise ValueError("Invalid terminal allocation outcome")
+                # Database clock, saved atomically with the fenced outcome. Both
+                # successful and unsuccessful decisions must have timing evidence.
+                result = {**result, 'decided_at': now}
             else:
-                state = "RETRY" if retryable and claim["attempts"] < max_attempts else "BLOCKED"
+                state = "RETRY" if retryable and (not max_attempts or claim["attempts"] < max_attempts) else "BLOCKED"
             # A late/stale worker cannot acknowledge a replacement worker's claim.
             updated = execute("""UPDATE allocation_jobs SET state=?, result=?, error=?, token=NULL,
                 available_at=?, lease_until=NULL WHERE request_id=? AND token=?
                 AND state='IN_PROGRESS' AND lease_until>?""",
                 (state, json.dumps(result) if result else None, error,
-                 now + min(2 ** claim["attempts"], 30), claim["job"]["request_id"], claim["token"], now))
+                 now + min(2 ** min(claim["attempts"],5), 30), claim["job"]["request_id"], claim["token"], now))
             accepted = updated.rowcount == 1
             if accepted and error is None:
                 self._queue_completion(execute, claim["job"]["batch_id"])
@@ -155,10 +163,11 @@ class JobStore:
 
     def _queue_completion(self, execute, batch_id):
         rows = execute("SELECT state FROM allocation_jobs WHERE batch_id=?", (batch_id,)).fetchall()
-        if not rows or any(r["state"] not in ("RESERVED", "UNAVAILABLE", "CANCELLED") for r in rows):
+        if not rows or any(r["state"] not in ("RESERVED", "UNAVAILABLE", "CANCELLED", "EXPIRED") for r in rows):
             return
         counts = {state: sum(r["state"] == state for r in rows)
                   for state in ("RESERVED", "UNAVAILABLE", "CANCELLED")}
+        if any(r['state']=='EXPIRED' for r in rows): counts['EXPIRED']=sum(r['state']=='EXPIRED' for r in rows)
         payload = {"event_id": str(uuid.uuid5(uuid.NAMESPACE_URL, "allocation-complete:" + batch_id)),
                    "type": "batch.allocation_completed", "batch_id": batch_id,
                    "total_requests": len(rows), "outcomes": counts}
@@ -190,7 +199,7 @@ class JobStore:
 
     def batch(self, batch_id):
         with self.transaction() as execute:
-            batch = execute("SELECT orders FROM allocation_batches WHERE batch_id=?", (batch_id,)).fetchone()
+            batch = execute("SELECT orders,snapshot FROM allocation_batches WHERE batch_id=?", (batch_id,)).fetchone()
             if batch is None:
                 return None
             rows = execute("SELECT * FROM allocation_jobs WHERE batch_id=? ORDER BY section,priority", (batch_id,)).fetchall()
@@ -198,5 +207,6 @@ class JobStore:
                      "result": json.loads(row["result"]) if row["result"] else None, "error": row["error"]} for row in rows]
             event = execute("SELECT delivered FROM allocation_completions WHERE batch_id=?", (batch_id,)).fetchone()
             return {"batch_id": batch_id, "size_order": json.loads(batch["orders"]),
+                    "policy": json.loads(batch['snapshot']).get('allocation_policy', 'demand-cycle'),
                     "completion_notification": ("delivered" if event["delivered"] else "pending") if event else "not_created",
-                    "complete": all(j["state"] in ("RESERVED", "UNAVAILABLE", "CANCELLED") for j in jobs), "jobs": jobs}
+                    "complete": all(j["state"] in ("RESERVED", "UNAVAILABLE", "CANCELLED", "EXPIRED") for j in jobs), "jobs": jobs}

@@ -17,7 +17,7 @@ python demo.py --kubernetes --reset-demo
 
 This explicitly deletes the main local Kubernetes demo's bookings, payment
 history, queue and database storage, then recreates the stack and initial seats.
-Wait for **Fresh main demo ready**, reload the page, and click **Switch user**
+Wait for **Fresh main demo ready**, reload the page, and click **My booking > New user**
 before registering again. It uses already loaded images; after code changes run
 normal startup first to rebuild/load them. Normal startup preserves data.
 `--reset-test-env` instead resets the lab at port **18100**, which does not affect
@@ -38,19 +38,95 @@ test namespace, then deploys the main namespace `csc3104`. Open
 python demo.py --kubernetes
 ```
 
-`kubectl` must be installed (Docker Desktop bundles it on Windows). If Kind is not
-installed, the Windows launcher downloads official v0.33.0 to ignored `.local/bin`
-and verifies its published SHA-256. Other platforms need Kind installed on PATH.
-The node image is pinned to Kubernetes v1.36.4 and its digest in `kind.yaml`.
-Docker's `image save --platform` support is required. The launcher exports only the
-node's platform and loads that archive, avoiding the Docker containerd-store
+## Requirements on another computer
+
+Clone the repository, start Docker, and run the commands above from its root.
+Do not copy `.local`, `.env.core`, credentials or kubeconfig from another computer.
+The launcher generates that computer's configuration on first use.
+
+| Requirement | Baseline |
+| --- | --- |
+| Host Python | 3.10+; only the standard library is used by the launcher. App dependencies run inside images. |
+| Docker | Engine 24.0+ with Linux containers and Compose v2.20+. A continuously updated/latest Desktop installation is not required. |
+| Docker resources | At least 2 CPUs and 4 GiB RAM; 8 GiB recommended. More is needed when running other stacks alongside this one. |
+| Hosts | Tool downloads cover Windows x64, Linux x64/ARM64 and macOS Intel/Apple Silicon. See validation limits below. |
+| Network/disk | First startup needs internet access to official tool releases, Docker Hub and Python packages; allow several GiB for images and storage. |
+
+Optional preparation without building images or creating a cluster:
+
+```powershell
+python demo.py --kubernetes --check
+```
+
+Startup checks Docker availability, Linux containers, versions and resources
+**before building**. It installs project-local Kind **v0.33.0** and kubectl
+**v1.36.4**, verifies pinned official SHA-256 checksums and reuses them afterwards.
+It does not depend on the versions on PATH or change global installations.
+Windows downloads can use native curl's certificate trust when older host Python
+cannot validate a release server's certificate; TLS and checksum checks stay enabled.
+
+The node image stays pinned to Kubernetes **v1.36.4** and its digest in
+`kind.yaml`. That local-only configuration sets `failCgroupV1: false`, allowing
+both cgroup v1 and v2 hosts without changing Docker/WSL settings. This is a
+compatibility setting for the teaching cluster; future Kubernetes versions may
+remove cgroup v1 entirely. See the [Kubernetes cgroup documentation](https://kubernetes.io/docs/concepts/architecture/cgroups/).
+
+Image loading detects the Docker server API and CLI capabilities. Modern Docker
+uses a platform-specific archive to avoid the containerd-store
 [Kind image-loading issue](https://kind.sigs.k8s.io/docs/user/known-issues/#unable-to-kind-load-docker-images).
-Temporary archives are removed after loading.
+Older Docker uses ordinary `docker image save`, which works with its classic
+image store. An older containerd image store with incomplete multi-platform
+images may still fail export; use the classic store or a Docker API/CLI that
+supports `image save --platform` (API 1.48+). Archives are removed after loading
+or a failed export.
+
+Use the pinned client for manual inspection, including on computers with an old
+Docker-bundled kubectl:
+
+```powershell
+python infra/k8s/kubectl.py -n csc3104 get pods
+```
+
+The launcher tests cover both export paths, prerequisite failures, tool integrity
+and data-preserving recovery. CI runs those tests on Windows, Linux and macOS,
+and includes clean-checkout Kubernetes booking/storage deployments on Linux with
+Docker 24.0.9 (classic image store) and 28.5.2 (containerd image store).
+**A configured CI job is not a recorded pass:** check the submission commit's
+Actions results, then run `--verify` on a second computer before submission.
+Mocked Docker 24 tests alone do not prove deployment on every Docker 24 host;
+the full stack must be validated on each environment claimed in the report.
+
+Local acceptance recorded on **10 November 2026**: Windows x64, host Python
+3.11.0, Docker Engine 29.9.3, Compose 5.7.0, cgroup v2. The real HTTP booking
+checks and PostgreSQL/Redis Pod-replacement persistence checks passed using
+`python demo.py --kubernetes --verify`. The cgroup v1 startup setting was also
+checked during diagnosis; the complete Docker 24 and remote CI runs remain to
+be confirmed in Actions. Record those results before claiming a tested baseline
+in the submission report.
 
 The launcher always targets `.local/k8s/kubeconfig` and context `kind-csc3104`.
 It never switches the global kubectl context. Compose remains available with
 `python demo.py`; its volumes and booking data are separate and unchanged. Stop
 the Compose stack with `python demo.py --stop` if you want to free its resources.
+
+## If cluster creation fails
+
+Failed startup keeps the node and exports diagnostics to
+`.local/k8s/startup-logs-<timestamp>`. Inspect the logs before retrying; no existing
+cluster is automatically deleted. Application failures after successful cluster
+creation can be inspected with `python infra/k8s/kubectl.py -n csc3104 get pods,events`.
+
+If the cluster never initialized and contains **no bookings or storage to keep**,
+you can explicitly remove only that failed cluster and retry:
+
+```powershell
+# Windows x64; Linux/macOS use their corresponding versioned binary in .local/bin.
+& ./.local/bin/kind-v0.33.0-windows-amd64.exe delete cluster --name csc3104 --kubeconfig .local/k8s/kubeconfig
+python demo.py --kubernetes --verify
+```
+
+Deleting an initialized cluster destroys its node-local database and Redis data.
+Normal restart and `--stop` preserve them.
 
 ## What is deployed
 
@@ -119,9 +195,9 @@ worker is alive. Verify worker progress through completed allocation/payment
 jobs, expiry/callback delivery, backlog state and payment's shared heartbeat:
 
 ```powershell
-kubectl --kubeconfig .local/k8s/kubeconfig --context kind-csc3104 -n csc3104 get 'pods,pvc,services,jobs'
-kubectl --kubeconfig .local/k8s/kubeconfig --context kind-csc3104 -n csc3104 exec deployment/payment-worker -- python service.py monitor
-kubectl --kubeconfig .local/k8s/kubeconfig --context kind-csc3104 -n csc3104 logs deployment/allocation-worker --tail=50
+python infra/k8s/kubectl.py -n csc3104 get 'pods,pvc,services,jobs'
+python infra/k8s/kubectl.py -n csc3104 exec deployment/payment-worker -- python service.py monitor
+python infra/k8s/kubectl.py -n csc3104 logs deployment/allocation-worker --tail=50
 ```
 
 ## Acceptance boundaries

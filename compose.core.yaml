@@ -223,6 +223,10 @@ services:
       PAYMENT_URL: http://payment-api:5004
       DISPATCHER_URL: http://dispatcher-api:5005
       PAYMENT_API_TOKEN: ${PAYMENT_API_TOKEN:?Set PAYMENT_API_TOKEN}
+      FRONTEND_ADMIN_PASSWORD: ${FRONTEND_ADMIN_PASSWORD:-}
+      FRONTEND_AUTH: 'true'
+      EXPERIMENT_NAMESPACE: csc3104-compose
+      FRONTEND_COOKIE_SECURE: ${FRONTEND_COOKIE_SECURE:-false}
     ports: ['127.0.0.1:${FRONTEND_PORT:-18080}:8080']
     depends_on:
       waiting-room: {condition: service_healthy}

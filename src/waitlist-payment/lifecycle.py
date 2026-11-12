@@ -79,6 +79,10 @@ def validate_hold(data, request_id, hold_id):
             timestamp(data['hold_expiry'])
         elif data.get('hold_expiry') is not None:
             timestamp(data['hold_expiry'])
+        if data.get('original_hold_expiry') is not None:
+            timestamp(data['original_hold_expiry'])
+            if state=='ACTIVE' and timestamp(data['original_hold_expiry'])!=timestamp(data['hold_expiry']):
+                raise ValueError('Conflicting original hold deadline')
         return data
     except (KeyError, TypeError, ValueError, AttributeError) as exc:
         raise DependencyError('Invalid SeatStore hold response') from exc
@@ -264,8 +268,9 @@ class Lifecycle:
         old = conn.execute('SELECT * FROM wy_checkouts WHERE hold_id=%s', (hold_id,)).fetchone()
         if old and old['request_id'] != data['request_id']:
             raise DependencyError('Hold ownership changed', retryable=False)
-        if (old and state=='ACTIVE' and old['original_expiry'] is not None and
-                timestamp(data['hold_expiry'])!=old['original_expiry']):
+        observed_expiry=data.get('original_hold_expiry') or data.get('hold_expiry')
+        if (old and observed_expiry is not None and old['original_expiry'] is not None and
+                timestamp(observed_expiry)!=old['original_expiry']):
             raise DependencyError('Original hold deadline changed', retryable=False)
         if old and old['hold_status'] != 'ACTIVE':
             if state != 'ACTIVE' and state != old['hold_status']:
@@ -274,7 +279,7 @@ class Lifecycle:
         conn.execute('INSERT INTO wy_checkouts(hold_id,request_id,hold_status,snapshot,original_expiry) VALUES (%s,%s,%s,%s,%s) '
             'ON CONFLICT (hold_id) DO UPDATE SET hold_status=EXCLUDED.hold_status,snapshot=EXCLUDED.snapshot,'
             'original_expiry=COALESCE(wy_checkouts.original_expiry,EXCLUDED.original_expiry),updated_at=clock_timestamp()',
-            (hold_id, data['request_id'], state, Jsonb(data),timestamp(data['hold_expiry']) if data.get('hold_expiry') else None))
+            (hold_id, data['request_id'], state, Jsonb(data),timestamp(observed_expiry) if observed_expiry else None))
         if old is None or old['hold_status'] != state:
             audit(conn,'checkout.observed',request_id=data['request_id'],hold_id=hold_id,state=state)
         if state != 'ACTIVE':

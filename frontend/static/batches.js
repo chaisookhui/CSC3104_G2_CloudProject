@@ -29,7 +29,7 @@ function rounds(jobs) {
 }
 
 function partyChip(job) {
-  const kind = { RESERVED: "ok", UNAVAILABLE: "bad", IN_PROGRESS: "active" }[job.state] || "";
+  const kind = { RESERVED: "ok", UNAVAILABLE: "bad", EXPIRED: "bad", CANCELLED: "bad", BLOCKED: "bad", IN_PROGRESS: "active" }[job.state] || "";
   const mine = job.request_id === getCurrentRequest()?.request_id ? " me" : "";
   const seats = job.result?.seats?.join(", ");
   const title = `Queue #${job.global_position} · party of ${job.party_size} · ${job.state}` +
@@ -46,17 +46,18 @@ function sectionHtml(section, record, allocation) {
   }
   const demand = demandFor(record, jobs, section);
   const reserved = jobs.filter((j) => j.state === "RESERVED").length;
-  const rank = (allocation.size_order?.[section] || [])
+  const fcfs = allocation.policy === 'fcfs';
+  const rank = (fcfs ? SIZES.filter(size => demand[size]) : allocation.size_order?.[section] || [])
     .map((size) => `<span class="chip"><b>${esc(size)}</b>×${esc(demand[size])}</span>`)
-    .join('<span class="muted">→</span>');
-  const turns = rounds(jobs).map((round, i) =>
+    .join(fcfs ? ' ' : '<span class="muted">→</span>');
+  const turns = fcfs ? `<div class="round">${jobs.map(partyChip).join('')}</div>` : rounds(jobs).map((round, i) =>
     `<div class="round"><span class="round-label">Round ${i + 1}</span>${round.map(partyChip).join("")}</div>`).join("");
   return `
     <div class="section-card">
       <h3>Section ${section} <span class="muted">${reserved}/${jobs.length} reserved</span></h3>
-      <div class="label">Rank by demand (size × parties)</div>
+      <div class="label">${fcfs ? 'Demand counts (size × parties)' : 'Rank by demand (size × parties)'}</div>
       <div class="round">${rank}</div>
-      <div class="label">Seating order</div>
+      <div class="label">${fcfs ? 'FCFS: original queue order within this section and batch' : 'Demand-Cycle seating order'}</div>
       ${turns}
     </div>`;
 }
@@ -93,9 +94,10 @@ async function loadBatches() {
     const legend = `<p class="muted legend">
       <span class="chip"><b>2</b>#7</span> party of 2, queue #7 ·
       <span class="chip ok">reserved</span> <span class="chip bad">unavailable</span>
+      <span class="chip bad">expired / cancelled / blocked</span>
       <span class="chip active">being seated</span> <span class="chip">waiting</span>
       <span class="chip me">you</span> · hover a party for its seats</p>`;
-    detail.innerHTML = header + legend +
+    detail.innerHTML = header + `<p><b>Policy:</b> ${allocation.policy === 'fcfs' ? 'FCFS' : 'Demand-Cycle'}</p>` + legend +
       `<div class="sections">${["A", "B", "C", "D"].map((s) => sectionHtml(s, shown, allocation)).join("")}</div>`;
   } catch (error) {
     detail.innerHTML = message(error.message, true);

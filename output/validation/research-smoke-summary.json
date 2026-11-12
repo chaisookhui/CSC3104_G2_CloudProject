@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "namespace": "csc3104-check",
+  "results": [
+    {
+      "case": "F1",
+      "exit_code": 0,
+      "run": "research-smoke-20261110-191244-F1"
+    },
+    {
+      "case": "F7",
+      "exit_code": 0,
+      "run": "research-smoke-20261110-191244-F7"
+    },
+    {
+      "case": "F6",
+      "exit_code": 0,
+      "run": "research-smoke-20261110-191244-F6"
+    },
+    {
+      "case": "F5",
+      "exit_code": 0,
+      "run": "research-smoke-20261110-191244-F5"
+    },
+    {
+      "case": "C01",
+      "status": "PASS",
+      "run": "research-smoke-20261110-191244-contention"
+    },
+    {
+      "case": "Q02",
+      "status": "PASS",
+      "run": "research-smoke-20261110-191244-register"
+    }
+  ],
+  "scope": "Small integration smoke/calibration only; not full fairness, high-load, scaling, HPA or security acceptance"
+}

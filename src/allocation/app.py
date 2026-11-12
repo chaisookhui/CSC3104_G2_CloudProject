@@ -16,28 +16,31 @@ def create_app(store=None):
     store = store or JobStore(os.environ["ALLOCATION_DATABASE_URL"])
     app.extensions["allocation_store"] = store
     sections = tuple(os.getenv("ALLOCATION_SECTIONS", "A,B,C,D").split(","))
+    policy = os.getenv('ALLOCATION_POLICY', 'demand-cycle')
+    if policy not in ('demand-cycle', 'fcfs'):
+        raise ValueError('ALLOCATION_POLICY must be demand-cycle or fcfs')
 
     @app.get("/health")
     def health():
-        return jsonify(status="ok", service="allocation")
+        return jsonify(status="ok", service="allocation", policy=policy)
 
     @app.get("/ready")
     def ready():
         with store.transaction() as execute:
             execute("SELECT id FROM allocation_scheduler WHERE id=1").fetchone()
-        return jsonify(status="ready")
+        return jsonify(status="ready", policy=policy)
 
     @app.post("/batches")
     def submit():
         payload = request.get_json(silent=True)
         try:
-            orders, jobs = prepare_batch(payload, sections=sections)
-            created = store.submit(payload, orders, jobs)
+            orders, jobs = prepare_batch(payload, sections=sections, policy=policy)
+            created = store.submit(payload, orders, jobs, policy=policy)
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
         except Conflict as exc:
             return jsonify(error=str(exc)), 409
-        return jsonify(batch_id=payload["batch_id"], size_order=orders,
+        return jsonify(batch_id=payload["batch_id"], size_order=orders, policy=policy,
                        status="accepted" if created else "already_accepted"), 202 if created else 200
 
     @app.get("/batches/<batch_id>")

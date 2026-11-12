@@ -47,47 +47,62 @@ host port 18080. Set the documented backend environment variables as needed.
 ## Demo users
 
 - **Your name** (User > My booking) is the only sign-in. There is no account service,
-  so the page creates a unique `user_id` and keeps it in this browser.
+  so the page creates a unique `user_id` and remembers it in this browser.
 - **Register** (User > My booking) registers for the sale with a section and party size
   (waiting room `/submit`, status REGISTERED), matching the waiting-room slides.
-- **More demo users:** open another browser or a private window; each keeps its
-  own user. "Switch user" deliberately starts over across this origin's tabs.
+- **Different users in different tabs:** open the same address in ordinary browser
+  tabs. Each tab keeps its own selected user and Admin/User view. Private windows
+  are not needed. Keep Overview in one tab and My booking in another.
+- **View existing users:** My booking > Demo users lists saved browser identities
+  and users from the server queue, including `sim-...` users. Choose an ID and click
+  **View user** to open that user's existing request without registering again.
+  The header displays the selected user's full ID.
+- **New user** starts a new identity in this tab. Previous users and bookings stay
+  available in the picker. **Switch user** in the header opens that picker.
 - **Simulated users:** Admin > Overview > Simulate users registers many `sim-...` users
   through the same `/submit` endpoint, with a fixed or random section and party size.
   Add them before starting the sale; ones added afterwards join as latecomers.
 
 ## Reconnect and terminal-outcome policy
 
-Reloading or reopening this same browser profile/origin restores the saved user
-and original request. Queue position, hold identity, seats and deadline do not
+Reloading a tab restores its selected user, view and original request. A new tab
+starts independently; use the picker to reopen an earlier user. Queue position,
+hold identity, seats and deadline do not
 change. A lost registration response is replayed with the same user and payload.
 Booking polling retries connection failures and refreshes exact-hold checkout
 state before enabling actions. Confirmed, cancelled, expired and unavailable
 outcomes remain ended; there is no rejoin/new-attempt action for that user.
 
-Tabs on the same origin share identity/request storage. Web Locks serialize
+The selected identity/view use per-tab session storage. Request and pending-action
+records use shared local storage keyed by user ID. Tabs viewing the same user share
+that booking; switching users in one tab leaves the other tabs unchanged. Web Locks serialize
 actions where supported; payment keys also use the hold and server-observed
 attempt number so concurrent tabs cannot create two attempts for the same step.
 A deliberate retry after a verified decline uses the next attempt number, without
 changing the hold deadline. The backend remains responsible for atomic effects.
 
-Use a modern browser on localhost with local storage enabled for recovery across
-reloads. If storage is blocked/cleared, the in-memory fallback cannot recover a
+Use a modern browser on localhost with session/local storage enabled for recovery
+across reloads. If storage is blocked/cleared, the in-memory fallback cannot recover a
 closed page. Another browser, private profile, port or device has separate storage.
-"Switch user" explicitly changes the demo identity across tabs; it is not a
-verified login or a way to recover the old identity. Cross-device recovery and
+The user picker is a local demo control, not a verified login. Names remembered
+by one browser profile are not an authentication system. Cross-device recovery and
 preventing users from inventing new identities require the future auth layer.
 
 Run the frontend recovery/concurrency tests without additional npm packages:
 
 ```powershell
-node --test frontend/tests/recovery.test.cjs
+node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs
 ```
 
 These execute the shipped scripts in isolated tab contexts with controlled HTTP,
 storage and locks; deployed browser acceptance remains a separate check (TESTING.md B6).
 
 ## Tabs
+
+Test cases are documented in [the submission PDF](../output/pdf/GROUP02_INSTRUCTIONS.pdf)
+and executed using the CLI tools. The obsolete Experiments screen and its assets
+have been removed.
+Overview, Batches, Seat map and My booking provide the observations an examiner needs.
 
 The tab bar is grouped by who uses each tab. For demos, keep an Admin tab in one
 window and User > My booking in another, side by side.
@@ -132,3 +147,17 @@ A new round starts when a party size comes up again in the turn order.
    `badge(status)` for statuses, and the colour variables in `style.css`.
    `dispatchedBatches(dispatcherStatus)` lists batches in order, so "Batch N"
    matches the Overview and Batches tabs.
+# Browser ownership and administration
+
+The complete container deployment enables signed browser sessions. Customer
+identities are issued by the server, and the gateway restricts reads and booking
+mutations to identities owned by that browser. Administrator controls require
+sign-in in the page header. Retrieve the lab password with
+`python experiments/access.py --namespace csc3104-lab`; use `csc3104` for main.
+CLI tests use a distinct operator token read from local configuration.
+
+Cookies persist for seven days. Clearing cookies or changing browser loses guest
+ownership; there is no personal-account or cross-device recovery service. Keep
+internal service ports private. No-token native mode remains an unauthenticated
+local demo. For HTTPS set `FRONTEND_COOKIE_SECURE=true`. See
+[extended testing procedures](../experiments/ROBUSTNESS.md).

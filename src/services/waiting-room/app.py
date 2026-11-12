@@ -1,7 +1,6 @@
 """Global registration/queue service. Section scheduling belongs to the dispatcher."""
 from datetime import datetime, timezone
 import os
-import random
 import uuid
 import requests
 
@@ -17,6 +16,10 @@ def create_app(store=None, session=None):
     # Keep curl responses readable even when Flask debug mode is disabled.
     app.json.compact = False
     app.json.sort_keys = False
+    @app.after_request
+    def service_instance(response):
+        response.headers['X-Service-Instance']=os.getenv('HOSTNAME','local')
+        return response
     sections = tuple("ABCD")
     if store is None:
         if os.getenv("WAITING_ROOM_STORAGE") == "memory":
@@ -347,14 +350,16 @@ def create_app(store=None, session=None):
             if (
                 not isinstance(rid, str)
                 or not rid
-                or status not in ("RESERVED", "UNAVAILABLE")
+                or status not in ("RESERVED", "UNAVAILABLE", "EXPIRED", "CANCELLED")
                 or rid in statuses
             ):
                 return jsonify(error="Invalid or duplicate outcome"), 400
 
             statuses[rid] = status
+            if status in ('EXPIRED','CANCELLED') and (not isinstance(item.get('allocation'),dict) or item['allocation'].get('hold_status')!=status):
+                return jsonify(error='Recovered terminal outcome requires the original hold'),400
             if 'allocation' in item:
-                if status != 'RESERVED':
+                if status not in ('RESERVED','EXPIRED','CANCELLED'):
                     return jsonify(error='Only reserved requests have checkout details'), 400
                 try:
                     allocations[rid] = validate_allocation(item['allocation'])

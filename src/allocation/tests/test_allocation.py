@@ -36,6 +36,17 @@ def drain_claims(url, output, active_sections, guard):
 
 
 class SchedulingTests(unittest.TestCase):
+    def test_fcfs_uses_original_positions_without_changing_batch_validation(self):
+        payload = sample_batch()
+        payload['requests'].reverse()
+        _, jobs = prepare_batch(payload, policy='fcfs')
+        for section in ('A', 'B'):
+            positions = [job['global_position'] for job in jobs if job['section'] == section]
+            self.assertEqual(positions, sorted(positions))
+        self.assertEqual({job['request_id'] for job in jobs}, {p['request_id'] for p in payload['requests']})
+        with self.assertRaises(ValueError):
+            prepare_batch(payload, policy='unknown')
+
     def test_cycle_and_global_order(self):
         payload = sample_batch()
         payload['requests'].reverse()
@@ -94,6 +105,16 @@ class QueueTests(unittest.TestCase):
         next_party = self.store.claim()
         self.assertEqual(next_party['job']['section'], 'A')
         self.assertEqual(next_party['job']['party_size'], 2)
+
+    def test_outcome_timestamp_and_policy_are_durable_and_policy_replay_conflicts(self):
+        first = self.store.claim()
+        self.store.finish(first, result={'state': 'UNAVAILABLE'})
+        outcome = next(j for j in self.store.batch('demo-1')['jobs'] if j['request_id'] == first['job']['request_id'])
+        self.assertIsInstance(outcome['result']['decided_at'], (int, float))
+        self.assertEqual(self.store.batch('demo-1')['policy'], 'demand-cycle')
+        orders, jobs = prepare_batch(self.payload, policy='fcfs')
+        with self.assertRaises(Conflict):
+            self.store.submit(self.payload, orders, jobs, policy='fcfs')
 
     def test_delayed_retry_blocks_its_section_only(self):
         with patch.object(self.store, '_now', return_value=100):
@@ -229,6 +250,26 @@ class QueueTests(unittest.TestCase):
         self.assertEqual(self.store.batch('demo-1')['jobs'][0]['state'], 'BLOCKED')
         self.assertFalse(self.store.batch('demo-1')['complete'])
 
+    def test_sustained_transient_outage_recovers_after_more_than_five_attempts(self):
+        def unavailable(*_): raise SeatStoreError('HTTP 503',retryable=True)
+        for attempt in range(12):
+            with patch.object(self.store,'_now',return_value=100+attempt*31):
+                process_one(self.store,hold=unavailable)
+        state=self.store.batch('demo-1')
+        self.assertTrue(any(j['attempts']>5 for j in state['jobs']))
+        self.assertNotIn('BLOCKED',[j['state'] for j in state['jobs']])
+        with patch.object(self.store,'_now',return_value=1000):
+            while process_one(self.store,hold=lambda *_:{'success':False}):pass
+        self.assertTrue(self.store.batch('demo-1')['complete'])
+
+    def test_expired_original_hold_finishes_without_creating_another_allocation(self):
+        def expired(*_):return dict(success=True,hold_status='EXPIRED',hold_id='same-original',seats=['A-1-1'])
+        with patch.object(self.store,'_now',return_value=100):
+            while process_one(self.store,hold=expired):pass
+        batch=self.store.batch('demo-1')
+        self.assertTrue(batch['complete'])
+        self.assertTrue(all(j['state']=='EXPIRED' for j in batch['jobs']))
+
     def test_permanent_error_is_blocked_not_no_seats(self):
         def conflict(*_):
             raise SeatStoreError('HTTP 409', retryable=False)
@@ -270,6 +311,21 @@ class QueueTests(unittest.TestCase):
 
 
 class ClientTests(unittest.TestCase):
+    @patch('src.allocation.seat_client.requests.get')
+    @patch('src.allocation.seat_client.requests.post')
+    def test_lost_reply_reconciles_expired_original_without_reoffering(self,post,get):
+        post.return_value=Mock(status_code=409,json=lambda:{'error':'hold_expired'})
+        get.return_value=Mock(status_code=200,json=lambda:dict(request_id='r',hold_id='original',hold_status='EXPIRED',
+            original_hold_expiry='2026-11-12T10:00:00Z',seats=[dict(seat_id='A-1-1',section='A',row=1,position_in_row=1)]))
+        result=hold_seats('A',1,'r')
+        self.assertEqual(result['hold_status'],'EXPIRED')
+        self.assertEqual(result['hold_id'],'original')
+        self.assertEqual(result['hold_expiry'],'2026-11-12T10:00:00Z')
+        self.assertEqual(post.call_count,1)
+        self.assertNotIn('reoffer_key',post.call_args.kwargs['json'])
+        get.return_value.json=lambda:[]
+        with self.assertRaises(SeatStoreError):hold_seats('A',1,'r')
+
     @patch('src.allocation.seat_client.requests.post')
     def test_confirmed_hold_retry_accepts_null_expiry(self, post):
         data = {'success': True, 'request_id': 'r', 'hold_id': 'h', 'hold_status': 'CONFIRMED',

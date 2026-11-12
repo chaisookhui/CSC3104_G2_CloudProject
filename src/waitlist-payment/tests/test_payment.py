@@ -14,7 +14,7 @@ import psycopg
 import pytest
 import requests
 
-from lifecycle import Conflict, DependencyError, Lifecycle, SeatClient, validate_hold
+from lifecycle import Conflict, DependencyError, Lifecycle, SeatClient
 from service import create_app
 
 

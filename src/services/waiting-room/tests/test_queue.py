@@ -27,7 +27,7 @@ class QueueTests(unittest.TestCase):
     def test_global_lottery_then_concurrent_fcfs(self):
         early = [self.submit(i).json for i in range(12)]
         self.assertTrue(all(r['queue_number'] is None for r in early))
-        with patch('app.random.SystemRandom.shuffle', side_effect=lambda ids: ids.reverse()) as shuffle:
+        with patch('queue_store.random.SystemRandom.shuffle', side_effect=lambda ids: ids.reverse()) as shuffle:
             self.assertEqual(self.client.post('/sale/start').status_code, 200)
             assigned = [self.client.get('/requests/' + r['request_id']).json for r in early]
             self.assertEqual([r['queue_number'] for r in assigned], list(range(12, 0, -1)))

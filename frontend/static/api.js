@@ -4,6 +4,7 @@ async function api(path, body) {
   const options = body === undefined
     ? { method: "GET" }
     : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) };
+  await window.prepareApi?.(options);
   const response = await fetch("/api/" + path, options);
   let data;
   try {

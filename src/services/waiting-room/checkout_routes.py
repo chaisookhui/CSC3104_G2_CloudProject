@@ -17,11 +17,11 @@ def validate_allocation(value):
             raise ValueError()
         UUID(value['hold_id'])
         seats = value['seats']
-        if (value['hold_status'] not in ('ACTIVE', 'CONFIRMED') or not isinstance(seats, list)
+        if (value['hold_status'] not in ('ACTIVE', 'CONFIRMED', 'EXPIRED', 'CANCELLED') or not isinstance(seats, list)
                 or not 1 <= len(seats) <= 4 or any(not isinstance(s, str) or not s for s in seats)
                 or len(set(seats)) != len(seats)):
             raise ValueError()
-        if value['hold_status'] == 'ACTIVE':
+        if value['hold_status'] in ('ACTIVE','EXPIRED','CANCELLED'):
             deadline = datetime.fromisoformat(value['hold_expiry'].replace('Z', '+00:00'))
             if deadline.tzinfo is None:
                 raise ValueError()

@@ -16,17 +16,28 @@ checks. The Windows installation steps below are for native/module development.
 For the same stack on local Kubernetes, run `python demo.py --kubernetes --verify`
 and open http://127.0.0.1:18090. See [the local Kubernetes runbook](infra/k8s/README.md)
 for persistent storage, configuration, resource limits, probes and validation limits.
+The launcher needs host Python 3.10+, Docker Engine 24+ with Linux containers,
+and Compose v2.20+. It prepares its own pinned Kind/kubectl tools and supports
+cgroup v1/v2; it does not require the latest Docker Desktop. Run
+`python demo.py --kubernetes --check` to check prerequisites before deployment.
 
 To clear the main local Kubernetes demo at **port 18090** and repeat the simulation,
 run `python demo.py --kubernetes --reset-demo`. This deletes its bookings, payments
 and queue, then recreates the initial seats and pre-sale state. Reload the page
-and click **Switch user** before registering again. `--reset-test-env` resets only
+and click **My booking > New user** before registering again. `--reset-test-env` resets only
 the separate lab at **port 18100**.
 
 See [the full test and cloud-readiness guide](TESTING.md) for deployment checks,
 in-flight failures, overload/scaling, reconnect rules, fairness comparisons, cost
 measurement and release gates. Proposed experiments are distinguished from
 already demonstrated behavior.
+
+Start with the [professor's testing instructions](output/pdf/GROUP02_INSTRUCTIONS.pdf)
+for deployment, functional tests, concurrency, scaling, failure recovery and cleanup.
+The [editable source](output/pdf/GROUP02_INSTRUCTIONS.md) contains the same procedures.
+Tests and evidence collection run through the [lab CLI tools](experiments/README.md);
+the application shows Overview, Batches, Seat map and My booking without a test checklist.
+Expected behavior, current verification and historical evidence remain distinct.
 
 | Component | Current purpose |
 | --- | --- |
@@ -39,8 +50,9 @@ already demonstrated behavior.
 
 The service APIs now connect registration, allocation, checkout and cancellation.
 UNAVAILABLE, expired and cancelled requests are exit points; there is no rejoin or
-waitlist. Routed integration tests exercise the journey; a deployed frontend,
-cluster failure acceptance and load evaluation remain outstanding. Seat-store represents
+waitlist. Routed integration tests and bounded deployed booking/recovery evidence
+are described in experiments/VALIDATION.md; full load/scaling evaluation remains
+outstanding. Seat-store represents
 one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
 for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
 
@@ -171,7 +183,9 @@ Restart either backend with `.\src\seat-store\run.ps1`.
 
 See [the seat-store README](src/seat-store/README.md) for its API, booking examples,
 configuration and native-PostgreSQL alternative. Internal mutation endpoints are
-for trusted local development; caller authentication is not implemented here.
+for trusted private service-to-service traffic. The frontend gateway separately
+enforces browser ownership and administrator access when configured with its
+generated credential. See [extended robustness and access instructions](experiments/ROBUSTNESS.md).
 
 ## Run tests
 

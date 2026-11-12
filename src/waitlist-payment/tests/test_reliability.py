@@ -5,7 +5,7 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from werkzeug.exceptions import Unauthorized
@@ -19,6 +19,17 @@ from test_payment import Seats
 
 KEY='test-only-checkout-signing-key-32-characters'
 INTERNAL='test-only-internal-service-credential'
+
+
+def test_first_checkout_after_expiry_keeps_original_deadline(lifecycle,seats):
+    from datetime import datetime
+    seats.state='EXPIRED'
+    lookup=seats.lookup
+    seats.lookup=lambda request_id,hold_id:{**lookup(request_id,hold_id),'original_hold_expiry':seats.expiry}
+    checkout=lifecycle.checkout(seats.request_id,seats.hold_id)
+    assert checkout['booking_status']=='expired'
+    assert checkout['original_hold_expiry']==datetime.fromisoformat(seats.expiry)
+    assert checkout['hold_expiry'] is None
 
 
 @pytest.fixture

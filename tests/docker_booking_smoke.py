@@ -5,10 +5,15 @@ confirmed seats. Uses standard Python only, so no test dependency install is nee
 """
 import argparse
 import json
+import os
+import hmac
+import hashlib
 import time
 from datetime import datetime
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+from pathlib import Path
 from uuid import uuid4
 
 
@@ -17,11 +22,26 @@ class BookingCheck:
         self.base = base_url.rstrip('/')
         self.timeout = timeout
         self.prefix = 'docker-check-' + uuid4().hex[:12]
+        self.operator=None
+        if urlparse(self.base).hostname in ('localhost','127.0.0.1'):
+            token=os.getenv('PAYMENT_API_TOKEN')
+            with urlopen(self.base+'/api/demo/context',timeout=10) as response:
+                namespace=json.load(response).get('namespace')
+            if namespace in ('csc3104','csc3104-lab','csc3104-check'):
+                path=Path(__file__).resolve().parents[1]/'.local/k8s'/('secrets-'+namespace+'.json')
+                if path.exists():token=json.loads(path.read_text())['PAYMENT_API_TOKEN']
+            elif namespace in ('local-or-compose','csc3104-compose'):
+                path=Path(__file__).resolve().parents[1]/'.env.core'
+                if not token and path.exists():
+                    values=dict(line.split('=',1) for line in path.read_text().splitlines() if '=' in line and not line.startswith('#'))
+                    token=values.get('PAYMENT_API_TOKEN','').strip().strip('\"\'')
+            if token:self.operator=hmac.new(token.encode(),b'csc3104:operator',hashlib.sha256).hexdigest()
 
     def request(self, path, body=None, expected=200):
         data = None if body is None else json.dumps(body).encode()
-        req = Request(self.base + '/api/' + path, data=data,
-                      headers={'Content-Type': 'application/json'})
+        headers={'Content-Type':'application/json'}
+        if self.operator:headers['Authorization']='Bearer '+self.operator
+        req = Request(self.base + '/api/' + path, data=data,headers=headers)
         try:
             with urlopen(req, timeout=15) as response:
                 status, raw = response.status, response.read()
@@ -78,7 +98,7 @@ class BookingCheck:
         assert state['waiting_count'] == 0, 'Use a dedicated empty stack'
         with urlopen(self.base + '/', timeout=10) as response:
             assert b'checkout.js' in response.read()
-        for asset in ('app.js', 'checkout.js', 'checkout.css', 'seats.js'):
+        for asset in ('app.js', 'checkout.js', 'checkout.css', 'seats.js', 'batches.js'):
             with urlopen(self.base + '/' + asset, timeout=10) as response:
                 assert response.status == 200 and response.read()
         for service in ('allocation', 'payment', 'dispatcher'):

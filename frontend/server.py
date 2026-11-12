@@ -3,6 +3,10 @@ import os
 
 import requests
 from flask import Flask, Response, abort, request
+try:
+    from frontend.access import install_access
+except ModuleNotFoundError:
+    from access import install_access
 
 # Service addresses come from the environment so the same code runs in a container.
 SERVICES = {
@@ -17,10 +21,22 @@ SERVICES = {
 def create_app():
     app = Flask(__name__, static_folder="static", static_url_path="")
     payment_token = os.getenv("PAYMENT_API_TOKEN", "")
+    install_access(app,SERVICES,payment_token)
 
     @app.get("/")
     def index():
         return app.send_static_file("index.html")
+
+    @app.get('/api/demo/context')
+    def demo_context():
+        namespace = os.getenv('EXPERIMENT_NAMESPACE', 'local-or-compose')
+        return {'namespace': namespace, 'is_lab': namespace in ('csc3104-lab', 'csc3104-check'),
+                'authentication': 'browser ownership and administrator access' if app.config['ACCESS_ENABLED'] else 'demo identities only; no trusted login'}
+
+    if not app.config['ACCESS_ENABLED']:
+        @app.get('/api/session')
+        def disabled_session():
+            return {'enabled':False,'admin':True,'users':[]}
 
     @app.route("/api/<service>/<path:path>", methods=["GET", "POST"])
     def forward(service, path):
@@ -38,8 +54,13 @@ def create_app():
                 allow_redirects=False)
         except requests.RequestException:
             return {"error": f"{service} service is not reachable"}, 502
-        return Response(upstream.content, upstream.status_code,
+        if service=='waiting-room' and path=='queue' and upstream.status_code==200 and app.config['ACCESS_ENABLED']:
+            return app.extensions['filter_customer_queue'](upstream.json())
+        response=Response(upstream.content, upstream.status_code,
                         content_type=upstream.headers.get("Content-Type", "application/json"))
+        if upstream.headers.get('X-Service-Instance'):
+            response.headers['X-Service-Instance']=upstream.headers['X-Service-Instance']
+        return response
 
     return app
 

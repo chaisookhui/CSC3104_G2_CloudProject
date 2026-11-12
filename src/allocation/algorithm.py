@@ -4,12 +4,14 @@ from collections import Counter, deque
 SECTIONS = ("A", "B", "C", "D")
 
 
-def prepare_batch(payload, sections=SECTIONS):
+def prepare_batch(payload, sections=SECTIONS, policy='demand-cycle'):
     """Validate dispatcher input and return immutable-in-practice scheduled jobs.
 
     Demand is number of parties, not number of seats. Dispatcher-supplied counts
     must match the snapshot. No global admission decisions are made here.
     """
+    if policy not in ('demand-cycle', 'fcfs'):
+        raise ValueError('Allocation policy must be demand-cycle or fcfs')
     if not isinstance(payload, dict) or set(payload) != {"batch_id", "requests", "section_demand"}:
         raise ValueError("Expected batch_id, requests and section_demand")
     batch_id = payload["batch_id"]
@@ -50,6 +52,12 @@ def prepare_batch(payload, sections=SECTIONS):
             raise ValueError("section_demand does not match the fixed request snapshot")
         order = sorted((s for s in range(1, 5) if actual[s]), key=lambda s: (-counts[str(s)], s))
         orders[section] = order
+        if policy == 'fcfs':
+            jobs.extend({**party, 'batch_id': batch_id, 'priority': priority}
+                        for priority, party in enumerate(sorted(
+                            (p for p in parties if p['section'] == section),
+                            key=lambda p: p['global_position'])))
+            continue
         groups = {s: deque(sorted((p for p in parties if p["section"] == section and p["party_size"] == s),
                                  key=lambda p: p["global_position"])) for s in order}
         priority = 0

@@ -1,5 +1,13 @@
 # Testing our ticket-booking application
 
+The submission-facing [testing PDF](output/pdf/GROUP02_INSTRUCTIONS.pdf) and its
+[editable source](output/pdf/GROUP02_INSTRUCTIONS.md) provide 25 explicit procedures
+across the eleven requested sections. Test cases are kept outside the main frontend.
+The [lab CLI](experiments/README.md) supplies evidence capture, saved workload
+replay and an equivalent FCFS control. This longer guide is a technical reference.
+Check [current validation results](output/validation/robustness-results.md) for
+execution evidence and remaining gaps; `experiments/VALIDATION.md` retains history.
+
 This guide explains **what to test, why it matters, what to do, and what a correct
 result looks like**. You do not need to understand every command before starting.
 Follow the basic tests first. Open the expandable technical sections only when
@@ -120,7 +128,7 @@ Open Docker Desktop and wait until its engine is running. Open PowerShell in the
 repository, then run:
 
 ```powershell
-cd C:\Users\Hp\Documents\GitHub\CSC3104_G2_CloudProject
+cd C:\path\to\CSC3104_G2_CloudProject
 python demo.py --kubernetes
 ```
 
@@ -136,10 +144,9 @@ helper to start the same services with separate test storage.
 python -c "import sys; sys.path.insert(0,'infra/k8s'); import local; local.deploy('csc3104-lab',hold_ttl=300,batch_size=50)"
 if ($LASTEXITCODE -ne 0) { throw 'Lab did not start. Check the error above.' }
 
-$KubeConfigPath = Join-Path (Get-Location) '.local/k8s/kubeconfig'
 $LabNamespace = 'csc3104-lab'
 function k {
-    & kubectl --kubeconfig $KubeConfigPath --context kind-csc3104 --namespace $LabNamespace @args
+    & python infra/k8s/kubectl.py --namespace $LabNamespace @args
     if ($LASTEXITCODE -ne 0) { throw 'The Kubernetes command failed.' }
 }
 k get pods
@@ -158,7 +165,7 @@ fresh sale. If the lab was used before, see section 13 to reset only its data.
 Open a second PowerShell window in the same repository and run:
 
 ```powershell
-kubectl --kubeconfig .local/k8s/kubeconfig --context kind-csc3104 -n csc3104-lab port-forward --address 127.0.0.1 service/frontend 18100:8080
+python infra/k8s/kubectl.py -n csc3104-lab port-forward --address 127.0.0.1 service/frontend 18100:8080
 ```
 
 Leave this window running. It connects your laptop's port 18100 to the frontend.
@@ -230,7 +237,7 @@ These are simulated payments: never enter real card details.
 
 ### Test B2: declined payment followed by retry
 
-**Ready now.** Use **Switch user** to make a new test customer and obtain a new hold.
+**Ready now.** Use **My booking > New user** to make a new test customer and obtain a new hold.
 
 1. Note the countdown.
 2. Click **Simulate decline** and wait for the declined result.
@@ -295,18 +302,21 @@ recovery still needs trusted identity integration.**
 
 The implemented rule is **reconnect, never requeue**: an ended attempt cannot gain
 a new queue entry. The old rejoin route returns HTTP 410 without changing state.
-There is no customer-facing new-attempt feature. "Switch user" is only a demo
+There is no customer-facing new-attempt feature. "New user" is only a demo
 identity change, not recovery or verified login. Browser storage does not restore
 identity on another port/profile/device; disabling or clearing it loses recovery.
 
 Also interrupt the network while queued and after submitting payment, then reload
 and reconnect. Keep the same request/hold IDs, queue position and original deadline.
-Open two same-origin tabs and click Pay together; inspect payment records to verify
-one attempt. After a deliberate decline, a new intentional retry is allowed but
+Open two same-origin tabs, use **My booking > View an existing user > View user**
+to select the same user ID in both, and click Pay together; inspect payment records
+to verify one attempt. Also keep Overview open in a third tab and verify it stays
+on that view while the user tabs switch identities. After a deliberate decline,
+a new intentional retry is allowed but
 cannot change the hold. Confirm/cancel in one tab and reload the other: it should
 recover the terminal outcome without needing that tab's local operation IDs.
 
-Automated script-level coverage: `node --test frontend/tests/recovery.test.cjs`.
+Automated script-level coverage: `node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs`.
 This does not replace running the above checks against the deployed UI.
 
 ### Quick automated check
@@ -740,7 +750,7 @@ Once it is set up in an agreed test cluster:
 ```powershell
 k get --raw /apis/metrics.k8s.io/v1beta1
 k top pods
-k autoscale deployment waiting-room --cpu-percent=70 --min=1 --max=4
+k autoscale deployment waiting-room --cpu=70% --min=1 --max=4
 k get hpa -w
 ```
 
@@ -752,9 +762,12 @@ Remove the lab HPA or restore its settings between comparisons.
 
 ## 9. Test whether allocation is fair
 
-**Needs an FCFS comparison and a repeatable measurement tool first.** There is
-currently no implemented FCFS benchmark command; do not invent a switch or compare
-two Demand-Cycle runs as though they were different policies.
+**Lab comparison tooling is now available.** Use
+`python experiments/run.py trace` and `python experiments/run.py compare` as
+documented in [the experiment guide](experiments/README.md). The comparator
+replays saved queue positions and verifies actual policy, fixed batch boundaries
+and identical initial inventory. A small integration smoke is not a full research
+result; collect repeated paired traces before making fairness claims.
 
 ### What the comparison means
 
@@ -960,7 +973,7 @@ A private coursework demonstration and a production service are different target
 The current app still needs trusted customer/admin authorization; cross-device
 identity recovery; checkout-key delivery; correct forwarding of retry/security
 headers; clearer queue/stage timing and per-request
-measurements; full-stack metrics/HPA setup; an FCFS evaluation tool; stronger
+measurements beyond the new replay timestamps; full-stack metrics/HPA setup; stronger
 database credential/permission separation; registration overload protection;
 and an agreed allocator repair procedure. Tests should expose these gaps, not
 hide them behind a green Pod status.
@@ -976,7 +989,7 @@ hide them behind a green Pod status.
 
 Resetting the lab will **not** clear the page at port 18090. To repeat the main
 demo, run `--reset-demo`, wait for **Fresh main demo ready**, reload port 18090,
-then click **Switch user** and register again. No port-forward is needed for
+then click **My booking > New user** and register again. No port-forward is needed for
 18090. Both reset commands restore the initial seats and pre-sale state; neither
 resets Docker Compose at port 18080. Normal startup still preserves data.
 
@@ -996,7 +1009,7 @@ python demo.py --kubernetes --reset-test-env
    databases, queue and initial seats. If it fails, fix the reported error before
    continuing; do not assume the reset completed.
 4. Reopen the Terminal B connection using the command from section 2.
-5. Open http://127.0.0.1:18100. Click **Switch user** if a previous user is shown,
+5. Open http://127.0.0.1:18100. Click **My booking > New user** if a previous user is shown,
    then register again. This clears the old browser request too.
 
 You should see **pre_sale**, an empty queue and available seats. You can now
@@ -1054,7 +1067,7 @@ SELECT 'seat_in_multiple_live_histories', count(*) FROM (
  HAVING count(DISTINCT h.hold_id)>1
 ) bad;
 '@
-$SeatInvariantSql | kubectl --kubeconfig $KubeConfigPath --context kind-csc3104 --namespace $LabNamespace exec -i postgres-0 -- psql -U postgres -d seats -v ON_ERROR_STOP=1
+$SeatInvariantSql | python infra/k8s/kubectl.py --namespace $LabNamespace exec -i postgres-0 -- psql -U postgres -d seats -v ON_ERROR_STOP=1
 if ($LASTEXITCODE -ne 0) { throw 'Invariant query failed' }
 
 k exec postgres-0 -- psql -U postgres -d payment -c "SELECT hold_id,count(*) FROM wy_payments WHERE attempt_status='pending' GROUP BY hold_id HAVING count(*)>1;"
@@ -1089,106 +1102,26 @@ for that delay and fail unresolved mismatches after it. For deadline races, the
 important decision is the database time check after seat locks are acquired, not
 only the browser click or a later commit timestamp.
 
-## Appendix B: traffic-generator example
+## Appendix B: registration load
 
-**Needs setup: install k6 first.** This is only a pre-sale registration starter.
-It is not the missing full-journey or fairness tool, and has not been run as a load
-experiment during this documentation review.
-
-<details>
-<summary>Open to copy the optional k6 script</summary>
-
-Create `.local/load`, then save this as `.local/load/register.js`.
-
-```javascript
-import http from 'k6/http';
-import exec from 'k6/execution';
-import { Counter } from 'k6/metrics';
-
-const base = (__ENV.BASE_URL || 'http://127.0.0.1:18100').replace(/\/$/, '');
-const runId = __ENV.RUN_ID;
-if (!runId) throw new Error('Set a unique RUN_ID');
-const codes = new Counter('registration_status_total');
-export const options = {
-  scenarios: {
-    arrivals: {
-      executor: 'constant-arrival-rate', rate: Number(__ENV.RATE || 5),
-      timeUnit: '1s', duration: __ENV.DURATION || '60s',
-      preAllocatedVUs: 20, maxVUs: 100, gracefulStop: '35s',
-    },
-  },
-  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(95)', 'p(99)'],
-};
-export function setup() {
-  const response = http.get(`${base}/api/waiting-room/status`);
-  const state = response.json();
-  if (response.status !== 200 || state.sale_state !== 'pre_sale' || state.waiting_count !== 0)
-    throw new Error('Use a fresh, empty, pre-sale lab');
-}
-export default function () {
-  const i = exec.scenario.iterationInTest;
-  const user = `${runId}-${i}`;
-  const payload = {
-    user_id: user, section: 'ABCD'[Math.floor(i / 4) % 4], party_size: i % 4 + 1,
-  };
-  const sentAt = new Date().toISOString();
-  const response = http.post(`${base}/api/waiting-room/submit`, JSON.stringify(payload), {
-    headers: { 'Content-Type': 'application/json' }, timeout: '30s',
-    tags: { name: 'register' },
-  });
-  codes.add(1, { status: String(response.status) });
-  let requestId = null;
-  try { requestId = response.json().request_id || null; } catch (_) {}
-  const accepted = (response.status === 200 || response.status === 201) && requestId !== null;
-  const rejected = [400, 401, 403, 404, 409, 413, 422, 429].includes(response.status);
-  console.log(JSON.stringify({
-    run_id: runId, user_id: user, request_id: requestId,
-    section: payload.section, party_size: payload.party_size,
-    sent_at: sentAt, response_at: new Date().toISOString(),
-    status: response.status, latency_ms: response.timings.duration,
-    outcome: accepted ? 'accepted' : rejected ? 'rejected' : 'unknown',
-  }));
-}
-export function handleSummary(data) {
-  const directory = __ENV.RESULT_DIR || '.local/test-results/registration';
-  return { [`${directory}/summary.json`]: JSON.stringify(data, null, 2) };
-}
-```
-
-</details>
-
-Use a fresh lab and keep Terminal B running. In another terminal run:
+Use the maintained Python CLI after a fresh lab reset. It uses the generated
+lab operator credential and reconciles acknowledged registrations.
 
 ```powershell
 $RunId = 'registration-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
-$ResultDir = '.local/test-results/' + $RunId
-New-Item -ItemType Directory -Force -Path $ResultDir | Out-Null
-k6 version
-k6 run --out "json=$ResultDir/samples.json" --console-output "$ResultDir/requests.log" -e "BASE_URL=http://127.0.0.1:18100" -e "RUN_ID=$RunId" -e "RESULT_DIR=$ResultDir" -e RATE=5 -e DURATION=60s .local/load/register.js
+python experiments/run.py register --rate 5 --duration 60 --run $RunId
+python experiments/metrics.py --run $RunId
 ```
 
-This tries five registrations per second for one minute. Do not start the sale
-during this registration-only run.
+Results are saved under `.local/test-results/<run-id>/`: `arrivals.json/csv`,
+`summary.json`, `metrics.json`, and before/after captures. This measures
+registration only. Keep the sale closed, run one experiment at a time, and
+reset the lab before each independent run. The CLI creates its own connection.
 
-| Output file | What to use it for |
-| --- | --- |
-| `summary.json` | Overall measurements |
-| `samples.json` | Individual metric samples and timing analysis |
-| `requests.log` | Synthetic user IDs, returned request IDs and known/unknown outcomes |
-
-Check dropped_iterations: those are arrivals the generator could not start.
-Filter raw timings to the `register` operation; the setup status request also
-appears in overall HTTP metrics. Logging and saving samples add overhead; measure
-the generator too, especially at higher rates.
-
-Find every accepted request in Redis afterwards. Retry an unknown result using
-the SAME synthetic user identity, keeping the original evidence. A new request
-for an already acknowledged identity after recovery needs investigation. This
-simple script does not do that whole verification automatically.
-
-Recreate the lab between independent runs. Do not use its simple repeating
-customer pattern as a randomized fairness trace, or its port-forward path as
-proof that a cloud gateway balances traffic across replicas.
+Inspect accepted/rejected/unknown arrivals, generator drops and launch lag.
+A conclusive PASS requires all offered arrivals accepted or reconciled, no
+missing acknowledged IDs and launch lag within one second. Preserve inconclusive
+runs. See `experiments/ROBUSTNESS.md` for surge/admission and API-scaling studies.
 
 ## References
 
@@ -1196,5 +1129,3 @@ proof that a cloud gateway balances traffic across replicas.
 - [Kubernetes HPA and metrics prerequisites](https://kubernetes.io/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/)
 - [Kubernetes NetworkPolicy enforcement](https://kubernetes.io/docs/concepts/services-networking/network-policies/)
 - [Kubernetes Secrets and security considerations](https://kubernetes.io/docs/concepts/configuration/secret/)
-- [k6 constant-arrival-rate executor](https://grafana.com/docs/k6/latest/using-k6/scenarios/executors/constant-arrival-rate/)
-- [k6 generator/VU capacity and dropped iterations](https://grafana.com/docs/k6/latest/using-k6/scenarios/concepts/arrival-rate-vu-allocation/)

@@ -1,0 +1,96 @@
+- banner:
+  - heading "Fair Seat Allocation" [level=1]
+  - generic: Browser Recovery Check · Section D · 1 pax
+  - generic: "User ID: dee09ccf071749f29b021711b1a6cd35"
+  - button "Switch user"
+  - button "Administrator sign in"
+- navigation:
+  - generic: User
+  - button "My booking"
+- main:
+  - heading "Demo users" [level=2]
+  - paragraph: Each browser tab can view a different user. Keep Overview open in another tab to watch the sale.
+  - generic: View an existing user
+  - combobox "View an existing user":
+    - option "Choose a user"
+    - option "Browser Recovery Check · dee09ccf071749f29b021711b1a6cd35" [selected]
+  - button "View user"
+  - button "New user"
+  - button "Refresh users"
+  - status
+  - heading "My booking" [level=2]
+  - list:
+    - listitem: Registered
+    - listitem: Queued
+    - listitem: Admitted to a batch
+    - listitem: Seats reserved
+  - generic: Your seats are held. Complete payment before the original deadline.
+  - term: Status
+  - definition:
+    - generic: RESERVED
+  - term: User
+  - definition: dee09ccf071749f29b021711b1a6cd35
+  - term: Section
+  - definition: D
+  - term: Party size
+  - definition: "1"
+  - term: Queue number
+  - definition: "4"
+  - term: Seats
+  - definition: D-1-1
+  - term: Hold ID
+  - definition: 8387a49a-bfb3-40fb-b7b8-fa5d55609741
+  - term: Hold status
+  - definition:
+    - generic: ACTIVE
+  - term: Pay before
+  - definition: 10:50:37 PM
+  - term: Request ID
+  - definition: ccf76a53-10cc-4ec8-b1d6-b053ffeee156
+  - generic "Reservation checkout":
+    - generic: SECURE DEMO CHECKOUT
+    - generic: Seats held
+    - heading "Complete your booking" [level=2]
+    - paragraph: Review your reservation and finish before the hold expires.
+    - status:
+      - generic: ◷
+      - generic: Time remaining to complete checkout
+      - strong: 04:06
+      - generic: Seats are only confirmed after successful payment.
+    - generic: "1"
+    - heading "Ticket details" [level=3]
+    - generic: T
+    - strong: Fair Seat Allocation
+    - generic: Section D · 1 ticket
+    - generic: Reserved seats
+    - strong: D-1-1
+    - generic: Reservation ID
+    - generic: ccf76a53-10cc-4ec8-b1d6-b053ffeee156
+    - generic: "2"
+    - heading "Contact" [level=3]
+    - generic: Booking name
+    - strong: Browser Recovery Check
+    - paragraph: This is your demo booking identity. No email or real account is required.
+    - generic: "3"
+    - heading "Payment method" [level=3]
+    - generic: ▣
+    - strong: Simulated payment
+    - generic: No real charges or card details
+    - generic: Selected
+    - paragraph: Pay simulates a successful payment; Decline simulates a rejected attempt. You may retry after a declined attempt while the hold remains active.
+    - complementary:
+      - heading "Order summary" [level=3]
+      - generic: Fair Seat Allocation
+      - generic: Section
+      - strong: D
+      - generic: Quantity
+      - strong: "1"
+      - generic: Seats
+      - strong: D-1-1
+      - generic: Total
+      - strong: Demo only
+      - paragraph: No ticket price or currency is provided by the current backend, so no amount is charged or displayed.
+      - button "Complete mock payment"
+      - button "Simulate decline"
+      - button "Cancel reservation"
+      - status: Your seats are temporarily reserved.

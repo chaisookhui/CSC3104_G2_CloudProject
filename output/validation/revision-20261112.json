@@ -1,0 +1,24 @@
+{
+  "date": "2026-11-12",
+  "scope": "Local unit and controlled integration checks; no current deployed acceptance",
+  "python": {
+    "experiment_tools": 12,
+    "measurement_summary": 2,
+    "launcher": 20,
+    "reset_scope": 4,
+    "allocation_sqlite_and_controlled_services": 21,
+    "dispatcher_sqlite_and_controlled_services": 5,
+    "waiting_room_memory": 4,
+    "checkout_controlled_services": 4,
+    "frontend_context": 2,
+    "passed": 74
+  },
+  "javascript": {"browser_recovery_simulated_tabs": 22, "legacy_workbench": 3},
+  "blocked": [
+    "Docker Desktop Linux engine pipe absent",
+    "Local Kubernetes API unreachable",
+    "Redis suite: host redis package absent"
+  ],
+  "not_rerun": ["deployed TC-01 to TC-18", "real PostgreSQL/Redis integration", "fault/scaling benchmarks", "clean-machine deployment"],
+  "performance_results": null
+}

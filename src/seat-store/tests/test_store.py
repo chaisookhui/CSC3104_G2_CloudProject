@@ -16,6 +16,23 @@ def ids(result):
     return [seat["seat_id"] for seat in result["seats"]]
 
 
+def test_original_attempt_lookup_survives_expiry_and_does_not_create_reoffer(store):
+    import time
+    store.hold_ttl=1
+    held=store.hold('A',2,'lost-reply')
+    original=store.initial_hold('lost-reply')
+    assert original['hold_id']==held['hold_id']
+    time.sleep(1.05)
+    expired=store.transition('lost-reply','expire',held['hold_id'])
+    original=store.initial_hold('lost-reply')
+    assert original['hold_status']=='EXPIRED'
+    assert original['hold_id']==expired['hold_id']==held['hold_id']
+    assert original['original_hold_expiry']==held['hold_expiry']
+    assert len(original['seats'])==2
+    with pytest.raises(StoreError) as error:store.initial_hold('different-request')
+    assert error.value.status==404
+
+
 def count(db, table):
     assert table in ("holds", "notification_outbox")
     with db.connect() as conn:

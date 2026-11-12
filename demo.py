@@ -21,6 +21,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stop', action='store_true', help='Stop this project; preserve its data')
     parser.add_argument('--kubernetes', action='store_true', help='Deploy to the isolated local Kind cluster instead of Compose')
+    parser.add_argument('--check', action='store_true', help='With --kubernetes, check prerequisites without deploying')
     parser.add_argument('--verify', action='store_true', help='With --kubernetes, run disposable booking/storage acceptance first')
     parser.add_argument('--reset-test-env', action='store_true',
                         help='With --kubernetes, erase and recreate ONLY csc3104-lab test data')
@@ -29,6 +30,11 @@ def main():
     parser.add_argument('--port', type=int, help='Frontend loopback port for this run (default 18080)')
     parser.add_argument('--batch-size', type=int, help='Batch size for this run, from 1 to 100')
     args = parser.parse_args()
+    if args.check:
+        if (not args.kubernetes or args.stop or args.verify or args.reset_test_env or
+                args.reset_demo or args.port is not None or args.batch_size is not None):
+            parser.error('--check requires --kubernetes and cannot be combined with other options')
+        return subprocess.run([sys.executable, str(ROOT / 'infra/k8s/local.py'), '--check'], cwd=ROOT).returncode
     if args.reset_test_env and (not args.kubernetes or args.stop or args.verify or args.port is not None):
         parser.error('--reset-test-env requires --kubernetes and cannot be combined with --stop, --verify or --port')
     if args.reset_demo and (not args.kubernetes or args.reset_test_env or args.stop or args.verify or args.port is not None):

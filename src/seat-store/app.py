@@ -49,6 +49,10 @@ def create_app(config=None):
     def hold_status(hold_id):
         return jsonify(store.get_hold(request.args.get("request_id"), hold_id))
 
+    @app.get('/requests/<request_id>/initial-hold')
+    def initial_hold(request_id):
+        return jsonify(store.initial_hold(request_id))
+
     @app.post("/seats/hold")
     def hold():
         data = body(("section", "party_size", "request_id"), ("reoffer_key",))

@@ -124,12 +124,13 @@
     }
 
     const latest = checkout?.payment_attempts?.at(-1);
+    // A verified decline supersedes transient submission/network feedback.
+    // While retrying, keep showing the new submission rather than the old decline.
     const feedback = !verified ? 'Checking your saved reservation. Actions are paused until the server responds.'
       : latest?.attempt_status === 'pending' ? 'Payment is processing. Reconnecting will recover this same attempt.'
-      : outcomeText || (latest?.attempt_status === 'declined'
-        ? 'Payment declined. Retry before the original hold deadline.'
-        : secs === 0 ? 'The hold deadline has elapsed. Checking the final booking outcome.'
-        : 'Your seats are temporarily reserved.');
+      : secs === 0 ? 'The hold deadline has elapsed. Checking the final booking outcome.'
+      : latest?.attempt_status === 'declined' && !busy ? 'Payment declined. Retry before the original hold deadline.'
+      : outcomeText || 'Your seats are temporarily reserved.';
 
     root.innerHTML = `
       <div class="ticket-checkout" aria-label="Reservation checkout">

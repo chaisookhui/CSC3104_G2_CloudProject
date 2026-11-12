@@ -1,0 +1,424 @@
+{
+  "date": "2026-11-12",
+  "branch": "twy",
+  "namespace": "csc3104-lab",
+  "cases": {
+    "lost-reply": {
+      "status": "PASS",
+      "run": "implementation-lost-reply-20261112-final",
+      "exit_code": 0
+    },
+    "worker-crash": {
+      "status": "PASS",
+      "run": "implementation-worker-crash-20261112-r2",
+      "exit_code": 0,
+      "restart_observed": true,
+      "recovered_state": "EXPIRED"
+    },
+    "race-active": {
+      "status": "PASS",
+      "run": "implementation-race-active-20261112-final",
+      "exit_code": 0
+    },
+    "race-expiry": {
+      "status": "PASS",
+      "run": "implementation-race-expiry-20261112-r2",
+      "exit_code": 0
+    },
+    "outage-redis": {
+      "status": "PASS",
+      "run": "implementation-outage-redis-20261112-r2",
+      "exit_code": 0,
+      "queued_job_and_confirmed_booking": true
+    },
+    "outage-postgres": {
+      "status": "PASS",
+      "run": "implementation-outage-postgres-20261112-r2",
+      "exit_code": 0,
+      "queued_job_and_confirmed_booking": true
+    },
+    "outage-both": {
+      "status": "PASS",
+      "run": "implementation-outage-both-20261112-r3",
+      "queued_job_and_confirmed_booking": true
+    },
+    "surge": {
+      "status": "PASS",
+      "run": "implementation-surge-20261112-final",
+      "exit_code": 0,
+      "offered": 2100,
+      "outcomes": {
+        "ACCEPTED": 2100
+      },
+      "admission": {
+        "stable_positions": true,
+        "contiguous_unique_positions": true,
+        "changed_or_missing_ids": [],
+        "unresolved_ids": [],
+        "outcomes": {
+          "RESERVED": 68,
+          "UNAVAILABLE": 2032
+        },
+        "invariants": {
+          "seat_checks": [
+            {
+              "test": "available_seat_has_owner",
+              "violations": 0
+            },
+            {
+              "test": "state_does_not_match_hold",
+              "violations": 0
+            },
+            {
+              "test": "partial_live_party",
+              "violations": 0
+            },
+            {
+              "test": "non_adjacent_live_party",
+              "violations": 0
+            },
+            {
+              "test": "duplicate_live_request",
+              "violations": 0
+            },
+            {
+              "test": "seat_in_multiple_live_histories",
+              "violations": 0
+            }
+          ],
+          "payment_checks": {
+            "duplicate_pending": 0,
+            "duplicate_success": 0
+          },
+          "counts": {
+            "holds": 68,
+            "seats": 70,
+            "confirmed": 0,
+            "held": 70
+          },
+          "violations": 0,
+          "status": "PASS",
+          "captured_at": "2026-11-12T13:54:35.177993+00:00"
+        }
+      },
+      "timing_fidelity": true
+    },
+    "gateway": {
+      "status": "PASS",
+      "run": "implementation-gateway-20261112-r3"
+    },
+    "fairness": {
+      "status": "PASS",
+      "run": "implementation-fairness-20261112-final",
+      "exit_code": 0
+    },
+    "api-scale": {
+      "status": "PASS",
+      "run": "implementation-api-scale-20261112-final",
+      "exit_code": 0
+    },
+    "hpa-load": {
+      "status": "INCONCLUSIVE",
+      "run": "implementation-hpa-load-20261112-final",
+      "exit_code": 2
+    },
+    "autoscale": {
+      "status": "INCONCLUSIVE",
+      "configured": true,
+      "observed_waiting_room_replicas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "scope": "Waiting-room CPU HPA only; worker scale-out not asserted"
+    },
+    "booking-acceptance": {
+      "status": "PASS",
+      "invariants": {
+        "seat_checks": [
+          {
+            "test": "available_seat_has_owner",
+            "violations": 0
+          },
+          {
+            "test": "state_does_not_match_hold",
+            "violations": 0
+          },
+          {
+            "test": "partial_live_party",
+            "violations": 0
+          },
+          {
+            "test": "non_adjacent_live_party",
+            "violations": 0
+          },
+          {
+            "test": "duplicate_live_request",
+            "violations": 0
+          },
+          {
+            "test": "seat_in_multiple_live_histories",
+            "violations": 0
+          }
+        ],
+        "payment_checks": {
+          "duplicate_pending": 0,
+          "duplicate_success": 0
+        },
+        "counts": {
+          "holds": 6,
+          "seats": 70,
+          "confirmed": 4,
+          "held": 0
+        },
+        "violations": 0,
+        "status": "PASS",
+        "captured_at": "2026-11-12T14:37:49.730410+00:00"
+      }
+    },
+    "browser-live": {
+      "status": "PASS",
+      "evidence": "output/validation/browser-recovery.json",
+      "scope": "Live Chromium UI: create/register, close lab tab, reopen, select saved user; no new registration"
+    }
+  },
+  "limits": [
+    "Local Kind and mock payments only",
+    "Not a full penetration test; live-browser coverage is a scoped close/reopen flow",
+    "Full ten-seed statistical study and cloud cost excluded from this validation"
+  ],
+  "initial_attempts": {
+    "lost-reply": {
+      "status": "PASS",
+      "run": "implementation-lost-reply-20261112-final",
+      "exit_code": 0
+    },
+    "worker-crash": {
+      "status": "INCONCLUSIVE",
+      "run": "implementation-worker-crash-20261112-final",
+      "exit_code": 0,
+      "reason": "In-container PID 1 signal did not cause an observed restart; superseded by runtime SIGKILL test."
+    },
+    "race-active": {
+      "status": "PASS",
+      "run": "implementation-race-active-20261112-final",
+      "exit_code": 0
+    },
+    "race-expiry": {
+      "status": "PASS",
+      "run": "implementation-race-expiry-20261112-final",
+      "exit_code": 0
+    },
+    "outage-redis": {
+      "status": "FAIL",
+      "error": "RuntimeError",
+      "message": "waiting-room/sale/start: HTTP 502; {'error': 'waiting-room service is not reachable'}",
+      "reason": "Harness did not wait for API endpoint readiness after storage restoration."
+    },
+    "outage-postgres": {
+      "status": "PASS",
+      "run": "implementation-outage-postgres-20261112-final",
+      "exit_code": 0
+    },
+    "outage-both": {
+      "status": "FAIL",
+      "error": "RuntimeError",
+      "message": "waiting-room/sale/start: HTTP 502; {'error': 'waiting-room service is not reachable'}",
+      "reason": "Harness did not wait for API endpoint readiness after storage restoration."
+    },
+    "surge": {
+      "status": "PASS",
+      "run": "implementation-surge-20261112-final",
+      "exit_code": 0,
+      "offered": 2100,
+      "outcomes": {
+        "ACCEPTED": 2100
+      },
+      "admission": {
+        "stable_positions": true,
+        "contiguous_unique_positions": true,
+        "changed_or_missing_ids": [],
+        "unresolved_ids": [],
+        "outcomes": {
+          "RESERVED": 68,
+          "UNAVAILABLE": 2032
+        },
+        "invariants": {
+          "seat_checks": [
+            {
+              "test": "available_seat_has_owner",
+              "violations": 0
+            },
+            {
+              "test": "state_does_not_match_hold",
+              "violations": 0
+            },
+            {
+              "test": "partial_live_party",
+              "violations": 0
+            },
+            {
+              "test": "non_adjacent_live_party",
+              "violations": 0
+            },
+            {
+              "test": "duplicate_live_request",
+              "violations": 0
+            },
+            {
+              "test": "seat_in_multiple_live_histories",
+              "violations": 0
+            }
+          ],
+          "payment_checks": {
+            "duplicate_pending": 0,
+            "duplicate_success": 0
+          },
+          "counts": {
+            "holds": 68,
+            "seats": 70,
+            "confirmed": 0,
+            "held": 70
+          },
+          "violations": 0,
+          "status": "PASS",
+          "captured_at": "2026-11-12T13:54:35.177993+00:00"
+        }
+      },
+      "timing_fidelity": true
+    },
+    "gateway": {
+      "status": "PASS",
+      "run": "implementation-gateway-20261112-final",
+      "exit_code": 0
+    },
+    "fairness": {
+      "status": "PASS",
+      "run": "implementation-fairness-20261112-final",
+      "exit_code": 0
+    },
+    "api-scale": {
+      "status": "PASS",
+      "run": "implementation-api-scale-20261112-final",
+      "exit_code": 0
+    },
+    "hpa-load": {
+      "status": "INCONCLUSIVE",
+      "run": "implementation-hpa-load-20261112-final",
+      "exit_code": 2
+    },
+    "autoscale": {
+      "status": "INCONCLUSIVE",
+      "configured": true,
+      "observed_waiting_room_replicas": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4,
+        4
+      ],
+      "scope": "Waiting-room CPU HPA only; worker scale-out not asserted"
+    }
+  },
+  "database_regression": {
+    "seat-store": {
+      "status": "PASS",
+      "exit_code": 0,
+      "log": ".local\\implementation-seat-store-pytest.log"
+    },
+    "waitlist-payment": {
+      "status": "PASS",
+      "exit_code": 0,
+      "log": ".local\\implementation-waitlist-payment-pytest.log"
+    }
+  },
+  "main_update": {
+    "status": "PASS",
+    "confirmed_seat_ownership_unchanged": true,
+    "retained_batch_size": "50",
+    "retained_hold_ttl": "300",
+    "storage_reset": false
+  },
+  "final_frontend_update": {
+    "status": "PASS",
+    "namespaced_cookies": true,
+    "ownership_outage_http": 503
+  },
+  "rerun_history": {
+    "outage-both": {
+      "status": "FAIL",
+      "error": "RuntimeError",
+      "message": "waiting-room/requests/e6f6a960-845b-4782-aa60-b19eda72539f/checkout: HTTP 503; {'error': 'Checkout dependency unavailable; retry the same request'}"
+    }
+  },
+  "source_checks": {
+    "gateway": 9,
+    "allocator": 24,
+    "browser_recovery": 23,
+    "browser_access": 2,
+    "fairness": 3,
+    "generator_completeness": 2,
+    "experiment_inputs": 12,
+    "measurement_summary": 2,
+    "launcher": 20,
+    "frontend_context": 2,
+    "dispatcher_recovery": 5,
+    "checkout_memory": 4,
+    "seat_store_postgresql": 61,
+    "payment_postgresql": 50
+  }
+}

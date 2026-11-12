@@ -20,6 +20,26 @@ def hold_seats(section, party_size, request_id):
         response = requests.post(f"{url}/seats/hold", json={
             "section": section, "party_size": party_size, "request_id": request_id
         }, timeout=(3, 5))
+        conflict=response.json() if response.status_code==409 else None
+        if isinstance(conflict,dict) and conflict.get('error') in ('hold_expired','hold_cancelled'):
+            from urllib.parse import quote
+            original=requests.get(f'{url}/requests/{quote(request_id,safe="")}/initial-hold',timeout=(3,5))
+            if original.status_code!=200: raise SeatStoreError('Original hold cannot be reconciled')
+            data=original.json()
+            if not isinstance(data,dict): raise SeatStoreError('Invalid original hold response')
+            records=data.get('seats',[])
+            if (data.get('request_id')!=request_id or data.get('hold_status') not in ('EXPIRED','CANCELLED') or
+                    not isinstance(data.get('hold_id'),str) or not data['hold_id'] or not isinstance(records,list) or len(records)!=party_size or
+                    not isinstance(data.get('original_hold_expiry'),str) or
+                    any(not isinstance(s,dict) or s.get('section')!=section or not isinstance(s.get('seat_id'),str) or
+                        type(s.get('row')) is not int or type(s.get('position_in_row')) is not int for s in records) or
+                    len({s.get('seat_id') for s in records})!=party_size):
+                raise SeatStoreError('Invalid original terminal hold')
+            positions=sorted(s['position_in_row'] for s in records)
+            if len({s['row'] for s in records})!=1 or positions!=list(range(positions[0],positions[0]+party_size)):
+                raise SeatStoreError('Invalid original party adjacency')
+            return dict(success=True,request_id=request_id,hold_id=data['hold_id'],hold_status=data['hold_status'],
+                        hold_expiry=data.get('original_hold_expiry'),seats=[s['seat_id'] for s in records])
         if response.status_code != 200:
             raise SeatStoreError(f"SeatStore HTTP {response.status_code}",
                                  retryable=response.status_code in (408, 429) or response.status_code >= 500)

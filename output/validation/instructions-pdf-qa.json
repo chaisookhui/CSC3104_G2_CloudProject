@@ -1,0 +1,95 @@
+{
+  "status": "PASS",
+  "pages": 17,
+  "checks": [
+    {
+      "page": 1,
+      "characters": 2824,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 2,
+      "characters": 3109,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 3,
+      "characters": 2827,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 4,
+      "characters": 2927,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 5,
+      "characters": 2581,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 6,
+      "characters": 2839,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 7,
+      "characters": 3210,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 8,
+      "characters": 2629,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 9,
+      "characters": 2902,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 10,
+      "characters": 3065,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 11,
+      "characters": 2982,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 12,
+      "characters": 3727,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 13,
+      "characters": 2338,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 14,
+      "characters": 3418,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 15,
+      "characters": 3006,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 16,
+      "characters": 2835,
+      "out_of_bounds": 0
+    },
+    {
+      "page": 17,
+      "characters": 3049,
+      "out_of_bounds": 0
+    }
+  ],
+  "pdf_sha256": "2e6ab0f6b3effc9832730b217d4c388a8359cbda7550dbf7aa6952603b1fe54f",
+  "all_rendered_pages_visually_reviewed": true,
+  "reviewed_at": "2026-11-12T15:37:59.409223+00:00",
+  "revision_note": "TC-15 generator bounds/PASS criteria corrected; changed page rendered and reviewed, remaining layout unchanged"
+}
