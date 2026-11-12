@@ -5,7 +5,6 @@ No demand ranking or allocator interaction in this module.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Iterable
 
 SECTIONS = ("A", "B", "C", "D")
 PARTY_SIZES = (1, 2, 3, 4)
@@ -128,39 +127,3 @@ def build_allocator_payload(batch_payload: dict) -> dict:
         "requests": requests,
         "section_demand": section_demand
     }
-
-
-class BatchDispatcher:
-    """In-memory demo. Waiting Room remains authoritative for admission state."""
-
-    def __init__(self, batch_size: int = 50):
-        if type(batch_size) is not int or batch_size < 1:
-            raise ValueError("batch_size must be positive")
-        self.batch_size = batch_size
-        self.batch_number = 0
-        self.pending_ids: set[str] = set()
-        self.last_known_queue: list[QueueRequest] = []
-
-    def update_queue(self, entries: Iterable[QueueRequest]) -> None:
-        self.last_known_queue = sorted(entries, key=lambda r: r.global_position)
-
-    def remaining_count(self) -> int:
-        return sum(r.request_id not in self.pending_ids for r in self.last_known_queue)
-
-    def create_next_batch(self) -> tuple[dict, list[QueueRequest]] | None:
-        eligible = [r for r in self.last_known_queue if r.request_id not in self.pending_ids]
-        if not eligible:
-            return None
-        snapshot = eligible[:self.batch_size]
-        self.batch_number += 1
-        batch_id = f"batch-{self.batch_number:04d}"
-        self.pending_ids.update(r.request_id for r in snapshot)
-        batched = [BatchedRequest(r.request_id, r.global_position, r.section,
-                                  r.party_size, batch_id) for r in snapshot]
-        return send_allocation_input(batch_id, batched), snapshot
-
-    def finish_batch(self, snapshot: list[QueueRequest]) -> None:
-        """Clear local pending requests after Waiting Room confirms outcomes."""
-        self.pending_ids.difference_update(
-            r.request_id for r in snapshot
-        )

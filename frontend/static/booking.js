@@ -25,7 +25,7 @@ function bookingStatus(r) {
 
 function stepsHtml(status) {
   const reached = BOOKING_TERMINAL.includes(status) ? STEPS.length
-    : status === "ALLOCATION_DONE" ? 2 : STEPS.findIndex(([s]) => s === status);
+    : STEPS.findIndex(([s]) => s === status);
   return `<ul class="steps">${STEPS.map(([, label], i) =>
     `<li class="${status === "UNAVAILABLE" && i === 3 ? "failed" : i < reached ? "done" : i === reached ? "current" : ""}">${esc(label)}</li>`
   ).join("")}</ul>`;

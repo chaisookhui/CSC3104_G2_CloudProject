@@ -32,7 +32,7 @@ def validate_allocation(value):
         raise ValueError('Invalid checkout allocation') from None
 
 
-def install_checkout_routes(app, store, sections, http):
+def install_checkout_routes(app, store, http):
     payment_url = os.getenv('PAYMENT_URL', 'http://127.0.0.1:5004').rstrip('/')
     allocator_url = os.getenv('ALLOCATOR_URL', 'http://127.0.0.1:5002').rstrip('/')
 

@@ -30,7 +30,7 @@ function message(text, isError) {
   return `<div class="message${isError ? " error" : ""}">${esc(text)}</div>`;
 }
 
-const GOOD = ["RESERVED", "CONFIRMED", "ADMITTED", "ALLOCATION_DONE", "COMPLETED"];
+const GOOD = ["RESERVED", "CONFIRMED", "ADMITTED", "COMPLETED"];
 const BAD = ["UNAVAILABLE", "EXPIRED", "CANCELLED"];
 
 // Dispatcher batches in dispatch order (finished ones, then the active one).

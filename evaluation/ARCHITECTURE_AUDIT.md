@@ -91,7 +91,7 @@ Status describes inspected code/configuration, not successful deployment or meas
 | Cross-service eventual reconciliation | Implemented, conditional on recovery progress | Saved handoff states, same identity on retry, seat-store authoritative reads. No atomic transaction spanning Redis and all databases |
 | Concurrent housekeeping | Implemented | Seat expiry and delivery loops, payment recovery, dispatcher and waiting recovery processes |
 | Fixed-batch admission bound | Implemented | Default 50, upper limit 100; bounds admitted allocation jobs, not total queued users or frontend requests |
-| Adaptive admission | Isolated code only | `admission_control.py` defines an in-process controller; active waiting-room app does not invoke it. Do not claim load-aware admission from its presence |
+| Adaptive admission | Telemetry only | `admission_control.py` records local rolling load for `/status`; admission is controlled by the external fixed-batch dispatcher. Unused permit enforcement has been removed |
 | Demand-Cycle scheduling | Implemented; benefit unmeasured | Pure snapshot validation and ordering. Fairness depends on a stated objective and workload |
 | Horizontal worker/API execution | Supported by shared-state design; main configured replicas = 1 | Need concurrent **PostgreSQL** worker and networked API evidence; SQLite multiprocess tests do not establish PostgreSQL behavior |
 | Containerisation / orchestration | Configured with real launch paths | Dockerfiles, Compose, Deployments, StatefulSets, Services, init Jobs. Builds and clean deployment not verified here |

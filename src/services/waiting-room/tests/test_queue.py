@@ -53,9 +53,21 @@ class QueueTests(unittest.TestCase):
     def test_dispatcher_endpoints_are_not_exposed(self):
         self.assertEqual(self.client.post('/batches/claim', json={'batch_id': 'b1'}).status_code, 404)
         self.assertEqual(self.client.post('/batches/b1/complete', json={'results': []}).status_code, 404)
+        party = self.submit(0).json
+        self.client.post('/sale/start')
+        payload = {'batch_id': 'b1', 'request_ids': [party['request_id']]}
+        self.assertEqual(self.client.post('/queue/claim', json=payload).status_code, 200)
+        before = self.store.read()
+        for path in ('/queue/requeue', '/queue/complete'):
+            # Only GET /queue/<request_id> matches these retired route names.
+            self.assertEqual(self.client.post(path, json=payload).status_code, 405)
+            self.assertEqual(self.store.read(), before)
         status = self.client.get('/status').json
         self.assertNotIn('active_batch', status)
         self.assertEqual(status['admission_policy'], 'external_dispatcher')
+        self.assertFalse(status['registration_limited'])
+        self.assertEqual(status['requests_in_window'], 1)
+        self.assertNotIn('remaining_permits_this_second', status)
 
     def test_cutoff_concurrency_and_multiple_frontends(self):
         second = create_app(self.store)

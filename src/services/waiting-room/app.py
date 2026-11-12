@@ -29,9 +29,9 @@ def create_app(store=None, session=None):
                                os.getenv("QUEUE_KEY", "ticketing:default:queue"))
     app.extensions["queue_store"] = store
     app.config['MAX_CONTENT_LENGTH'] = 128 * 1024
-    install_checkout_routes(app, store, sections, session or requests)
+    install_checkout_routes(app, store, session or requests)
     controller = AdmissionController(window_seconds=10, low_threshold=20,
-                                     high_threshold=50, max_admissions_per_second=5)
+                                     high_threshold=50)
     # added by zx
     dispatcher_url = os.getenv(
         "DISPATCHER_URL",
@@ -187,141 +187,6 @@ def create_app(store=None, session=None):
         result, code = store.update(claim)
         return jsonify(result), code
 
-    
-    @app.post("/queue/requeue")
-    def requeue_requests():
-        data = request.get_json(silent=True)
-
-        if not isinstance(data, dict):
-            return jsonify(error="Invalid JSON"), 400
-
-        batch_id = data.get("batch_id")
-        request_ids = data.get("request_ids")
-
-        if not isinstance(batch_id, str) or not batch_id:
-            return jsonify(error="Invalid batch ID"), 400
-
-        if (
-            not isinstance(request_ids, list)
-            or any(
-                not isinstance(rid, str) or not rid
-                for rid in request_ids
-            )
-            or len(request_ids) != len(set(request_ids))
-        ):
-            return jsonify(error="Invalid request IDs"), 400
-
-        def requeue(state):
-            for rid in request_ids:
-                party = state["requests"].get(rid)
-
-                if party is None:
-                    return {
-                        "error": f"Unknown request: {rid}"
-                    }, 404
-
-                same_batch_admitted = (
-                    party["status"] == "ADMITTED"
-                    and party.get("batch_id") == batch_id
-                )
-
-                already_requeued = (
-                    party["status"] == "QUEUED"
-                    and party.get("last_batch_id") == batch_id
-                )
-
-                if not (
-                    same_batch_admitted
-                    or already_requeued
-                ):
-                    return {
-                        "error": f"Request not requeueable: {rid}"
-                    }, 409
-
-            for rid in request_ids:
-                party = state["requests"][rid]
-
-                if party["status"] == "ADMITTED":
-                    party.update(
-                        status="QUEUED",
-                        last_batch_id=batch_id
-                    )
-                    party.pop("batch_id", None)
-
-                # queue_number is deliberately unchanged.
-
-            return {
-                "message": "Requests requeued",
-                "batch_id": batch_id,
-                "requeued_count": len(request_ids)
-            }, 200
-
-        result, code = store.update(requeue)
-        return jsonify(result), code
-
-    
-    @app.post("/queue/complete")
-    def complete_requests():
-        data = request.get_json(silent=True)
-
-        if not isinstance(data, dict):
-            return jsonify(error="Invalid JSON"), 400
-
-        batch_id = data.get("batch_id")
-        request_ids = data.get("request_ids")
-
-        if not isinstance(batch_id, str) or not batch_id:
-            return jsonify(error="Invalid batch ID"), 400
-
-        if (
-            not isinstance(request_ids, list)
-            or any(
-                not isinstance(rid, str) or not rid
-                for rid in request_ids
-            )
-            or len(request_ids) != len(set(request_ids))
-        ):
-            return jsonify(error="Invalid request IDs"), 400
-
-        def complete(state):
-            for rid in request_ids:
-                party = state["requests"].get(rid)
-
-                if party is None:
-                    return {
-                        "error": f"Unknown request: {rid}"
-                    }, 404
-
-                if not (
-                    party["status"] == "ADMITTED"
-                    and party.get("batch_id") == batch_id
-                ) and not (
-                    party["status"] == "ALLOCATION_DONE"
-                    and party.get("last_batch_id") == batch_id
-                ):
-                    return {
-                        "error": f"Invalid completion: {rid}"
-                    }, 409
-
-            for rid in request_ids:
-                party = state["requests"][rid]
-
-                if party["status"] == "ADMITTED":
-                    party.update(
-                        status="ALLOCATION_DONE",
-                        last_batch_id=batch_id
-                    )
-                    party.pop("batch_id", None)
-
-            return {
-                "batch_id": batch_id,
-                "completed_count": len(request_ids),
-                "message": "Allocation statuses updated"
-            }, 200
-
-        result, code = store.update(complete)
-        return jsonify(result), code
-    
     @app.post("/queue/outcomes")
     def update_allocation_outcomes():
         data = request.get_json(silent=True)
