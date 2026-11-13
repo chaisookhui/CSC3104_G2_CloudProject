@@ -91,8 +91,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Test browser booking recovery and concurrent tabs
-        run: node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs
+      - name: Test booking recovery, concurrent tabs and current Overview statuses
+        run: node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs frontend/tests/admin.test.cjs
 
   seat-store:
     runs-on: ubuntu-latest

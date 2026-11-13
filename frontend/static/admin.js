@@ -3,6 +3,8 @@
 // After Start sale, the dispatcher's own worker moves batches along every second.
 
 let adminTimer = null;
+let adminRefresh = null;
+const adminTerminalBookings = new Map();
 
 // Shows the result of a click. Success notices clear after a few seconds because
 // they describe that moment only; live progress is in the stats and table.
@@ -20,13 +22,58 @@ function pick(value, options) {
   return value === "Random" ? options[Math.floor(Math.random() * options.length)] : value;
 }
 
-async function loadAdmin() {
+// Queue outcomes describe allocation. Reconcile allocated parties with the
+// authoritative checkout so completed holds do not remain labelled RESERVED.
+async function currentAdminBookings(parties) {
+  const rows = parties.map(party => ({ ...party }));
+  const keys = new Set(rows.filter(row => row.allocation?.hold_id)
+    .map(row => `${row.request_id}:${row.allocation.hold_id}`));
+  for (const key of adminTerminalBookings.keys()) {
+    if (!keys.has(key)) adminTerminalBookings.delete(key);
+  }
+  let next = 0;
+  // Bound requests and cache immutable terminal outcomes to keep polling light.
+  await Promise.all(Array.from({ length: Math.min(4, rows.length) }, async () => {
+    while (next < rows.length) {
+      const row = rows[next++];
+      const holdId = row.allocation?.hold_id;
+      if (!holdId) continue;
+      const key = `${row.request_id}:${holdId}`;
+      if (adminTerminalBookings.has(key)) {
+        row.status = adminTerminalBookings.get(key);
+        continue;
+      }
+      try {
+        const checkout = await api(`waiting-room/requests/${encodeURIComponent(row.request_id)}/checkout`);
+        if (checkout.request_id !== row.request_id || checkout.hold_id !== holdId
+            || checkout.source !== 'seat-store' || checkout.cached === true
+            || !['active', 'confirmed', 'expired', 'cancelled'].includes(checkout.booking_status)) {
+          throw new Error('Booking status could not be verified');
+        }
+        row.status = checkout.booking_status === 'active' ? 'RESERVED' : checkout.booking_status.toUpperCase();
+        if (checkout.booking_status !== 'active') adminTerminalBookings.set(key, row.status);
+      } catch (error) {
+        row.status = 'UNKNOWN';
+        row.statusWarning = true;
+      }
+    }
+  }));
+  return rows;
+}
+
+function loadAdmin() {
+  if (!adminRefresh) adminRefresh = refreshAdmin().finally(() => { adminRefresh = null; });
+  return adminRefresh;
+}
+
+async function refreshAdmin() {
   try {
     const [status, queue, dispatcher] = await Promise.all([
       api("waiting-room/status"),
       api("waiting-room/queue"),
       api("dispatcher/status").catch(() => null),
     ]);
+    const bookings = await currentAdminBookings(queue.requests);
     const batches = dispatchedBatches(dispatcher);
     const batchNumber = new Map(batches.map((b, i) => [b.batch_id, i + 1]));
     let batch = "not reachable";
@@ -42,7 +89,7 @@ async function loadAdmin() {
         <div class="stat"><b>${esc(batch)}</b>Dispatcher${dispatcher ? ` (batch size ${esc(dispatcher.batch_size)})` : ""}</div>
       </div>`;
     const me = getCurrentUser()?.user_id;
-    const rows = queue.requests.map((r) => {
+    const rows = bookings.map((r) => {
       // The waiting room keeps batch_id while admitted and last_batch_id after the outcome.
       const number = batchNumber.get(r.batch_id || r.last_batch_id);
       return `
@@ -52,7 +99,7 @@ async function loadAdmin() {
         <td>${esc(r.section)}</td>
         <td>${esc(r.party_size)}</td>
         <td>${number ? `Batch ${number}` : "-"}</td>
-        <td>${badge(r.status)}</td>
+        <td>${badge(r.status)}${r.statusWarning ? '<br><span class="muted">Checking booking status</span>' : ''}</td>
       </tr>`;
     }).join("");
     document.getElementById("queue-table").innerHTML = queue.count

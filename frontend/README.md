@@ -91,11 +91,15 @@ preventing users from inventing new identities require the future auth layer.
 Run the frontend recovery/concurrency tests without additional npm packages:
 
 ```powershell
-node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs
+node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs frontend/tests/admin.test.cjs
 ```
 
 These execute the shipped scripts in isolated tab contexts with controlled HTTP,
 storage and locks; deployed browser acceptance remains a separate check (TESTING.md B6).
+Overview checks current authoritative checkout status for allocated parties, so
+expired, cancelled and confirmed bookings replace the original RESERVED outcome.
+Unverifiable states display UNKNOWN and retry; terminal outcomes are cached and
+checkout polling is limited to four concurrent requests.
 
 ## Tabs
 
