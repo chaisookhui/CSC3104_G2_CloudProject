@@ -3,6 +3,7 @@ import logging
 import os
 import signal
 import threading
+import time
 
 if __package__:
     from .dispatcher_client import notify_one
@@ -40,15 +41,41 @@ def main():
     stop = threading.Event()
     for sig in (signal.SIGINT, signal.SIGTERM):
         signal.signal(sig, lambda *_: stop.set())
-    while not stop.is_set():
-        try:
-            worked = process_one(store)
-            notify_one(store, os.getenv("DISPATCHER_COMPLETION_URL"))
-            if not worked:
-                stop.wait(0.5)
-        except Exception:
-            log.exception("Worker paused after queue/processing failure; pending jobs remain durable")
-            stop.wait(2)
+    listener = None
+    listener_retry_at = 0
+    try:
+        while not stop.is_set():
+            try:
+                if not store.sqlite and listener is None and time.monotonic() >= listener_retry_at:
+                    listener_retry_at = time.monotonic() + 5
+                    try:
+                        listener = store.work_listener()
+                    except Exception:
+                        log.warning('Wake-up listener unavailable; durable polling retained')
+                if listener is not None:
+                    try:
+                        store.drain_work_notifications(listener)
+                    except Exception:
+                        listener.close(); listener = None
+                worked = process_one(store)
+                notify_one(store, os.getenv("DISPATCHER_COMPLETION_URL"))
+                if not worked:
+                    if listener is not None:
+                        try:
+                            store.wait_for_work(listener)
+                        except Exception:
+                            listener.close(); listener = None
+                            stop.wait(.5)
+                    else:
+                        stop.wait(.5)
+            except Exception:
+                if listener is not None:
+                    listener.close(); listener = None
+                log.exception("Worker paused after queue/processing failure; pending jobs remain durable")
+                stop.wait(2)
+    finally:
+        if listener is not None:
+            listener.close()
 
 
 if __name__ == "__main__":

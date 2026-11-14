@@ -395,33 +395,23 @@ def arrival_schedule(rate,duration,profile):
             for i in range(math.ceil((end-start)*rps)) if start+i/rps<end]
 
 
-def registration_load(base, directory, rate=5, duration=10, profile='constant', admit=False, timeout=600):
+def registration_load(base, directory, rate=5, duration=10, profile='constant', admit=False, timeout=600, fresh=True):
     context=guard_lab(base)
     if not 1 <= rate <= 200 or not 1 <= duration <= 300 or rate*duration > 20000:
         raise ValueError('Use 1-200/s, 1-300 seconds and at most 20,000 offered arrivals')
     status = api(base, 'waiting-room/status')
-    if status['sale_state'] != 'pre_sale' or status['waiting_count'] != 0:
+    if fresh and (status['sale_state'] != 'pre_sale' or status['waiting_count'] != 0):
         raise RuntimeError('Registration load needs an empty pre-sale lab')
-    rows, pending = [], set()
-    started = time.monotonic()
-    rng = random.Random(42)
-    with ThreadPoolExecutor(max_workers=64) as pool:
-        for index,(scheduled,phase) in enumerate(arrival_schedule(rate,duration,profile)):
-            time.sleep(max(0, started+scheduled-time.monotonic()))
-            pending = {future for future in pending if not future.done()}
-            payload = dict(user_id=f'{directory.name}-{index}', section=rng.choice('ABCD'), party_size=rng.randint(1, 4))
-            row = dict(index=index, scheduled_seconds=scheduled, payload=payload, outcome='DROPPED_GENERATOR',
-                       phase=phase)
-            rows.append(row)
-            if len(pending) < 256:
-                def send(row=row):
-                    row['launched_seconds'] = time.monotonic()-started
-                    response = request(base, 'waiting-room/submit', row['payload'])
-                    row['response'] = response
-                    row['outcome'] = 'ACCEPTED' if response['status'] in (200, 201) and isinstance(response['data'], dict) and response['data'].get('request_id') else (
-                        'REJECTED' if 400 <= response['status'] < 500 else 'UNKNOWN')
-                pending.add(pool.submit(send))
-    elapsed = time.monotonic()-started
+    from loadgen import generate
+    rows = []
+    schedule = arrival_schedule(rate,duration,profile)
+    try:
+        generator = generate(base, schedule, directory.name, rows)
+    finally:
+        # Keep every partial row even on interruption or a diagnostic failure.
+        write_rows(directory, rows, 'arrivals')
+    elapsed = generator['elapsed']
+    write_json(directory/'generator.json',generator)
     queue = api(base, 'waiting-room/queue')['requests']
     by_user = {party['user_id']: party for party in queue}
     missing, reconciled = [], 0
@@ -430,7 +420,7 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
         row['stored_request_id'] = stored.get('request_id') if stored else None
         if row['outcome'] == 'ACCEPTED' and (not stored or stored['request_id'] != row['response']['data']['request_id']):
             missing.append(row['payload']['user_id'])
-        if row['outcome'] == 'UNKNOWN' and stored:
+        if row['outcome'] in ('UNKNOWN', 'TIMED_OUT') and stored:
             row['outcome'] = 'ACCEPTED_RECONCILED'; reconciled += 1
     latencies = [row['response']['elapsed_ms'] for row in rows if 'response' in row]
     # Retain arrivals even if sale opening or draining is interrupted later.
@@ -439,11 +429,14 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
     outcomes = Counter(row['outcome'] for row in rows)
     admission = None
     if admit:
+        admission_started=time.perf_counter()
         deadline=time.monotonic()+timeout
         while api(base,'waiting-room/sale/start',{}).get('sale_state') != 'sale_started':
             if time.monotonic()>=deadline: raise RuntimeError('Opening timed out')
             time.sleep(.5)
         numbered=api(base,'waiting-room/queue')['requests']
+        write_json(directory/'numbered-queue.json',numbered)
+        current=numbered
         original={p['request_id']:p.get('queue_number') for p in numbered}
         while time.monotonic()<deadline:
             current=api(base,'waiting-room/queue')['requests']
@@ -454,22 +447,43 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
                  rid not in current_by_id or current_by_id[rid].get('queue_number')!=position]
         positions=list(original.values())
         correct=all(type(p) is int for p in positions) and sorted(positions)==list(range(1,len(positions)+1))
-        unresolved=[p['request_id'] for p in current if p['status'] in ('REGISTERED','QUEUED','ADMITTED')]
-        admission=dict(stable_positions=not changed, contiguous_unique_positions=correct,
+        terminal={'RESERVED','UNAVAILABLE','CONFIRMED','CANCELLED','EXPIRED'}
+        unresolved=[p['request_id'] for p in current if p['status'] not in terminal]
+        acknowledged={r['stored_request_id'] for r in rows if r['outcome'].startswith('ACCEPTED')}
+        changed.extend(sorted(acknowledged-set(original)))
+        admission_elapsed=time.perf_counter()-admission_started
+        admission=dict(elapsed_seconds=admission_elapsed,deadline_seconds=timeout,
+                       within_deadline=admission_elapsed<=timeout,
+                       stable_positions=not changed, contiguous_unique_positions=correct,
                        changed_or_missing_ids=changed, unresolved_ids=unresolved,
                        outcomes=dict(Counter(p['status'] for p in current)), invariants=invariants())
         write_json(directory/'admission.json',admission)
-    passed=all(row['outcome'].startswith('ACCEPTED') for row in rows)
+    passed=len(rows)==len(schedule) and all(row['outcome'].startswith('ACCEPTED') for row in rows)
     launch_lags=[max(0,r['launched_seconds']-r['scheduled_seconds']) for r in rows if 'launched_seconds' in r]
-    faithful=bool(launch_lags) and max(launch_lags)<=1
+    faithful=bool(launch_lags) and len(launch_lags)==len(rows) and max(launch_lags)<=1
     if not faithful:passed=False
-    failed=bool(missing) or (admission and (admission['changed_or_missing_ids'] or
+    checks=invariants()
+    stored_ids=[r['stored_request_id'] for r in rows if r.get('stored_request_id')]
+    duplicate_ids=len(stored_ids)-len(set(stored_ids))
+    failed=bool(missing) or bool(duplicate_ids) or bool(checks['violations']) or (admission and (admission['changed_or_missing_ids'] or
         not admission['contiguous_unique_positions'] or admission['invariants']['violations']))
-    if admission and admission['unresolved_ids']: passed=False
+    if admission and (admission['unresolved_ids'] or not admission['within_deadline']): passed=False
     result = dict(namespace=context['namespace'],status='FAIL' if failed else 'PASS' if passed else 'INCONCLUSIVE',
-                  workload='registration-only; no seat contention or payment', profile=profile, rate=rate, duration=duration,
+                  workload='registrations followed by admission; no client checkout' if admit else 'registration-only; no seat contention or payment', profile=profile, rate=rate, duration=duration,
                   elapsed_including_drain=elapsed, offered=len(rows), outcomes=dict(outcomes), admission=admission,
-                  generator_workers=64,generator_pending_limit=256,timing_fidelity=faithful,
+                  generator=generator,timing_fidelity=faithful,
+                  scheduled=len(schedule),launched=sum('launched_seconds' in r for r in rows),
+                  accepted=sum(r['outcome'].startswith('ACCEPTED') for r in rows),
+                  rejected=sum(r['outcome']=='REJECTED' for r in rows),
+                  timed_out=sum(r.get('response',{}).get('timed_out',False) or r.get('response',{}).get('error')=='TimeoutError' for r in rows),
+                  http_success=sum(200<=r.get('response',{}).get('status',0)<300 for r in rows),
+                  http_failed=sum(not 200<=r.get('response',{}).get('status',0)<300 for r in rows if 'response' in r),
+                  upstream_retries=sum(max(0,(r.get('response',{}).get('upstream_attempts') or 1)-1) for r in rows),
+                  upstream_attempts_known=sum(r.get('response',{}).get('upstream_attempts') is not None for r in rows),
+                  generator_dropped=outcomes.get('DROPPED_GENERATOR',0),
+                  average_response_ms=sum(latencies)/len(latencies) if latencies else None,
+                  served_by_instance=dict(Counter(r['response']['instance'] for r in rows if r.get('response',{}).get('instance'))),
+                  duplicate_registration_ids=duplicate_ids,invariants=checks,
                   max_launch_lag_seconds=max(launch_lags) if launch_lags else None,
                   p95_launch_lag_seconds=percentile(launch_lags,95),
                   phases={phase:dict(offered=sum(r['phase']==phase for r in rows),
@@ -478,7 +492,7 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
                   achieved_registration_rps=sum(row['outcome'].startswith('ACCEPTED') for row in rows)/elapsed if elapsed else None,
                   p50_ms=percentile(latencies,50), p95_ms=percentile(latencies,95), p99_ms=percentile(latencies,99),
                   missing_acknowledged_ids=missing, reconciled_unknowns=reconciled,
-                  generator_warning='Threaded local generator includes frontend/port-forward overhead; measure generator saturation. Not a calibrated k6 replacement.')
+                  generator_warning='Open-loop async client on host, outside Kind. Launch timestamps are transport header sends; latency includes gateway and port-forward. Pool capacity 4096; drops and lag invalidate delivery.')
     write_rows(directory, rows, 'arrivals'); write_json(directory/'summary.json', result)
     return result
 

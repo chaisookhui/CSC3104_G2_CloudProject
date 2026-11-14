@@ -41,9 +41,17 @@ class Dispatcher:
         try:
             active = state['active']
             if active and active.get('retry_at', 0) > time.time():
-                return {'batch_id': active['batch_id'], 'state': active['state']}, 202
+                return {'batch_id': active['batch_id'], 'state': active['state'],
+                        'retry_after_seconds': active['retry_at'] - time.time()}, 202
             if active is None:
-                queue = self.call('GET', self.waiting + '/queue')
+                activity = self.call('GET', self.waiting + '/queue/activity')
+                if activity.get('sale_state') != 'sale_started':
+                    return {'message': 'Sale has not started'}, 200
+                if type(activity.get('queued_count')) is not int or activity['queued_count'] < 0:
+                    raise ValueError('Invalid queue activity response')
+                if activity['queued_count'] == 0:
+                    return {'message': 'No eligible queued requests'}, 200
+                queue = self.call('GET', self.waiting + '/queue/next/' + str(self.batch_size))
                 if queue.get('sale_state') != 'sale_started':
                     return {'message': 'Sale has not started'}, 200
                 records = parse_waiting_room_queue(queue)[:self.batch_size]
@@ -191,11 +199,21 @@ def create_app(store=None, session=None):
 
 def run_worker(dispatcher, stop):
     while not stop.is_set():
+        delay = 1
         try:
-            dispatcher.tick()
+            result, code = dispatcher.tick()
+            if code == 202:
+                if result.get('retry_after_seconds', 0) > 0:
+                    delay = min(1, max(.1, result['retry_after_seconds']))
+                elif result.get('state') == 'COMPLETED':
+                    # Keep the same fenced, serial batch protocol, but do not
+                    # sleep after useful progress when another batch is ready.
+                    delay = 0
+                elif result.get('state') == 'WAITING_FOR_ALLOCATION':
+                    delay = .1
         except Exception:
             logging.exception('Recovery tick failed; durable work retained')
-        stop.wait(1)
+        stop.wait(delay)
 
 
 if __name__ == '__main__':

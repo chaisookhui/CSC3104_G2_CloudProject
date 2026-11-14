@@ -68,15 +68,20 @@ def invariants():
                 'PASS' if counts['holds'] else 'INCONCLUSIVE_EMPTY', captured_at=utc())
 
 
-def request(base, path, body=None, timeout=15):
-    payload = None if body is None else json.dumps(body).encode()
-    started = time.perf_counter()
-    sent = utc()
+def request_headers():
     headers={'Content-Type':'application/json'}
     credentials=local.LOCAL/('secrets-'+LAB+'.json')
     if credentials.exists():
         token=json.loads(credentials.read_text())['PAYMENT_API_TOKEN']
         headers['Authorization']='Bearer '+hmac.new(token.encode(),b'csc3104:operator',hashlib.sha256).hexdigest()
+    return headers
+
+
+def request(base, path, body=None, timeout=15):
+    payload = None if body is None else json.dumps(body).encode()
+    started = time.perf_counter()
+    sent = utc()
+    headers=request_headers()
     req = Request(base.rstrip('/') + '/api/' + path, data=payload, headers=headers)
     try:
         with urlopen(req, timeout=timeout) as response:
@@ -86,7 +91,8 @@ def request(base, path, body=None, timeout=15):
         status, raw = error.code, error.read().decode()
         instance=error.headers.get('X-Service-Instance')
     except (URLError, TimeoutError, OSError) as error:
-        return dict(status=0, data=None, error=type(error).__name__, sent_at=sent,
+        return dict(status=0, data=None, error=type(error).__name__,error_message=str(error),
+                    os_errno=getattr(error,'errno',None),sent_at=sent,
                     elapsed_ms=(time.perf_counter()-started)*1000)
     try:
         data = json.loads(raw)
@@ -213,6 +219,18 @@ def capture(base, case='manual', phase='snapshot'):
             "SELECT json_agg(row_to_json(s)) FROM (SELECT state,count(*) FROM pg_stat_activity GROUP BY state) s;"))
     except (RuntimeError,ValueError) as error:
         result['operations_observation_error']=str(error)
+    result['cgroups']={}
+    probe="""import json,pathlib
+paths=['cpu.stat','cpu.max','memory.events','cpu/cpu.stat','cpu/cpu.cfs_quota_us','cpu/cpu.cfs_period_us']
+root=pathlib.Path('/sys/fs/cgroup')
+print(json.dumps({name:(root/name).read_text() for name in paths if (root/name).is_file()}))
+"""
+    if isinstance(result.get('pods'),list):
+        for pod in result['pods']:
+            name=pod['name']
+            if name.startswith(('waiting-room-','frontend-','allocation-worker-')):
+                try:result['cgroups'][name]=json.loads(k('exec',name,'--','python','-c',probe,capture=True))
+                except (RuntimeError,ValueError) as error:result['cgroups'][name]={'unavailable':str(error)}
     for key, command in [('commit', ['git', 'rev-parse', 'HEAD']),
                           ('changed_files', ['git', 'status', '--short'])]:
         result[key] = local.run(command, capture=True, check=False)

@@ -1,4 +1,4 @@
-"""Durable dispatcher state. PostgreSQL for replicas; SQLite for one local host."""
+"""Fenced active progress and append-only history/receipts in the same database."""
 import json
 import sqlite3
 import time
@@ -25,6 +25,11 @@ class StateStore:
                 token TEXT, lease_until DOUBLE PRECISION NOT NULL DEFAULT 0)''')
             run('INSERT INTO dispatcher_state(id,payload) VALUES (1,?) ON CONFLICT(id) DO NOTHING',
                 (json.dumps({'active': None, 'history': [], 'events': {}}),))
+            run('''CREATE TABLE IF NOT EXISTS dispatcher_history (
+                batch_id TEXT PRIMARY KEY, position BIGINT NOT NULL UNIQUE, payload TEXT NOT NULL)''')
+            run('''CREATE TABLE IF NOT EXISTS dispatcher_events (
+                event_id TEXT PRIMARY KEY, batch_id TEXT NOT NULL, payload TEXT NOT NULL)''')
+            self._load(run)
 
     @contextmanager
     def transaction(self):
@@ -55,6 +60,44 @@ class StateStore:
             return time.time()
         return float(run('SELECT EXTRACT(EPOCH FROM clock_timestamp()) AS now').fetchone()['now'])
 
+    @staticmethod
+    def _append_history(run, batch):
+        run('''INSERT INTO dispatcher_history(batch_id,position,payload)
+            VALUES (?,(SELECT COALESCE(MAX(position),0)+1 FROM dispatcher_history),?)
+            ON CONFLICT(batch_id) DO NOTHING''', (batch['batch_id'],json.dumps(batch)))
+        previous = json.loads(run('SELECT payload FROM dispatcher_history WHERE batch_id=?',
+                                  (batch['batch_id'],)).fetchone()['payload'])
+        if previous != batch:
+            raise ValueError('Conflicting completed batch history')
+
+    @staticmethod
+    def _put_event(run, event):
+        run('''INSERT INTO dispatcher_events(event_id,batch_id,payload) VALUES (?,?,?)
+            ON CONFLICT(event_id) DO NOTHING''', (event['event_id'],event['batch_id'],json.dumps(event)))
+        previous = json.loads(run('SELECT payload FROM dispatcher_events WHERE event_id=?',
+                                  (event['event_id'],)).fetchone()['payload'])
+        if previous != event:
+            raise ValueError('Conflicting event ID')
+
+    def _normalize(self, run, state):
+        """Move legacy inline records transactionally; repeated migration is safe.
+
+        Normal progress writes only the active batch. Keeping empty legacy fields
+        permits an old writer's append to be recovered on the next new operation.
+        All methods serialize on the original dispatcher row, including hydration.
+        """
+        if state.get('history') or state.get('events'):
+            for batch in state.get('history',[]): self._append_history(run,batch)
+            for event in state.get('events',{}).values(): self._put_event(run,event)
+            state['history']=[];state['events']={}
+            run('UPDATE dispatcher_state SET payload=? WHERE id=1',(json.dumps(state),))
+        return state
+
+    def _load(self, run):
+        suffix = '' if self.sqlite else ' FOR UPDATE'
+        row = run('SELECT payload,token,lease_until FROM dispatcher_state WHERE id=1'+suffix).fetchone()
+        return row, self._normalize(run,json.loads(row['payload']))
+
     def claim(self, seconds=60):
         token = str(uuid4())
         with self.transaction() as run:
@@ -62,38 +105,48 @@ class StateStore:
             row = run('''UPDATE dispatcher_state SET token=?,lease_until=?
                 WHERE id=1 AND (token IS NULL OR lease_until<=?) RETURNING payload''',
                 (token, now + seconds, now)).fetchone()
-            return (token, json.loads(row['payload'])) if row else None
+            return (token, self._normalize(run,json.loads(row['payload']))) if row else None
 
     def read(self):
         with self.transaction() as run:
-            return json.loads(run('SELECT payload FROM dispatcher_state WHERE id=1').fetchone()['payload'])
+            _, state = self._load(run)
+            state['history'] = [json.loads(row['payload']) for row in
+                run('SELECT payload FROM dispatcher_history ORDER BY position').fetchall()]
+            state['events'] = {row['event_id']:json.loads(row['payload']) for row in
+                run('SELECT event_id,payload FROM dispatcher_events').fetchall()}
+            return state
 
     def save(self, token, state, release=False):
         with self.transaction() as run:
-            # The worker owns progress; callback receipts can arrive concurrently.
-            suffix = '' if self.sqlite else ' FOR UPDATE'
-            row = run('SELECT payload FROM dispatcher_state WHERE id=1' + suffix).fetchone()
-            state['events'] = json.loads(row['payload'])['events']
+            row, _ = self._load(run)
+            if row['token'] != token or row['lease_until'] <= self._now(run):
+                raise RuntimeError('Dispatcher lease lost; another worker will reconcile')
+            for batch in state['history']: self._append_history(run,batch)
+            hot = dict(state,history=[],events={})
+            # Receipt rows are independent of stale worker snapshots. Progress,
+            # completed history and the lease commit together under this fence.
             now = self._now(run)
             changed = run('''UPDATE dispatcher_state SET payload=?, token=?, lease_until=?
                 WHERE id=1 AND token=? AND lease_until>?''',
-                (json.dumps(state), None if release else token, 0 if release else now + 60,
+                (json.dumps(hot), None if release else token, 0 if release else now + 60,
                  token, now)).rowcount
             if changed != 1:
                 raise RuntimeError('Dispatcher lease lost; another worker will reconcile')
+        # Clear staged appends only after commit; an ambiguous commit can retry
+        # the identical batch without duplication or loss.
+        state['history']=[];state['events']={}
 
     def record_event(self, event):
         with self.transaction() as run:
-            suffix = '' if self.sqlite else ' FOR UPDATE'
-            row = run('SELECT payload FROM dispatcher_state WHERE id=1' + suffix).fetchone()
-            state = json.loads(row['payload'])
-            previous = state['events'].get(event['event_id'])
-            if previous is not None:
-                if previous != event:
+            _, state = self._load(run)
+            previous = run('SELECT payload FROM dispatcher_events WHERE event_id=?',
+                           (event['event_id'],)).fetchone()
+            if previous:
+                if json.loads(previous['payload']) != event:
                     raise ValueError('Conflicting event ID')
                 return
-            known = ([state['active']] if state['active'] else []) + state['history']
-            if not any(b['batch_id'] == event['batch_id'] for b in known):
+            known = (state['active'] and state['active']['batch_id']==event['batch_id']) or run(
+                'SELECT batch_id FROM dispatcher_history WHERE batch_id=?',(event['batch_id'],)).fetchone()
+            if not known:
                 raise ValueError('Unknown batch')
-            state['events'][event['event_id']] = event
-            run('UPDATE dispatcher_state SET payload=? WHERE id=1', (json.dumps(state),))
+            self._put_event(run,event)

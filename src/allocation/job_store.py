@@ -6,7 +6,7 @@ backend only: independent processes must use the SAME file on one machine.
 import json
 import uuid
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 
 
 class Conflict(Exception):
@@ -19,6 +19,32 @@ class JobStore:
         self.sqlite = database_url.startswith("sqlite:///")
         if not self.sqlite and not database_url.startswith(("postgresql://", "postgres://")):
             raise ValueError("Use postgresql://... or sqlite:///path for local demos")
+
+    def work_listener(self):
+        """A wake-up hint only; durable claims and periodic polling stay authoritative."""
+        if self.sqlite:
+            return None
+        import psycopg
+        connection = psycopg.connect(self.url, autocommit=True, connect_timeout=5)
+        try:
+            connection.execute('LISTEN csc3104_allocation_work')
+        except BaseException:
+            connection.close()
+            raise
+        return connection
+
+    @staticmethod
+    def drain_work_notifications(listener):
+        # Discard old hints before checking durable work, avoiding idle spin on
+        # notifications accumulated while this worker was processing a batch.
+        with closing(listener.notifies(timeout=0)) as notifications:
+            for _ in notifications:
+                pass
+
+    @staticmethod
+    def wait_for_work(listener, timeout=.5):
+        with closing(listener.notifies(timeout=timeout, stop_after=1)) as notifications:
+            return next(notifications, None) is not None
 
     @contextmanager
     def transaction(self):
@@ -61,6 +87,8 @@ class JobStore:
                 attempts INTEGER NOT NULL DEFAULT 0, token TEXT, lease_until DOUBLE PRECISION,
                 available_at DOUBLE PRECISION NOT NULL DEFAULT 0, error TEXT)""",
             "CREATE INDEX IF NOT EXISTS allocation_ready ON allocation_jobs (state, section, priority)",
+            "CREATE INDEX IF NOT EXISTS allocation_batch_order ON allocation_jobs (batch_id, section, priority)",
+            "CREATE INDEX IF NOT EXISTS allocation_pending_completion ON allocation_completions (delivered, available_at)",
         ]
         # Bootstrap before transaction() can lock the scheduler row.
         if self.sqlite:
@@ -110,6 +138,10 @@ class JobStore:
                 execute("""INSERT INTO allocation_jobs
                     (request_id,batch_id,section,priority,payload,state) VALUES (?,?,?,?,?,'QUEUED')""",
                         (job["request_id"], job["batch_id"], job["section"], job["priority"], json.dumps(job)))
+            if not self.sqlite:
+                # Delivered only after this transaction commits. No job identity
+                # or correctness depends on receiving this transient hint.
+                execute("SELECT pg_notify('csc3104_allocation_work', '')")
             return True
 
     def claim(self, lease_seconds=30, max_attempts=5):

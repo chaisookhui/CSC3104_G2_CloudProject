@@ -1,7 +1,7 @@
 # Fair Seat Allocation
 CSC3104 Cloud and Distributed Computing | Group 02
 
-**Testing Instructions | 12 November 2026**
+**Testing Instructions | Updated 14 November 2026**
 
 ## 1. Introduction
 This application allocates adjacent seats to parties of one to four people. Customers register for a sale, receive a queue position when the sale opens, and receive a whole-party reservation if a suitable block exists. A mock payment confirms the reservation. Unpaid reservations expire; customers can cancel an unpaid reservation. No money or real payment details are involved.
@@ -18,9 +18,12 @@ This document lets an examiner deploy the submitted source, test the implementat
 3. TC-07/08: service communication and concurrent seat safety.
 4. TC-09/10 and TC-11/12/13/17: containers, orchestration and recovery.
 5. TC-14/15/16/18: measured baseline, load, scaling and policy comparisons.
-6. Section 10: record observed results; Section 11: preserve evidence and stop safely.
+6. TC-19 to TC-25: surge, lifecycle races, injected faults, API scaling, separate HPA cycles and browser ownership.
+7. Sections 9-10: distinguish saved validation from examiner observations; Section 11: preserve evidence and stop safely.
 
 **Evidence labels:** Implemented means inspected in source. Expected is an acceptance condition, not a result. PASS requires execution and evidence. NOT RUN, BLOCKED, FAIL and INCONCLUSIVE remain distinct. No hold history means an inconclusive safety check, not a booking pass.
+
+**Final validation scope:** all 25 documented cases passed their recorded local acceptance conditions. TC-01 to TC-13, TC-17 and TC-25 have new final-version functional/browser/deployment evidence. TC-14/15/16/18/19/20/21/22/23/24 use the complete final v9 cohorts, independently re-audited with unchanged application sources and matching captured image IDs. This is the same evidence and scope as the updated results report. It is not a guarantee on another machine. This document correction generated no new application test results.
 
 **Source basis:** service implementations, schemas/migrations, Dockerfiles, deployment configurations, launcher, frontend, tests and experiment tools in this checkout. The local four-page Project_2026-27.pdf assignment brief was reviewed. It requires containers and/or Kubernetes, tested advertised functionality and explicit testing instructions. This document is the testing guide, separate from the research article.
 
@@ -54,7 +57,7 @@ At most one allocator job per section is active, so A-D permit at most four usef
 
 | Requirement | Verification / details |
 |---|---|
-| Host Python 3.10+ | python --version. Launcher/network tools use standard libraries; app packages run inside images. |
+| Host Python 3.10+ | python --version. Launchers use standard libraries; scheduled load tools additionally require experiments/requirements-load.txt. App packages run inside images. |
 | Docker Engine 24+ and Compose 2.20+ | docker version; docker compose version. Running Linux-container engine required. |
 | Resources | At least 2 CPUs, 4 GiB Docker RAM; 8 GiB recommended. Several GiB disk for images/storage and headroom for two namespaces. |
 | Kubernetes | Launcher installs checksum-verified Kind v0.33.0 and kubectl v1.36.4 in .local/bin. Pinned node image: infra/k8s/kind.yaml. |
@@ -71,6 +74,12 @@ python demo.py --kubernetes --check
 ```
 Expected: demo.py exists, Docker server responds and final command reports Kubernetes prerequisites ready. The check may prepare pinned tools; it does not create a cluster. If Docker cannot connect, start Docker Desktop and wait for its Linux engine.
 
+Install the pinned host load-generator dependency before TC-15/19/23/24 (use the same Python interpreter for installation and commands):
+```powershell
+python -m pip install -r experiments/requirements-load.txt
+```
+This installs aiohttp 3.13.3. Use a virtual environment if the host Python installation is managed. Optional graph generation separately requires matplotlib; graph creation is not an acceptance test.
+
 ### Configuration and datasets
 No manual credentials are needed for local startup. Compose generates ignored .env.core. Kubernetes generates .local/k8s/secrets-<namespace>.json and a Secret. Retain credentials with initialized storage. Do not copy another machine's .local directory or publish Secrets/kubeconfig. Editing a password file alone does not rotate the database password.
 
@@ -83,6 +92,7 @@ Development inventory: A=30, B=20, C=10, D=10, ten seats per row. Manual tests u
 <!-- pagebreak -->
 ## 4. Installation and Deployment
 ### A. Start the main system
+For an existing installation with retained dispatcher data, read the upgrade rule in Section 11 before deploying new images. The lab studies below always use fresh isolated storage.
 In PowerShell Window A, repository root:
 ```powershell
 python demo.py --kubernetes
@@ -423,7 +433,7 @@ Reset and repeat with IDs TC-14-r2/r3.
 ### TC-15 | Concurrent scheduled registration
 **Objective:** measure admission latency/rate and missing acknowledgements.
 **Preconditions:** empty pre-sale lab before each run; do not start sale.
-**Test Data:** 5 arrivals/s for 10 seconds, 50 arrivals, seed 42; up to 64 generator threads and 256 pending requests.
+**Test Data:** 5 arrivals/s for 10 seconds, 50 arrivals, seed 42; shared asynchronous open-loop generator, 4,096 connection capacity, 15-second request timeout, no client submission retries.
 **Steps:**
 ```powershell
 python experiments/run.py register --rate 5 --duration 10 --run TC-15-r1
@@ -439,6 +449,8 @@ Repeat r2/r3 after resets. Optional 20/s runs use separate IDs and the same dura
 Average response time=mean recorded client HTTP durations; P95=linear interpolation over sorted measured durations. HTTP success rate=2xx/offered; error rate=non-2xx/transport failures divided by offered; missing samples/drops are separate. HTTP 200/no-fit is not booking success. Contention samples time the final attempt; total elapsed includes its retries.
 
 Total workload time excludes image builds/reset. Booking goodput=confirmed customers/replay elapsed seconds. Decision wait=allocator decision timestamp minus queue eligibility; missing/negative timing is unavailable. Recovery time=authoritative completion minus component restoration timestamp; record both. Preserve all denominators and unsuccessful outcomes.
+
+Scheduled launch is measured at aiohttp's headers-send callback after connection acquisition. Maximum launch lag must be <=1 second. Client/session preparation is recorded separately before the offered-arrival epoch; no HTTP connection is warmed up. Connection delays and runtime stalls after that epoch still count. Gateway upstream attempts are recorded separately from client HTTP success; successful HTTP alone does not prove there was no internal retry.
 
 <!-- pagebreak -->
 ## 9. Performance and Scalability (continued)
@@ -464,11 +476,19 @@ k logs -l app=allocation-worker --all-containers=true --prefix=true --tail=200
 **Evidence:** trace hash, raw customers, per-policy summaries, captures and prefixed request logs. Capturing logs after the final trial alone cannot prove earlier namespace participation.
 **Restore:** Section 4 lab reset restores one replica and demand-cycle; restart B forward.
 
+<!-- pagebreak -->
+## 9. Policy Comparison Procedure
 ### TC-18 | Demand-Cycle versus FCFS
 **Objective:** compare policy trade-offs with identical input/physical inventory.
 **Preconditions:** TC-16; retain all pairs, including inconclusive.
 **Test Data:** start with TC-16's one-worker pair. F2/F3 skew to small/large parties; F4 to section A; F5=80% occupied; F6=alternating gaps; F7=releases/later wave.
-**Steps:** compare both policies within TC-16's one-worker comparison.json. To repeat with fragmented inventory, run:
+**Steps:** compare both policies within TC-16's one-worker comparison.json. For the independent ten-seed F1 cohort used in the final validation:
+```powershell
+$fairTrace = '.local/traces/scaling.json'
+$fairArgs = @('--trace',$fairTrace,'--reset-lab','--hold-ttl','120')
+python experiments/run.py compare @fairArgs --replicas 1 --seeds 10 --run TC-18-F1
+```
+Generate scaling.json with the TC-16 F1 seed-42 trace command first. This runs seeds 42-51 with both policies. Optional additional fragmented-inventory exploration (not part of the final F1 validation cohort):
 ```powershell
 $fragmentTrace = '.local/traces/fragmented.json'
 python experiments/run.py trace --scenario F6 --count 40 --seed 43 --output $fragmentTrace
@@ -486,18 +506,14 @@ Fairness objective: equal opportunity for sizes 1-4 within each section. Summari
 These tests address the remaining professor questions. Reset lab before EACH independent command, preserve evidence, and use a new run ID. Full procedures and interpretation: experiments/ROBUSTNESS.md. Costs are excluded.
 
 ### TC-19 | Thousands of arrivals and mixed parties
-**Steps:** after a fresh reset, run the surge and admission experiment:
+**Steps:** use the existing study wrapper to reset before each trial, run all three original surges, then run the mixed-party test on a separate fresh lab:
 ```powershell
-$surgeArgs = @('--rate','100','--duration','40','--profile','spike')
-python experiments/run.py register @surgeArgs --admit --run TC-19-surge
+python experiments/study.py --case 19 --reset-lab --run TC19-exam
 ```
-**Expected Result:** about 2,100 offers across baseline/surge/recovery. Every offered arrival is accepted/reconciled, no acknowledged ID is missing, queue positions are unique 1..N and stable through admission, all admission outcomes resolve, SQL invariants remain safe. Generator drops, rejections or unknown outcomes prevent PASS. Arrival files distinguish scheduling delay from service latency.
-**Evidence:** arrivals.json/csv, admission.json, before/after captures, summary.json. Compare baseline/surge P95 and actual throughput; this local generator does not prove arbitrary internet-scale capacity.
-**Steps:** reset again, then run mixed-size contention:
-```powershell
-python experiments/run.py contention --count 40 --workers 32 --mixed --run TC-19-mixed
-```
-**Expected Result:** complete adjacent parties of sizes 1-4, no shared live ownership or partial party, at most ten C seats reserved, zero SQL violations. Winning mixture depends on scheduling. Evidence includes every request, party size and final inventory.
+**Test Data:** each surge is exactly 2,100 offers: 5/s for 10 seconds, 100/s for 20 seconds, 5/s for 10 seconds. Three fresh repetitions; original 600-second admission deadline and one-second maximum launch lag. Mixed test: 40 parties, sizes 1-4, 32 concurrent clients, ten Section C seats.
+**Expected Result:** every offered arrival accepted/reconciled, no missing acknowledged ID, unique positions 1..N stable through admission, all outcomes RESERVED or UNAVAILABLE within 600 seconds, zero SQL violations. Generator drops, rejections, HTTP failures, unresolved outcomes or excess launch lag prevent PASS. UNAVAILABLE means valid inventory exhaustion, not a confirmed booking.
+**Expected Result:** mixed outcomes contain complete adjacent parties, no shared live ownership or partial party, at most ten C seats reserved and zero SQL violations. Winning mixture depends on scheduling.
+**Evidence:** .local/test-results/TC19-exam/ contains surge-1/2/3 and mixed, raw arrivals/customers, admission records, preflight, captures, metrics/timeline and summary.json. Preserve every failed/inconclusive attempt. These registration/allocation workloads do not perform payment.
 
 ### TC-20 | Payment/cancellation/expiry race
 **Steps:** fresh reset, run payment and cancellation together:
@@ -527,59 +543,142 @@ python experiments/run.py fault --scenario both --seconds 60 --run TC-22-both
 
 ### TC-23 | Waiting-room API replicas
 ```powershell
-$scaleArgs = @('--rate','50','--duration','30','--repeats','3')
-python experiments/run.py scale-api --reset-lab @scaleArgs --run TC-23
+python experiments/study.py --case 23 --reset-lab --run TC23-exam
 ```
-**Expected Result:** clean 1/2/4-replica trials with identical offered traffic and seed, alternating order, no lost acknowledgements. Compare throughput, P95/errors and generator saturation; improvement is not assumed. served_by_instance records actual responding pod identities. This command resets lab before each trial and leaves main unchanged.
+**Test Data:** 50 arrivals/s for 30 seconds = 1,500 offers per trial; 1/2/4 API replicas, three repetitions each, alternating order. Each trial resets lab, removes HPAs, verifies exact Ready replicas, Redis and all four SQL databases, and records responding pod IDs.
+**Expected Result:** all offers accepted/reconciled, zero HTTP failures/drops, maximum launch lag <=1 second, no missing/duplicate IDs, zero SQL violations and every requested replica actually serving. Compare P95/throughput/resources; more replicas need not improve performance. Existing workloads and assertions are retained.
+**Evidence:** .local/test-results/TC23-exam/ holds nine trials and their raw response instance IDs, configuration/source hashes, arrivals, CPU/RAM samples and cohort summary.
 
+Optional capacity study, separate from fixed-load acceptance:
+```powershell
+python experiments/study.py --case capacity --reset-lab --run TC23-cap-exam
+```
+This runs 20/40/60/80/100 arrivals/s for 30 seconds at each 1/2/4 setting, one trial per point. In addition to correctness/delivery checks, sustainable means P95 <=1,000 ms and accepted throughput >=95% of offered rate. The saved final study also tested 200/s separately. Highest passing tested rate is a lower bound, not the true maximum; single capacity points have no confidence interval.
+
+<!-- pagebreak -->
+## 9. Automatic Scaling Procedure
 ### TC-24 | Optional autoscaling
-**Steps:** fresh reset; enable private Kind metrics/HPAs and apply sustained load:
+**Preconditions:** current application images built/loaded, pinned host load dependency installed, enough free resources, no concurrent experiments. Each target needs at least 18.5 minutes of measured phases plus deployment, admission and evidence collection. Run targets sequentially.
+**Steps:** if Metrics Server is absent, install it and remove the setup HPAs before measurement:
 ```powershell
 python experiments/run.py autoscale --install-metrics --run TC-24-config
-python experiments/run.py register --rate 100 --duration 180 --profile spike --run TC-24-load
+python experiments/run.py autoscale --disable --run TC-24-config-clean
 ```
-In another window, record timestamped k get hpa,pods and k top pods during load and for 180 seconds afterward. Use capture to save HPA state. Require observed scale-out and scale-in before claiming autoscaling. Configured 1-4 CPU HPAs target waiting-room/allocation workers; I/O-bound workers may not trigger. The local metrics-server uses a Kind-only kubelet TLS exception, not a production setting.
-**Restore:** python experiments/run.py autoscale --disable --run TC-24-stop. Reset lab before manual scaling trials.
+With a working Metrics Server, skip those two setup commands. Run each isolated target:
+```powershell
+python experiments/study.py --case 24-api --reset-lab --run TC24-api-exam
+python experiments/study.py --case 24-worker --reset-lab --run TC24-worker-exam
+```
+The wrapper resets only csc3104-lab before each target, captures baseline configuration, attaches only that target's HPA and records actual pod/CPU/backlog evidence throughout. It retains the original offered profile and admission/safety checks. Main is unchanged by these study commands. Manual scaling after HPA attachment invalidates the automatic-scaling claim.
 
+| Phase | Duration | API target | Worker target |
+|---|---|---|---|
+| Low baseline | 120 s | 2/s = 240 offers | 1/s = 120 offers |
+| Original spike | 180 s | 5/s x45s, 100/s x90s, 5/s x45s | Same 9,450 offers |
+| Recovery | 600 s | Zero new offers | Zero new offers; backlog must drain |
+| Repeated spike | 180 s | Identical 9,450 offers | Identical 9,450 offers |
+| Final observation | 30 s | Continue evidence collection | Continue evidence collection |
+
+**Configuration:** min 1/max 4 replicas, 50% CPU target, 60-second downscale stabilization; scale up at most one pod/30s and down one/60s. API request=50m, limit=500m. Worker request=200m, limit=500m; the measured idle floor informed this lab calibration. For the worker-only cycle, waiting-room API is fixed at four Ready replicas BEFORE measurement/HPA attachment; only the worker autosizes. API traffic remains pre-sale; worker traffic opens the sale and creates genuine allocation work. No synthetic CPU workload is used.
+
+**Expected Result:** actual Ready replicas follow 1 -> more than 1 -> 1 -> more than 1 in phase order; CPU is above target under high load and below at recovery end. All 19,140 API offers / 19,020 worker offers must be delivered, maximum launch lag <=1 second, no missing/duplicate IDs and zero SQL violations. Worker backlog must drain and one Ready worker must be observed within the original 600-second recovery window. Preserve actual offer-end timestamps as well as phase timestamps.
+**Verification Method:** raw timeline/pod/CPU/backlog samples and final summary; a desired replica count or HPA manifest alone is insufficient. Deleting an HPA during cleanup does not count as automatic scale-in. A late diagnostic drain cannot turn a missed 600-second criterion into PASS. Missing data or unmet timing remains FAIL/INCONCLUSIVE as appropriate.
+**Evidence:** .local/test-results/TC24-api-exam/ and TC24-worker-exam/, including raw phase arrivals, configuration/preflight, timeline.jsonl, HPA/pod/events/logs, SQL/admission checks and summary.json. Metrics Server samples have cached windows; missing CPU is not zero. Kind-only kubelet TLS exception is not a production configuration.
+**Restore:** the wrapper removes its HPA in cleanup. Save evidence, then restore the ordinary lab and restart any manual forward:
+```powershell
+python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
+```
+
+<!-- pagebreak -->
+## 9. Browser Access and Evidence Collection
 ### TC-25 | Browser ownership and return
 **Steps:** use a separate browser profile without admin access. Register a customer and record request/hold IDs, queue number and original deadline. Disconnect, refresh, close all tabs, reopen within seven days and select the saved customer. Check the same booking, including honest expiry after a long absence. A second profile must receive HTTP 403 for copied request/payment/cancellation IDs, sale opening and direct seat mutation. Administrator sign-in restores privileged demo controls; sign-out removes them.
 **Evidence:** before/after identities, authoritative state, denied HTTP responses and no resulting mutation. Automated gateway and browser-access/recovery tests supplement this manual deployed procedure. Cookie deletion or a different browser does not provide account recovery.
 
-<!-- pagebreak -->
-## 9. Measurement records and verification status
 ### Resource observations and limits
 During each workload, run periodically in another window and save timestamped output:
 ```powershell
 python infra/k8s/kubectl.py -n csc3104-lab top pods
 ```
-capture saves available resource metrics; missing metrics support no CPU/memory/HPA conclusion. Normal deployment does not install metrics-server. Compose docker stats --no-stream is a point sample, not a Kubernetes trial. Use logs/response instance IDs for participation and actual TC-24 observations for autoscaling conclusions.
+capture saves available resource metrics; missing metrics support no CPU/memory/HPA conclusion. Normal deployment does not install metrics-server. The study wrappers automatically collect timestamped evidence. Compose docker stats --no-stream is a point sample, not a Kubernetes trial. Use logs/response instance IDs for participation.
 
-### Empty results table: complete after execution
-| Run / configuration | Time / average / P95 | Throughput / success / error | Safety / evidence |
-|---|---|---|---|
-| TC-14 baseline r1-r3 | Not measured | Not measured | Run folders |
-| TC-15 5/s r1-r3 | Not measured | Not measured | Arrival records |
-| TC-16 1 worker r1-r3 | Not measured | Not measured | Per-policy summaries |
-| TC-16 2 workers r1-r3 | Not measured | Not measured | Per-policy summaries |
-| TC-16 4 workers r1-r3 | Not measured | Not measured | Per-policy summaries |
-| TC-11/12/13 recovery | Not measured | Pending/completed: not measured | IDs/timestamps |
+### Evidence handling
+Run one workload at a time; use a fresh run ID and preserve failures alongside passes. Export .local/test-results/<run-id>/ before resetting. Keep original rates, counts, TTLs, deadlines and safety assertions. Do not overwrite a failed or incomplete run to obtain a PASS. Interrupted.json and partial timelines are diagnostic evidence, not completed acceptance.
 
-### Actual execution in this revision: 12 November 2026
-Source PASS: nine gateway, 24 allocator, 23 browser-recovery/two browser-access cases, and 61 seat-store/50 payment PostgreSQL tests. Other source checks are listed in the JSON capsule. Controlled-response tests remain distinct from deployed network checks.
-
-Deployed PASS: 2,100 complete surge registrations/admissions with stable positions; 40 mixed parties; paired two-seed policies; one round of 1/2/4 API replicas; lost reply/runtime crash with expired-original-hold recovery; storage outages preserving confirmed/queued work; lifecycle races; gateway and normal booking acceptance. Live Chromium tab return restored original IDs, seats, queue number and deadline. Main confirmed ownership was preserved.
-
-HPA expanded from one to four API pods. The 6,300-offer trial had 33 generator drops; scale-in was not captured. Workload/full cycle remain INCONCLUSIVE. Corrected attempts, scope and run IDs are in output/validation/robustness-results.md and robustness-implementation.json. No clean-machine, full ten-seed, full cross-browser or production-security claim follows.
-
-### Historical evidence: separate from this revision
-experiments/VALIDATION.md records bounded 10 November checks; output/validation/ contains their acceptance-summary.json, research-smoke-summary.json and FCFS_pair_smoke.json. These are historical, not current-source acceptance or statistical scaling/fairness evidence. Export ignored raw runs separately when required.
+Full build/upgrade, exact measurement methods, interruption/resume rules and saved-data graph generation are documented in experiments/SCALING_STUDIES.md. No trial is run by opening or rebuilding this PDF. Examiner observations must be recorded separately from the saved results on the following page.
 
 ### Optional automated deployed acceptance
 After normal image build/load and with csc3104-check absent:
 ```powershell
 python experiments/acceptance.py
 ```
-This implemented harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. Main/lab are preserved. It was not rerun here.
+This optional harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. The final 15-case coverage completion used experiments/examiner_verify.py and its real Chromium UI/HTTP/database checks, rather than rerunning this optional bounded harness. TC-14/15/16/18/19/20/21/22/23/24 retain their full v9 workloads. See experiments/EXAMINER_VERIFICATION.md for the exact verification/audit workflow. No application tests were launched for this document correction.
+
+<!-- pagebreak -->
+## 9. Saved Validation Results | 14 November 2026
+These are actual saved local results for the final application images, not predictions for another machine. The complete 25-case results are in output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf and output/validation/all25/all25-audit.json. Performance/fault detail remains in output/validation/tc-fixes/FINAL_REPORT.md; diagnostic causes are in ROOT_CAUSES.md in that folder. Earlier failed/inconclusive cohorts remain preserved.
+
+| Case / cohort | Actual result | Measurements and limits |
+|---|---|---|
+| TC-19 | PASS | Three surges, 2,100/2,100 accepted each; admission 172.24/168.76/158.32 s, all within 600 s. Max launch lag <0.029 s. Mixed: 40 parties, 32 clients, ten C seats safely allocated. |
+| TC-23 fixed load | PASS | Nine trials, 1,500/1,500 each. All requested 1/2/4 pods actually served. Mean trial P95 by replicas: 19.871/16.488/22.142 ms; approximately 50 accepted/s. No automatic speedup claim. |
+| TC-23 capacity | PASS at tested points | 20/40/60/80/100/s at 1/2/4 replicas, plus separate 200/s points. All 18 points met declared thresholds. 200/s is the highest passing tested rate, a lower bound rather than a maximum. |
+| TC-24 API | PASS | 19,140 accepted; actual Ready 1 -> 4 -> 1 -> 4. Peak high-load CPU 374% of request; recovery CPU 7%. |
+| TC-24 worker | PASS | 19,020 accepted; actual Ready 1 -> 4 -> 1 -> 4. Peak CPU 86%, recovery 9.1%. Backlog drained; one Ready worker observed 589.66 s after actual spike offer-end, within 600 s. |
+
+All final performance cohorts above had zero client HTTP failures, generator drops, upstream retries, missing/duplicate IDs and SQL violations. Valid UNAVAILABLE allocations are inventory exhaustion, not paid bookings. A separate post-repeat worker observation found all 19,020 terminal outcomes; it does not substitute for the original recovery checkpoint or prove another automatic scale-in.
+
+### Seven regression families: PASS within recorded scope
+TC-14 and TC-15: three fresh repetitions each. TC-16: three repeats at each 1/2/4 worker count, both policies. TC-18: ten independent F1 seeds 42-51, both policies. TC-20: three active and three near-expiry races. TC-21: lost committed reply and abrupt worker crash. TC-22: Redis, PostgreSQL and combined 60-second outages. All 21 top-level variants passed; paired policy work comprises 38 individual replays. Optional F2-F7 explorations are not certified by the final F1 cohort.
+
+Host tests: 77 passed plus four subtests. Real PostgreSQL checks: 131 passed (61 seat, 50 payment, 11 dispatcher, nine booking). Core service sources were unchanged after that SQL preflight. The final independent verification passed 77 new evidence/coverage/continuity checks plus 244 original-workload raw checks: 321 audit checks passed, zero failed. These audit counts are distinct from the 25 case IDs and from the host/PostgreSQL test counts.
+
+<!-- pagebreak -->
+## 9. Final 25-Case Coverage and Evidence
+### Observed local result: all 25 cases PASS
+The final ledger was completed on 14 November 2026 at 18:10:59 SGT. Fifteen cases have newly completed final-version functional/browser/deployment checks; ten retain their full original-scope final v9 measurements and were independently re-audited. All 96 compared application/configuration files remained unchanged, and captured deployed image IDs matched v9. No application code was changed during the later functional verification.
+
+| Case IDs | Actual result / scope | Final evidence run under .local/test-results/ |
+|---|---|---|
+| TC-01 to TC-08; TC-10 to TC-12; TC-17; TC-25 | PASS - new final-version checks | examiner-20261114-final-a, selected case folders only |
+| TC-09 | PASS - completed corrected Compose rerun | examiner-20261114-compose-b |
+| TC-13 | PASS - completed corrected seat-outage rerun | examiner-20261114-seat-d |
+| TC-14/15/16/18/20/21/22 | PASS - original full regression scope | tc-fix-regression-v9 and its per-case child runs |
+| TC-19 | PASS - three original surges and mixed parties | tc-fix-19-v9 |
+| TC-23 | PASS - fixed replicas and tested capacity points | tc-fix-23-v9; tc-fix-capacity-v9; tc-fix-capacity-upper-v9 |
+| TC-24 | PASS - separate complete automatic cycles | tc-fix-24-api-v9; tc-fix-24-worker-v9 |
+
+The new browser checks include actual refresh of both same-customer tabs, an unchanged five-minute expiry with same-hold late-payment HTTP 409, and TC-25 offline refresh, full browser-process restart, original identity/deadline recovery, administrator sign-in/out and return after real expiry. TC-25 completed 19 checks and eight HTTP 403 denials, including genuine payment/cancellation IDs; no second registration occurred. Its seven-day cookie lifetime is configuration, not a claim of seven elapsed days of testing.
+
+The first serial run's overall status remains FAIL because its initial TC-09/13 checker attempts stopped. A separate TC-13 browser-bootstrap attempt also stopped before booking. Those attempts are preserved; only the completed passing reruns above support those cases. The all25-audit.json ledger selects each actual passing case and retains the failure history. No failed attempt was relabelled PASS.
+
+The 10-12 November results in experiments/VALIDATION.md, acceptance-summary.json, robustness-implementation.json and browser-recovery.json remain historical. Earlier incomplete HPA attempts stay INCONCLUSIVE. Current 25-case conclusions use the later complete evidence above, not those earlier bounded checks. Both this guide and the updated results report now describe the same final ledger.
+
+<!-- pagebreak -->
+## 9. Environment and Evidence Package
+
+### Tested environment and deployment scope
+The final local host/Docker budget reported 12 logical CPUs and approximately 7.69 GiB Docker RAM. Gateway CPU limit=1 core; PostgreSQL limit=2 cores. Other final pod resources, image/source fingerprints and runtime versions are captured in the evidence. Earlier hardware/configurations differ; do not infer a controlled old-versus-new speedup. Busy or smaller machines may miss deadlines even with the same source.
+
+Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Fixed source changes were uncommitted when validation completed; ensure the actual fixed source, scripts and manifests are included in the submission used to build images.
+
+### Supporting evidence files
+Under output/validation/tc-fixes/:
+- FINAL_REPORT.md: actual run tables, graphs, scope and limitations.
+- ROOT_CAUSES.md and CHANGES.md: observations, diagnosis and implemented fixes.
+- final-acceptance-audit.json: independent raw-evidence checks.
+- report-v9/: eight PNG/SVG graph pairs, runs.csv and pod-metrics.csv.
+- CSC3104_TC19_TC23_TC24_New_Evidence.zip: exported raw runs, source snapshot/patch and reports.
+- evidence-manifest.json, evidence-zip.sha256 and archive-verification.json: file hashes, redactions and archive verification.
+
+The archive was verified for CRC, manifest hashes, readable JSON and configured-secret redaction. It contains 3,640 entries (172,139,714 bytes). Exported logs redact credentials; do not submit kubeconfig, Secrets, .env.core or private originals. Raw ignored run folders must accompany a submission if the archive is not supplied. The separately updated guide does not alter that previously sealed archive or its checksums.
+
+Under output/validation/all25/, all25-audit.json selects the final 25 passing cases; final-acceptance-audit.json records the 244 original-workload checks; checker-corrections.json retains the preliminary checker errors. final-environment-verification.json records restoration and unchanged main deployment specifications/UIDs. GROUP02_All25_Additional_Evidence.zip supplies the new functional/browser runs alongside the separately sealed v9 archive; neither historical archive is rewritten by this document correction.
+
+For reviewer delivery, output/review-package/GROUP02_Latest_Source.zip contains the fixed working source and this corrected guide. GROUP02_Raw_Results_and_Graphs.zip consolidates raw runs, audits and measured figures; GROUP02_Graphs_and_CSV.zip is the smaller figure/table bundle. START_HERE.md and package-verification.json identify the contents and checksums. The standalone results report records current conclusions; the combined report additionally preserves the two original reports as labelled historical appendices.
+
+### Examiner result log
+For every case record observed result, run ID, source/image version, machine limits, exact steps, configuration, timestamps, IDs, terminal counts, errors, invariant output, evidence filenames and restoration. Expected results in Section 10 are acceptance conditions; the examiner must enter their own observations. All 25 cases passed the recorded local checks. This does not establish a clean-machine result, production security, storage HA or a guaranteed outcome on another machine.
 
 <!-- pagebreak -->
 ## 10. Testing Summary Matrix
@@ -610,7 +709,7 @@ Expected results are acceptance conditions; enter observed results in your own e
 | TC-21 | Crash/lost reply | Idempotent recovery | Original hold/deadline retained | Checkpoint/history |
 | TC-22 | Storage outage | Durable queued work | Preserved booking/job; recovery | Samples/SQL |
 | TC-23 | API replicas | Horizontal scaling | Complete comparable trials | Instance IDs/latency |
-| TC-24 | Optional HPA | Automatic scaling | Observed scale-out/in and health | Metrics/HPA/events |
+| TC-24 | Optional HPA | Automatic scaling | Ready 1 -> out -> 1 -> out; drained backlog | Metrics/HPA/events |
 | TC-25 | Browser ownership | Access/session recovery | Own booking restored; cross-user denied | Cookies/HTTP/state |
 
 ### Result record template
@@ -644,6 +743,11 @@ k exec deployment/payment-api -- python service.py monitor
 ```
 For a restarted container, k logs <actual-pod-name> --previous may expose prior logs. Copy run folders from .local/test-results after checking for sensitive operational data; exclude generated Secrets, .env.core and kubeconfig. Captures avoid exporting Secrets.
 
+<!-- pagebreak -->
+## 11. Cleanup and Retained-State Upgrades
+### Retained-state dispatcher upgrade
+New dispatcher storage separates active work, append-only history and receipts; inline legacy state migrates transactionally. Upgrade waiting-room API first. Quiesce BOTH old dispatcher-api and dispatcher-worker and wait for their pods to exit before starting either new version. Preserve Redis/PostgreSQL volumes. Mixed old/new dispatcher rolling upgrades are unsupported; old binaries cannot hydrate normalized history. A downgrade requires exporting/recombining history first. See experiments/SCALING_STUDIES.md. Fresh lab resets avoid this migration path; do not reset main storage for these tests.
+
 ### Restore and stop
 Restore each paused deployment to its original count, normally one, and wait for rollout. Stop B's forward with Ctrl+C. To stop lab while preserving its PVCs/credentials:
 ```powershell
@@ -657,5 +761,5 @@ python demo.py --stop
 ```
 Resume main with its normal startup; resume lab with python experiments/run.py lab without --reset-lab and restart forwarding. To return the disposable lab to initial empty state, save evidence then repeat Section 4's --reset-lab. Do not delete main namespace/volumes/PVCs or Kind cluster as routine cleanup; cluster deletion loses node-local storage. Verification harnesses remove their own csc3104-check; inspect leftovers before rerunning.
 
-**Supporting scripts:** experiments/run.py, runtime.py, workloads.py, metrics.py, invariants.sql; tests/docker_booking_smoke.py and http_validation_smoke.py. Editable source: output/pdf/GROUP02_INSTRUCTIONS.md; renderer: experiments/build_instructions.py (requires reportlab).
+**Supporting scripts:** experiments/run.py, study.py, loadgen.py, observability.py, runtime.py, workloads.py, metrics.py, invariants.sql; tests/docker_booking_smoke.py and http_validation_smoke.py. Editable source: output/pdf/GROUP02_INSTRUCTIONS.md; renderer: experiments/build_instructions.py (requires reportlab).
 

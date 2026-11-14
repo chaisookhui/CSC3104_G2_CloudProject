@@ -88,6 +88,18 @@ def create_app(store=None, session=None):
                 app.logger.warning("Dispatcher handoff pending retry: %s", error)
         return jsonify(result), 202 if result["sale_state"] == "opening" else 200
 
+    @app.get('/queue/activity')
+    def queue_activity():
+        return jsonify(store.activity())
+
+    @app.get('/queue/next/<int:limit>')
+    def queue_next(limit):
+        if not 1 <= limit <= 100:
+            return jsonify(error='Queue limit must be between 1 and 100'), 400
+        result = store.next_queued(limit)
+        return jsonify(sale_state=result['sale_state'], count=len(result['requests']),
+                       requests=[request_response(p) for p in result['requests']])
+
     @app.get("/queue")
     def display_queue():
         state = store.read()
@@ -184,7 +196,8 @@ def create_app(store=None, session=None):
                 "claimed_count": len(request_ids)
             }, 200
 
-        result, code = store.update(claim)
+        result, code = store.update(claim, append_safe=True,
+                                   request_ids=request_ids, batch_id=batch_id, claim=True)
         return jsonify(result), code
 
     @app.post("/queue/outcomes")
@@ -296,7 +309,8 @@ def create_app(store=None, session=None):
                 )
             }, 200
 
-        result, code = store.update(apply_outcomes)
+        result, code = store.update(apply_outcomes, append_safe=True,
+                                   request_ids=list(statuses), batch_id=batch_id)
         return jsonify(result), code
 
 

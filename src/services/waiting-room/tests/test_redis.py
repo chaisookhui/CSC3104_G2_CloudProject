@@ -1,5 +1,6 @@
 """Run with TEST_REDIS_URL for a real Redis server, otherwise fakeredis[lua]."""
 import os
+import json
 import sys
 import unittest
 from concurrent.futures import ThreadPoolExecutor
@@ -13,6 +14,152 @@ from queue_store import RedisStore
 
 
 class RedisCorrectnessTests(unittest.TestCase):
+    def test_scoped_claim_commutes_with_a_new_registration(self):
+        self.store.open_sale()
+        first = self.submit('first')[1]['request_id']
+        snapshot = self.store._batch_snapshot
+        late = []
+        def race(*args):
+            result = snapshot(*args)
+            if not late: late.append(self.submit('late')[1]['request_id'])
+            return result
+        with patch.object(self.store,'_batch_snapshot',side_effect=race) as observed:
+            with self.app.test_client() as client:
+                self.assertEqual(client.post('/queue/claim',json={
+                    'batch_id':'scoped-race','request_ids':[first]}).status_code,200)
+            self.assertEqual(observed.call_count,1)
+        self.assertEqual([p['request_id'] for p in self.store.next_queued(10)['requests']],late)
+        self.assertEqual(self.store.activity()['queued_count'],1)
+        self.assertEqual(self.store.read()['next_number'],3)
+
+    def test_bounded_batch_paths_preserve_global_order_and_whole_batch_validation(self):
+        for i in range(30): self.submit(i)
+        self.store.open_sale()
+        ordered = self.store.read()['queue']
+        # Normal hot paths must not fetch the full historical Python snapshot.
+        with patch.object(self.store, '_read', side_effect=AssertionError('Full history read')):
+            with self.app.test_client() as client:
+                page = client.get('/queue/next/3').json
+                self.assertEqual([p['request_id'] for p in page['requests']], ordered[:3])
+                wrong = {'batch_id':'bounded','request_ids':ordered[1:4]}
+                self.assertEqual(client.post('/queue/claim', json=wrong).status_code,409)
+                correct = {'batch_id':'bounded','request_ids':ordered[:3]}
+                self.assertEqual(client.post('/queue/claim', json=correct).status_code,200)
+                self.assertEqual(client.post('/queue/claim', json=correct).status_code,200)
+                partial = {'batch_id':'bounded','outcomes':[
+                    {'request_id':rid,'status':'UNAVAILABLE'} for rid in ordered[:2]]}
+                self.assertEqual(client.post('/queue/outcomes',json=partial).status_code,409)
+                full = {'batch_id':'bounded','outcomes':[
+                    {'request_id':rid,'status':'UNAVAILABLE'} for rid in ordered[:3]]}
+                self.assertEqual(client.post('/queue/outcomes',json=full).status_code,200)
+                self.assertEqual(client.post('/queue/outcomes',json=full).status_code,200)
+                page = client.get('/queue/next/3').json
+                self.assertEqual([p['request_id'] for p in page['requests']],ordered[3:6])
+        self.assertEqual(self.store.activity()['queued_count'],27)
+        self.assertEqual(len(self.store.read()['requests']),30)
+
+    def test_older_registration_cannot_be_hidden_by_a_new_indexed_registration(self):
+        self.store.open_sale()
+        first = self.submit('first')[1]['request_id']
+        self.store.activity()
+        party = dict(self.store.get_request(first), request_id='old-rid',user_id='old-user',queue_number=2)
+        # Simulate the previous registration Lua: both revisions, no new index.
+        with self.store.client.pipeline() as pipe:
+            pipe.hset(self.store.keys[1],'old-user','old-rid')
+            pipe.hset(self.store.keys[2],'old-rid',json.dumps(party))
+            pipe.zadd(self.store.keys[3],{'old-rid':2})
+            pipe.hincrby(self.store.keys[0],'next_number',1)
+            pipe.hincrby(self.store.keys[0],'queued_count',1)
+            pipe.incr(self.store.keys[5]);pipe.incr(self.store.keys[6]);pipe.execute()
+        newest = self.submit('new')[1]['request_id']
+        self.assertEqual([p['request_id'] for p in self.store.next_queued(10)['requests']],
+                         [first,'old-rid',newest])
+        self.assertEqual(self.store.activity()['queued_count'],3)
+
+    def test_previous_transition_marker_does_not_validate_stale_queue_index(self):
+        rid = self.submit('first')[1]['request_id']
+        self.store.open_sale();self.store.activity()
+        party = dict(self.store.get_request(rid),status='ADMITTED',batch_id='old')
+        with self.store.client.pipeline() as pipe:
+            pipe.hset(self.store.keys[2],rid,json.dumps(party))
+            pipe.incr(self.store.keys[5]);pipe.execute()
+        logical = int(self.store.client.get(self.store.keys[5]))-int(self.store.client.get(self.store.keys[6]))
+        self.store.client.hset(self.store.keys[0],mapping={'activity_revision':logical,'queued_count':0})
+        self.assertEqual(self.store.next_queued(10)['requests'],[])
+        with self.app.test_client() as client:
+            self.assertEqual(client.post('/queue/outcomes',json={'batch_id':'old',
+                'outcomes':[{'request_id':rid,'status':'UNAVAILABLE'}]}).status_code,200)
+
+    def test_pre_sale_claim_returns_original_rejection(self):
+        first = self.submit('first')[1]['request_id']
+        with self.app.test_client() as client:
+            self.assertEqual(client.post('/queue/claim', json={'batch_id':'early','request_ids':[first]}).status_code, 409)
+
+    def test_batch_transition_commutes_with_registration_without_losing_counter(self):
+        first = self.submit('first')[1]['request_id']
+        self.store.open_sale()
+        calls = []
+        def transition(state):
+            calls.append(1)
+            # Deterministically inject a committed registration after snapshot.
+            self.submit('concurrent')
+            state['requests'][first].update(status='ADMITTED', batch_id='batch')
+        self.store.update(transition, append_safe=True)
+        self.assertEqual(len(calls), 1)
+        state = self.store.read()
+        self.assertEqual(len(state['requests']), 2)
+        self.assertEqual([state['requests'][r]['queue_number'] for r in state['queue']], [1, 2])
+        self.assertEqual(self.store.activity()['queued_count'], 1)
+
+    def test_legacy_writer_invalidates_transition_and_heals_activity_counter(self):
+        first = self.submit('first')[1]['request_id']
+        self.store.open_sale()
+        self.store.activity()
+        calls = []
+        def transition(state):
+            calls.append(1)
+            if len(calls) == 1:
+                # Old code writes records and global revision, without new metadata.
+                party = dict(state['requests'][first], status='ADMITTED', batch_id='old')
+                with self.store.client.pipeline() as pipe:
+                    import json
+                    pipe.hset(self.store.keys[2], first, json.dumps(party))
+                    pipe.incr(self.store.keys[5]); pipe.execute()
+            return state['requests'][first]['status']
+        self.assertEqual(self.store.update(transition, append_safe=True), 'ADMITTED')
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(self.store.activity()['queued_count'], 0)
+
+    def test_append_safe_path_rejects_structural_mutation(self):
+        self.store.open_sale()
+        with self.assertRaises(ValueError):
+            self.store.update(lambda state: state.update(next_number=99), append_safe=True)
+        self.assertEqual(self.store.read()['next_number'], 1)
+
+    def test_activity_counter_survives_opening_latecomers_and_idempotent_claims(self):
+        for i in range(7): self.submit(i)
+        self.assertEqual(self.store.activity(), {'sale_state':'pre_sale','queued_count':0})
+        self.store.open_sale(batch_size=2)
+        self.submit('late')
+        with self.app.test_client() as client:
+            # During OPENING only part of the initial lottery has been numbered.
+            # A rejected claim must not replace the total with that partial count.
+            ids=self.store.read()['queue'][:1]
+            self.assertEqual(client.post('/queue/claim',json={'batch_id':'too-early','request_ids':ids}).status_code,409)
+        self.assertEqual(self.store.client.hget(self.store.keys[0],'queued_count'),'8')
+        while self.store.open_sale(batch_size=2)['sale_state']=='opening': pass
+        self.assertEqual(self.store.activity()['queued_count'],8)
+        ids=self.store.read()['queue'][:3]
+        with self.app.test_client() as client:
+            for _ in range(2):
+                self.assertEqual(client.post('/queue/claim',json={'batch_id':'activity','request_ids':ids}).status_code,200)
+                self.assertEqual(self.store.activity()['queued_count'],5)
+        # Older namespaces remain readable, with no false zero-backlog claim.
+        self.store.client.hdel(self.store.keys[0],'queued_count')
+        self.assertEqual(self.store.activity()['queued_count'],5)
+        self.store.update(lambda state: None)
+        self.assertEqual(self.store.client.hget(self.store.keys[0],'queued_count'),'5')
+
     def test_replay_fixture_is_lab_only_and_reproduces_queue_numbers(self):
         parties = {str(i): self.submit(i)[1] for i in range(4)}
         order = ['2','0','3','1']

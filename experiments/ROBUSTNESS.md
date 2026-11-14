@@ -176,6 +176,12 @@ throughput if Redis, the gateway or generator is the bottleneck. Allocation-work
 
 ## 7. Optional local HPA
 
+Use [the full scaling studies](SCALING_STUDIES.md) for automated, separate API
+and worker baseline/spike/600-second recovery/repeat-spike evidence. Install the
+registration client with `python -m pip install -r experiments/requirements-load.txt`.
+The following commands configure HPAs and generate the original traffic; they
+are not a complete autoscaling acceptance test by themselves.
+
 ```powershell
 python experiments/run.py autoscale --install-metrics --run hpa-config-r1
 python experiments/run.py register --rate 100 --duration 180 --profile spike --run hpa-load-r1
@@ -183,15 +189,16 @@ python experiments/run.py register --rate 100 --duration 180 --profile spike --r
 
 Use a fresh lab before enabling HPAs. In another window record timestamped
 `python infra/k8s/kubectl.py -n csc3104-lab get hpa,pods` and `top pods` during
-load and for at least 180 seconds after load. `capture` also saves HPA state.
+load and for 600 seconds after load. `capture` also saves HPA state.
 Require actual scale-out and subsequent scale-in with healthy customer state
 before claiming automatic scaling; configured HPA or Ready pods alone do not
 prove it. The 1..4-replica CPU HPAs target waiting-room and allocation workers.
 Low worker CPU may not trigger a scale-out for an I/O-bound workload.
-Calibrate the generator first; use a lower peak such as `--rate 60` if arrivals
-are dropped or launch timing drifts. Preserve that inconclusive trial. A smaller
-load may not trigger scaling; increasing traffic is meaningful only when the
-generator can actually deliver it. Stabilization windows can delay scale-in.
+The original spike remains 100/s for 180 seconds with the spike profile (9,450
+offers). Drops or excessive launch lag keep that trial inconclusive; preserve it
+and fix the generator/environment rather than lowering this workload to claim
+PASS. Any separate calibration must be labeled as a different workload.
+Stabilization windows and unfinished allocation demand can delay scale-in.
 
 The pinned metrics-server v0.8.1 installation is restricted to the private
 `kind-csc3104` context and uses a local self-signed kubelet TLS exception. It is

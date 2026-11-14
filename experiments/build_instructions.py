@@ -133,7 +133,7 @@ def page(canvas, doc):
     canvas.line(42, h-29, w-42, h-29)
     canvas.setFillColor(MUTED)
     canvas.setFont('Helvetica', 7.3)
-    canvas.drawString(42, h-42, 'CSC3104 / GROUP 02 / TESTING INSTRUCTIONS / 12 NOV 2026')
+    canvas.drawString(42, h-42, 'CSC3104 / GROUP 02 / TESTING INSTRUCTIONS / 14 NOV 2026')
     canvas.setStrokeColor(colors.HexColor('#D9E0E7'))
     canvas.setLineWidth(.5)
     canvas.line(42, 34, w-42, 34)

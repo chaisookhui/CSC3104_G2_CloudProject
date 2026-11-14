@@ -5,8 +5,10 @@ import requests
 from flask import Flask, Response, abort, request
 try:
     from frontend.access import install_access
+    from frontend.http_client import proxy_request, transport_error_types
 except ModuleNotFoundError:
     from access import install_access
+    from http_client import proxy_request, transport_error_types
 
 # Service addresses come from the environment so the same code runs in a container.
 SERVICES = {
@@ -47,19 +49,36 @@ def create_app():
         # The internal token is added here so it never reaches browser code.
         if service == "payment" and payment_token:
             headers["Authorization"] = "Bearer " + payment_token
-        try:
-            upstream = requests.request(
-                request.method, f"{base.rstrip('/')}/{path}", params=request.args,
-                data=request.get_data() or None, headers=headers, timeout=10,
-                allow_redirects=False)
-        except requests.RequestException:
-            return {"error": f"{service} service is not reachable"}, 502
+        for attempt in (1,2):
+            try:
+                upstream = proxy_request(
+                    request.method, f"{base.rstrip('/')}/{path}", params=request.args,
+                    data=request.get_data() or None, headers=headers, timeout=10,
+                    allow_redirects=False)
+                break
+            except requests.RequestException as error:
+                # Registration is already atomically idempotent by user ID in
+                # Redis. Replaying identical bytes after a dropped connection
+                # cannot create another party or queue position, even if the
+                # first request committed before its reply was lost.
+                body=request.get_json(silent=True)
+                retry=(attempt==1 and request.method=='POST' and service=='waiting-room'
+                    and path in ('submit','waiting-room') and isinstance(body,dict)
+                    and isinstance(body.get('user_id'),str) and bool(body['user_id'].strip())
+                    and isinstance(error,(requests.ConnectionError,requests.exceptions.ChunkedEncodingError))
+                    and not isinstance(error,requests.Timeout))
+                app.logger.warning('Upstream transport failure service=%s method=%s types=%s retry=%s',
+                    service,request.method,transport_error_types(error),retry)
+                if retry:continue
+                return ({"error": f"{service} service is not reachable"},502,
+                        {'X-Gateway-Upstream-Attempts':str(attempt)})
         if service=='waiting-room' and path=='queue' and upstream.status_code==200 and app.config['ACCESS_ENABLED']:
             return app.extensions['filter_customer_queue'](upstream.json())
         response=Response(upstream.content, upstream.status_code,
                         content_type=upstream.headers.get("Content-Type", "application/json"))
         if upstream.headers.get('X-Service-Instance'):
             response.headers['X-Service-Instance']=upstream.headers['X-Service-Instance']
+        response.headers['X-Gateway-Upstream-Attempts']=str(attempt)
         return response
 
     return app

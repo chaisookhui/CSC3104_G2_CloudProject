@@ -38,6 +38,9 @@ The [editable source](output/pdf/GROUP02_INSTRUCTIONS.md) contains the same proc
 Tests and evidence collection run through the [lab CLI tools](experiments/README.md);
 the application shows Overview, Batches, Seat map and My booking without a test checklist.
 Expected behavior, current verification and historical evidence remain distinct.
+The [validation evidence index](docs/VALIDATION_EVIDENCE.md) identifies the final
+reports, recorded results and separate raw-evidence archives. Generated logs,
+temporary renders and large ZIP packages remain local and are excluded from Git.
 
 | Component | Current purpose |
 | --- | --- |
@@ -51,8 +54,8 @@ Expected behavior, current verification and historical evidence remain distinct.
 The service APIs now connect registration, allocation, checkout and cancellation.
 UNAVAILABLE, expired and cancelled requests are exit points; there is no rejoin or
 waitlist. Routed integration tests and bounded deployed booking/recovery evidence
-are described in experiments/VALIDATION.md; full load/scaling evaluation remains
-outstanding. Seat-store represents
+are described in experiments/VALIDATION.md. The later recorded local load/scaling
+and 25-case validation are indexed in docs/VALIDATION_EVIDENCE.md. Seat-store represents
 one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
 for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
 

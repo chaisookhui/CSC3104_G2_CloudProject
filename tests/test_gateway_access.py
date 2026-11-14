@@ -18,7 +18,7 @@ class GatewayAccessTests(unittest.TestCase):
         return (client or self.client).post('/api/'+path,json=body,headers={'X-CSRF-Token':csrf or self.csrf})
 
     def test_unauthorized_admin_and_arbitrary_seat_mutations_never_forward(self):
-        with patch('frontend.server.requests.request') as upstream:
+        with patch('frontend.server.proxy_request') as upstream:
             for path in ('waiting-room/sale/start','seats/seats/confirm','allocation/batches','dispatcher/batches/next'):
                 self.assertEqual(self.post(path,{}).status_code,403)
             upstream.assert_not_called()
@@ -27,7 +27,7 @@ class GatewayAccessTests(unittest.TestCase):
         user=self.post('session/identities',{'name':'Alice','key':'stable-identity-key'}).get_json()
         party={'user_id':user['user_id'],'request_id':'rid-123','allocation':{'hold_id':'hold-1'}}
         other=self.app.test_client();csrf=other.get('/api/session').get_json()['csrf']
-        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.requests.request') as upstream:
+        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.proxy_request') as upstream:
             self.assertEqual(other.get('/api/waiting-room/requests/rid-123').status_code,403)
             self.assertEqual(self.post('waiting-room/submit',{'user_id':user['user_id']},other,csrf).status_code,403)
             self.assertEqual(self.post('payment/payments',{'request_id':'rid-123','hold_id':'different'}).status_code,403)
@@ -40,14 +40,14 @@ class GatewayAccessTests(unittest.TestCase):
         self.assertIn(user,self.client.get('/api/session').get_json()['users'])
         party={'user_id':user['user_id'],'request_id':'rid-123'}
         response=Mock(status_code=200,content=b'{"request_id":"rid-123"}',headers={})
-        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.requests.request',return_value=response):
+        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.proxy_request',return_value=response):
             self.assertEqual(self.client.get('/api/waiting-room/requests/rid-123').status_code,200)
 
     def test_owned_hold_can_be_paid_or_cancelled(self):
         user=self.post('session/identities',{'name':'Alice','key':'stable-identity-key'}).get_json()
         party={'user_id':user['user_id'],'request_id':'rid-123','allocation':{'hold_id':'hold-1'}}
         response=Mock(status_code=200,content=b'{}',headers={})
-        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.requests.request',return_value=response):
+        with patch('frontend.access.requests.get',return_value=Mock(status_code=200,json=lambda:party)),patch('frontend.server.proxy_request',return_value=response):
             for path in ('payment/payments','payment/checkouts/cancel'):
                 with self.subTest(path=path):
                     self.assertEqual(self.post(path,{'request_id':'rid-123','hold_id':'hold-1'}).status_code,200)
@@ -63,14 +63,14 @@ class GatewayAccessTests(unittest.TestCase):
     def test_queue_hides_other_browsers_and_token_never_reaches_browser(self):
         user=self.post('session/identities',{'name':'A','key':'stable-identity-key'}).get_json()
         response=Mock(status_code=200,json=lambda:dict(count=2,requests=[dict(user_id=user['user_id']),dict(user_id='other')]))
-        with patch('frontend.server.requests.request',return_value=response):
+        with patch('frontend.server.proxy_request',return_value=response):
             data=self.client.get('/api/waiting-room/queue').get_json()
         self.assertEqual(data['requests'],[dict(user_id=user['user_id'])])
         self.assertNotIn(TOKEN,str(self.client.get('/api/session').get_json()))
 
     def test_operator_token_is_distinct_from_payment_token(self):
         response=Mock(status_code=200,content=b'{}',headers={})
-        with patch('frontend.server.requests.request',return_value=response) as upstream:
+        with patch('frontend.server.proxy_request',return_value=response) as upstream:
             self.assertEqual(self.client.post('/api/seats/seats/hold',json={},headers={'Authorization':'Bearer '+TOKEN}).status_code,403)
             upstream.assert_not_called()
             self.assertEqual(self.client.post('/api/seats/seats/hold',json={},headers={'Authorization':'Bearer '+derived(TOKEN,'operator')}).status_code,200)
@@ -82,7 +82,7 @@ class GatewayAccessTests(unittest.TestCase):
 
     def test_ownership_dependency_outage_is_retryable_and_never_forwards_mutation(self):
         import requests
-        with patch('frontend.access.requests.get',side_effect=requests.Timeout()),patch('frontend.server.requests.request') as upstream:
+        with patch('frontend.access.requests.get',side_effect=requests.Timeout()),patch('frontend.server.proxy_request') as upstream:
             self.assertEqual(self.client.get('/api/waiting-room/requests/rid-123').status_code,503)
             self.assertEqual(self.post('payment/payments',dict(request_id='rid-123',hold_id='h')).status_code,503)
             upstream.assert_not_called()

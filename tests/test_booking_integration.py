@@ -5,6 +5,7 @@ Run separately from module suites (legacy app/db names are process-local).
 import importlib.util
 import os
 import sys
+import time
 from pathlib import Path
 from urllib.parse import quote, urlencode, urlsplit
 from uuid import uuid4
@@ -107,6 +108,39 @@ def allocate(system, user='user', section='D', size=2):
     return client, entry, dispatcher
 
 
+def wait_for_hold_deadline(db, hold_id):
+    """Expire the original immutable deadline; never rewrite checkout identity."""
+    deadline=time.monotonic()+10
+    while time.monotonic()<deadline:
+        with db.connect() as conn:
+            row=conn.execute('SELECT hold_expiry<=clock_timestamp() AS overdue FROM holds WHERE hold_id=%s',
+                             (hold_id,)).fetchone()
+        assert row is not None
+        if row['overdue']:return
+        time.sleep(.05)
+    pytest.fail('Original short test hold did not reach its deadline')
+
+
+def test_postgres_batch_wakeup_keeps_durable_polling_fallback(system):
+    net,db,seats,lifecycle,queue,jobs,state=system
+    listener=jobs.work_listener()
+    try:
+        assert not jobs.wait_for_work(listener,timeout=.01)
+        client=net.apps[5001].test_client()
+        entry=client.post('/submit',json={'user_id':'wake-up','section':'D','party_size':2}).json
+        client.post('/sale/start')
+        dispatcher=net.apps[5005].extensions['dispatcher']
+        dispatcher.tick()
+        assert jobs.wait_for_work(listener,timeout=1)
+        jobs.drain_work_notifications(listener)
+    finally:
+        listener.close()
+    # Even with no listener or retained hint, durable pending work is claimable.
+    assert process_one(jobs,hold=hold_seats)
+    dispatcher.tick()
+    assert client.get('/requests/'+entry['request_id']).json['status']=='RESERVED'
+
+
 def test_dispatcher_concurrent_first_start(system):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
@@ -166,13 +200,15 @@ def test_cancel_lost_response_recovers_and_exits(system):
 
 def test_expired_and_unavailable_requests_exit(system):
     net, db, seats, lifecycle, queue, jobs, state = system
+    original_ttl=seats.hold_ttl
+    seats.hold_ttl=2
     client, entry, dispatcher = allocate(system)
     dispatcher.tick()
     path = '/requests/' + entry['request_id']
     held = client.get(path + '/checkout').json
-    with db.connect() as conn:
-        conn.execute("UPDATE holds SET hold_expiry=clock_timestamp()-INTERVAL '1 second' WHERE hold_id=%s", (held['hold_id'],))
+    wait_for_hold_deadline(db,held['hold_id'])
     seats.expire_due()
+    seats.hold_ttl=original_ttl
     assert client.get(path + '/checkout').json['booking_status'] == 'expired'
     assert client.post('/submit', json={'user_id': 'user', 'section': 'D', 'party_size': 2}).json['request_id'] == entry['request_id']
     # A request with no fitting block in its section ends as UNAVAILABLE.
@@ -231,14 +267,14 @@ def test_authenticated_payment_handoff_and_confirmation(system,monkeypatch):
 def test_authenticated_seat_expiry_notification(system,monkeypatch):
     from workers import OutboxDispatcher
     net,db,seats,lifecycle,queue,jobs,state=system
+    seats.hold_ttl=2
     token='integration-only-internal-token-32chars'
     monkeypatch.setenv('PAYMENT_API_TOKEN',token)
     net.apps[5004]=payment_app(lifecycle,api_token=token)
     net.apps[5001]=waiting_api.create_app(queue,session=net)
     client,entry,dispatcher=allocate(system,user='secure-expiry')
     checkout=client.get('/requests/'+entry['request_id']+'/checkout').json
-    with db.connect() as conn:
-        conn.execute("UPDATE holds SET hold_expiry=clock_timestamp()-INTERVAL '1 second' WHERE hold_id=%s",(checkout['hold_id'],))
+    wait_for_hold_deadline(db,checkout['hold_id'])
     seats.expire_due()
     callbacks=OutboxDispatcher(db,'http://127.0.0.1:5004',api_token=token,
                               sender=lambda url,**kw: net.request('POST',url,**kw))

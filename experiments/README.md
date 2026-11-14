@@ -21,10 +21,12 @@ Historical IDs in older validation records differ from the current submission gu
 
 ## Prepare the lab
 
-Use host Python 3.10+; the CLI uses only standard libraries. Start Docker and run
+Use host Python 3.10+; registration load uses the pinned async HTTP client.
+Install it before running load experiments. Start Docker and run
 from the repository root:
 
 ```powershell
+python -m pip install -r experiments/requirements-load.txt
 python demo.py --kubernetes --check
 python demo.py --kubernetes
 python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
@@ -70,7 +72,7 @@ python experiments/run.py contention --count 10 --workers 10 --run C1
 ```
 
 Registration uses scheduled arrivals, retains generator drops/unknowns and
-reconciles accepted IDs. It measures registration only, not bookings. The threaded
+reconciles accepted IDs. It measures registration only, not bookings. The async
 local tool is for controlled local experiments/calibration. Inspect launch lag
 and generator drops before making a capacity claim.
 
@@ -171,6 +173,9 @@ optional HPA. [Current results](../output/validation/robustness-results.md)
 separate observed results from incomplete studies. Verified personal accounts,
 storage HA, node failure and allocator blocked-work repair remain outside this demo.
 Cost analysis is excluded.
+
+For the full surge repetitions, fixed-replica/capacity grids and automated HPA
+baseline/spike/recovery/repeat cycle, use [the scaling study procedure](SCALING_STUDIES.md).
 
 `build_instructions.py` is the PDF renderer for the current editable submission
 Markdown. Re-render and inspect the PDF after changes.

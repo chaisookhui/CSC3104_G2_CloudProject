@@ -1,4 +1,4 @@
-"""Run and record experiments only in csc3104-lab. Host Python standard library only."""
+"""Run and record experiments only in csc3104-lab. Registration requires aiohttp."""
 import argparse
 import json
 from pathlib import Path
@@ -8,6 +8,7 @@ from fairness import paired_analysis, write_report
 from resilience import crash_or_lost_reply, outage, lifecycle_race
 from operations import autoscale, scale_api
 from gateway_check import gateway_check
+from observability import collect_logs
 
 from runtime import (LAB, capture, invariants, k, lab_connection, local,
                      run_directory, setup_lab, utc, write_json)
@@ -51,11 +52,15 @@ def main():
     scaling.add_argument('--reset-lab',action='store_true',required=True)
     scaling.add_argument('--rate',type=int,default=50);scaling.add_argument('--duration',type=int,default=30)
     scaling.add_argument('--repeats',type=int,default=3)
+    scaling.add_argument('--capacity',action='store_true',help='Additional 20/40/60/80/100 requests/s capacity grid; no change to fixed-load default')
     auto=sub.add_parser('autoscale',help='Configure or remove optional lab HPAs; metrics must be available')
     auto.add_argument('--install-metrics',action='store_true',help='Install pinned metrics-server into private Kind, with local kubelet TLS exception')
     auto.add_argument('--disable',action='store_true')
     for command in (snap,check,load,compete,journey,pair,fault,race,scaling,auto,gateway): command.add_argument('--run')
     args = parser.parse_args()
+    if args.command in ('register','scale-api'):
+        from loadgen import check_runtime
+        check_runtime()
     if args.command == 'trace':
         data = make_trace(args.scenario,args.count,args.seed,args.batch_size); validate_trace(data)
         args.output.parent.mkdir(parents=True,exist_ok=True); write_json(args.output,data)
@@ -77,7 +82,7 @@ def main():
         if args.command=='autoscale':
             result=autoscale(directory,args.install_metrics,args.disable);print(json.dumps(result,indent=2));return 0
         if args.command=='scale-api':
-            result=scale_api(directory,args.rate,args.duration,args.repeats);print(json.dumps(result,indent=2));return 0 if result['status']=='PASS' else 2
+            result=scale_api(directory,args.rate,args.duration,args.repeats,[20,40,60,80,100] if args.capacity else None);print(json.dumps(result,indent=2));return 0 if result['status']=='PASS' else 2
         if args.command == 'compare':
             if not args.reset_lab:
                 raise ValueError('compare requires --reset-lab: it erases only lab data before each policy')
@@ -105,6 +110,7 @@ def main():
                         write_json(child/'before.json',capture(base,'F01','before'))
                         result=replay(base,trace_data,child,args.timeout)
                         write_json(child/'after.json',capture(base,'F01','after'))
+                    collect_logs(child)
                     results.append(dict(seed=seed,repeat=repeat+1,policy=policy,result=result))
             matching=len({entry['result']['initial_fingerprint'] for entry in results})==1
             status='PASS' if matching and all(entry['result']['status']=='PASS' for entry in results) else 'INCONCLUSIVE'
@@ -131,6 +137,7 @@ def main():
                 elif args.command=='gateway':result=gateway_check(base,directory)
                 else: result=replay(base,validate_trace(json.loads(args.trace.read_text(encoding='utf-8'))),directory,args.timeout)
                 write_json(directory/'after.json',capture(base,args.command,'after'))
+            collect_logs(directory)
             print(json.dumps(result,indent=2,default=str))
             print('Evidence:',directory)
             return 0 if result['status']=='PASS' else 2
