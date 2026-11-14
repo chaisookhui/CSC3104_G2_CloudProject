@@ -38,6 +38,13 @@ The [editable source](output/pdf/GROUP02_INSTRUCTIONS.md) contains the same proc
 Tests and evidence collection run through the [lab CLI tools](experiments/README.md);
 the application shows Overview, Batches, Seat map and My booking without a test checklist.
 Expected behavior, current verification and historical evidence remain distinct.
+The final recorded local acceptance is **25 cases PASS**: 15 newly verified
+functional/browser/deployment cases plus 10 complete final v9 cases independently
+re-audited. The evidence audit passed 77 new checks and 244 original-workload
+checks (321 total). This does not establish production reliability or guarantee
+an outcome on another machine. See the
+[final submission verification](docs/FINAL_SUBMISSION_VERIFICATION.md) for the
+current source/package checks and remaining submission considerations.
 The [validation evidence index](docs/VALIDATION_EVIDENCE.md) identifies the final
 reports, recorded results and separate raw-evidence archives. Generated logs,
 temporary renders and large ZIP packages remain local and are excluded from Git.

@@ -1,15 +1,20 @@
 # Validation records
 
-This file retains historical executions. Current results are in
-`output/validation/robustness-results.md`. The obsolete browser workbench,
+This file retains historical executions. Current final results are in
+`output/validation/all25/all25-audit.json`, the
+[25-case results report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
+and [evidence index](../docs/VALIDATION_EVIDENCE.md): all 25 local cases PASS,
+15 newly verified plus 10 complete v9 cases re-audited, with 321 audit checks PASS.
+`output/validation/robustness-results.md` describes the earlier 12 November runs,
+not the final 25-case status. The obsolete browser workbench,
 catalogue and its authoring utilities have been removed; references below describe
 the earlier tested revision, not current commands.
 
-## Documentation/frontend revision: 12 November 2026
+## Historical documentation/frontend revision: 12 November 2026
 
-The current submission guide is `output/pdf/GROUP02_INSTRUCTIONS.pdf`, with an
-editable Markdown source beside it. It contains the eleven required sections and
-18 test procedures. Test cases are no longer displayed in the main application;
+At that revision, the submission guide was `output/pdf/GROUP02_INSTRUCTIONS.pdf`,
+with an editable Markdown source beside it and 18 procedures across the eleven
+sections. The current guide has 25 cases. Test cases are no longer displayed in the main application;
 the CLI supplies evidence capture and measurements. The earlier technical handbook
 is retained as an archived document.
 

@@ -1,5 +1,11 @@
 # CSC3104 implementation audit and evidence assessment
 
+**Historical assessment:** the conclusions below apply to the explicitly dated
+8 November revision, before the later fixes and final 25-case validation. Keep
+its original findings as history; use the [current evidence index](../docs/VALIDATION_EVIDENCE.md)
+for recorded 14 November results. Local acceptance does not establish algorithm
+superiority, research novelty or production readiness.
+
 Audit date: 8 November 2026 (Singapore). Branch: `twy`. Source revision: `8a777c3f5158de3d7be7c74b2fd000450f177cf2`.
 
 ## Assessment conclusion

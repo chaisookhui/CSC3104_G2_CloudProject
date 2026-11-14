@@ -1,5 +1,10 @@
 # Complete project in Docker
 
+Current local acceptance and submission status are indexed in
+[docs/VALIDATION_EVIDENCE.md](docs/VALIDATION_EVIDENCE.md). The final 25-case report
+includes the completed isolated Compose startup/networking check (TC-09); this
+runbook's commands remain procedures for a new execution, not pre-filled results.
+
 Run all commands from the repository root. Start Docker Desktop in Linux-container
 mode. Python is needed only for the launcher; it uses standard libraries.
 

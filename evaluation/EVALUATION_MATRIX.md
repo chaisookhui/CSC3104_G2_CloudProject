@@ -1,5 +1,11 @@
 # Evaluation matrix and experimental contracts
 
+**Historical research plan:** the proposed experiments and targets below belong
+to the 8 November source revision. They are not the current 25-case result ledger.
+See the [current evidence index](../docs/VALIDATION_EVIDENCE.md) for the completed
+local acceptance scope. Passing those 25 cases does not certify every additional
+proposal here, including public-cloud cost and production HA/security work.
+
 This follows the source audit in `ARCHITECTURE_AUDIT.md`. All experiments below are **proposed**, not passed or benchmarked. They apply to revision `8a777c3f5158de3d7be7c74b2fd000450f177cf2`. No numeric performance improvement is assumed. Phase 4 requires deployment-specific instrumentation and runnable drivers after the runtime blockers are resolved; existing executable starting points are identified rather than presented as a completed benchmark harness.
 
 ## Core experiments and lecturer feedback coverage

@@ -1,5 +1,10 @@
 # Local Kubernetes deployment
 
+For current recorded results use the [25-case evidence index](../../docs/VALIDATION_EVIDENCE.md)
+and [submission instructions](../../output/pdf/GROUP02_INSTRUCTIONS.pdf). All 25
+recorded local cases passed, including the full final v9 scaling/HPA scopes.
+This does not establish production HA or guarantee a new machine's outcome.
+
 For detailed scenario procedures and pass/fail criteria, use the repository's
 [distributed test and cloud-readiness guide](../../TESTING.md).
 

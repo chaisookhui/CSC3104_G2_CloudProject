@@ -1,5 +1,11 @@
 # Lab measurement and testing tools
 
+Recorded final local status: all 25 documented cases PASS, comprising 15 newly
+verified cases plus 10 full-scope final v9 cases independently re-audited.
+The evidence audit passed 77 new and 244 original-workload checks (321 total).
+See the [current evidence index](../docs/VALIDATION_EVIDENCE.md); earlier bounded
+executions remain historical, and local acceptance is not production reliability.
+
 Start with [the assessor testing instructions](../output/pdf/GROUP02_INSTRUCTIONS.pdf).
 They provide all eleven requested sections: architecture/setup, deployment,
 functional/distributed/cloud tests, recovery, benchmarks, a summary matrix and cleanup.
@@ -169,8 +175,9 @@ executions and evidence, rather than treating configured tests as recorded passe
 
 See [extended robustness procedures](ROBUSTNESS.md) for committed-reply/crash
 injections, sustained dependency outages, API replicas, browser ownership and
-optional HPA. [Current results](../output/validation/robustness-results.md)
-separate observed results from incomplete studies. Verified personal accounts,
+optional HPA. The [current 25-case evidence index](../docs/VALIDATION_EVIDENCE.md)
+selects completed final studies; `output/validation/robustness-results.md` retains
+the earlier 12 November observations and incomplete studies. Verified personal accounts,
 storage HA, node failure and allocator blocked-work repair remain outside this demo.
 Cost analysis is excluded.
 

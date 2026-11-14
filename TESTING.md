@@ -5,8 +5,12 @@ The submission-facing [testing PDF](output/pdf/GROUP02_INSTRUCTIONS.pdf) and its
 across the eleven requested sections. Test cases are kept outside the main frontend.
 The [lab CLI](experiments/README.md) supplies evidence capture, saved workload
 replay and an equivalent FCFS control. This longer guide is a technical reference.
-Check [current validation results](output/validation/robustness-results.md) for
-execution evidence and remaining gaps; `experiments/VALIDATION.md` retains history.
+Use the [current validation evidence index](docs/VALIDATION_EVIDENCE.md) and
+[final 25-case report](output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
+for recorded results. All 25 documented local cases passed: 15 new final-version
+cases and 10 full-scope final v9 cases re-audited, with 321 audit checks passed.
+`output/validation/robustness-results.md` and `experiments/VALIDATION.md` retain
+earlier execution history; they do not replace the final ledger.
 
 This guide explains **what to test, why it matters, what to do, and what a correct
 result looks like**. You do not need to understand every command before starting.
@@ -18,10 +22,12 @@ walk you through normal bookings. Then test stopped workers and recovery. Leave
 large traffic tests, fairness measurements and cloud-cost calculations until the
 required tools are ready.
 
-This is a test plan, not a record that every test has passed. Earlier checks have
-shown the booking flow works in Docker and local Kubernetes, and stored data can
-survive replacement of the database Pods. That does not yet prove the app can
-handle heavy traffic, every crash, or public customer access.
+This longer technical plan includes proposed production/research checks beyond
+the 25-case local acceptance suite. Its setup/readiness labels describe what a
+new experiment needs, rather than overriding the final recorded case results.
+The final suite covers its original offered traffic, controlled crash/outage
+scenarios and local browser ownership; it does not establish arbitrary load,
+every crash boundary, storage HA or public production security.
 
 ## Contents
 
@@ -488,6 +494,9 @@ green: inspect the saved request and its actual final state.
 
 **Needs setup.** Some failures happen too quickly to place reliably by clicking.
 They need a controlled network proxy or a test-only pause at an exact checkpoint.
+The controlled committed-reply-loss and worker-kill checkpoints are implemented
+and passed in final TC-21; broader proposed crash checkpoints below remain
+separate research targets, not additional implied PASS results.
 
 | Stop or lose a response at this point | What must happen |
 | --- | --- |
@@ -641,9 +650,12 @@ not only payment's internal API.
 | Internal service token used as customer login, or the reverse | Denied |
 | Valid customer checkout | Only its assigned request/hold can be affected |
 
-The current frontend adds an internal credential but does not establish customer
-ownership. Its admin controls are also not properly protected. Treat this as an
-unfinished security requirement; keep the app private/local for now.
+The configured local frontend now enforces signed browser ownership, CSRF checks
+and administrator sign-in/out. Final TC-25 recorded original-booking recovery
+and cross-profile HTTP 403 denials, including real payment/cancellation IDs.
+These browser sessions are not verified accounts or cross-device identity
+recovery. The broader public-release requirements in this table still need their
+own evidence; keep access private/local as documented.
 
 Also check HTTPS, safe browser rendering, body/connection limits and secret-free
 logs. The proxy currently drops some upstream headers, including `Retry-After`
@@ -710,9 +722,10 @@ are not performance results or universal production standards.
 - A successful payment submission can still be pending, not confirmed.
 - Payment's average/maximum latency metrics cannot give p95/p99. Use individual
   request timings or suitable histogram measurements.
-- Registration time includes pre-sale waiting. True allocation waiting time needs
-  a recorded time when that request became eligible. Several stage timestamps
-  and the full measurement/record-collection tool still need implementation.
+- Registration time includes pre-sale waiting. The replay tools now record
+  eligibility and allocator decision timestamps and export per-request/group
+  measurements, including missing/negative timing explicitly. Final TC-18 uses
+  those recorded measurements; no zero wait is invented for missing timing.
 
 ### Useful background measurements
 
@@ -970,13 +983,14 @@ A private coursework demonstration and a production service are different target
 
 ### Known work still needed
 
-The current app still needs trusted customer/admin authorization; cross-device
-identity recovery; checkout-key delivery; correct forwarding of retry/security
-headers; clearer queue/stage timing and per-request
-measurements beyond the new replay timestamps; full-stack metrics/HPA setup; stronger
-database credential/permission separation; registration overload protection;
-and an agreed allocator repair procedure. Tests should expose these gaps, not
-hide them behind a green Pod status.
+Remaining public-release work includes verified-account/cross-device identity,
+checkout-key delivery for public clients, forwarding the required retry/security
+headers, stronger database credential/permission separation, deployment-specific
+overload limits and an agreed allocator repair procedure. Local browser/admin
+ownership, recorded queue/decision timing, per-request measurements and the
+optional complete HPA cycles now have evidence in the final suite. That evidence
+does not certify the broader public-release work or make Ready pods a progress
+guarantee.
 
 ## 13. Reset only the testing area
 

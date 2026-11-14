@@ -1,7 +1,8 @@
 # Final-version functional verification and report merge
 
-The new examiner harness fills the fifteen final-version coverage gaps in the
-25-case instructions. It uses the existing lab setup, request plumbing, waits,
+The examiner harness completed the fifteen previously missing final-version
+cases in the 25-case instructions. All 25 local cases now have passing recorded
+evidence; the final audit passed 321 checks. It uses the existing lab setup, request plumbing, waits,
 contention workload and original SQL invariants. Genuine Chromium form clicks,
 reloads, separate tabs/profiles and browser-process restarts supplement HTTP and
 database assertions. Mock payment expiry retains its original 300-second TTL.
@@ -10,7 +11,7 @@ The ten original full-scope v9 cases are independently re-audited from their raw
 evidence, with unchanged application/configuration sources and deployed images.
 They are not replaced by smaller test runs. Existing failures remain in place.
 
-## Run the missing cases
+## Reproduce the functional/browser cases
 
 This command explicitly erases ONLY `csc3104-lab`. Export existing lab evidence
 first. Use a new run ID and run one workload at a time. It does not reset main.

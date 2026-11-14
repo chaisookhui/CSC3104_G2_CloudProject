@@ -1,7 +1,7 @@
 # Fair Seat Allocation
 CSC3104 Cloud and Distributed Computing | Group 02
 
-**Testing Instructions | Updated 14 November 2026**
+**Testing Instructions | Examiner edition, 14 November 2026**
 
 ## 1. Introduction
 This application allocates adjacent seats to parties of one to four people. Customers register for a sale, receive a queue position when the sale opens, and receive a whole-party reservation if a suitable block exists. A mock payment confirms the reservation. Unpaid reservations expire; customers can cancel an unpaid reservation. No money or real payment details are involved.
@@ -12,20 +12,83 @@ This document lets an examiner deploy the submitted source, test the implementat
 
 **Limits:** one inventory; single-node Kind cluster; no complete waitlist/rejoin workflow, consensus, cross-service atomic transaction or storage HA. The gateway enforces browser ownership and administrator access when its generated service credential is configured. This is a browser session, not a verified account or cross-device login. Keep access on localhost. Optional lab HPAs and fairness/scaling benefits require measured evidence; cost analysis is excluded.
 
-### Recommended examination route
-1. Sections 3-4: deploy and prepare the isolated lab.
+### Reading map
+1. Sections 1.1-1.2: launch quickly and choose a demonstration; Sections 3-4: full setup and isolated lab.
 2. TC-01 to TC-06: customer journeys and invalid input.
 3. TC-07/08: service communication and concurrent seat safety.
 4. TC-09/10 and TC-11/12/13/17: containers, orchestration and recovery.
 5. TC-14/15/16/18: measured baseline, load, scaling and policy comparisons.
 6. TC-19 to TC-25: surge, lifecycle races, injected faults, API scaling, separate HPA cycles and browser ownership.
-7. Sections 9-10: distinguish saved validation from examiner observations; Section 11: preserve evidence and stop safely.
+7. Sections 9.7-9.9: saved results, provenance and evidence; Sections 10-10.1: expected versus recorded results; Section 11: troubleshooting and safe stopping.
 
 **Evidence labels:** Implemented means inspected in source. Expected is an acceptance condition, not a result. PASS requires execution and evidence. NOT RUN, BLOCKED, FAIL and INCONCLUSIVE remain distinct. No hold history means an inconclusive safety check, not a booking pass.
 
 **Final validation scope:** all 25 documented cases passed their recorded local acceptance conditions. TC-01 to TC-13, TC-17 and TC-25 have new final-version functional/browser/deployment evidence. TC-14/15/16/18/19/20/21/22/23/24 use the complete final v9 cohorts, independently re-audited with unchanged application sources and matching captured image IDs. This is the same evidence and scope as the updated results report. It is not a guarantee on another machine. This document correction generated no new application test results.
 
+**Submission revision:** the verified application is now committed in 253a6e2; its 96 compared application/configuration files match the recorded final v9 build. This edition synchronises documentation and release packaging only. The current source-package manifest identifies the base commit and any documentation/release changes included. See docs/FINAL_SUBMISSION_VERIFICATION.md for submission checks; no new application execution is implied.
+
 **Source basis:** service implementations, schemas/migrations, Dockerfiles, deployment configurations, launcher, frontend, tests and experiment tools in this checkout. The local four-page Project_2026-27.pdf assignment brief was reviewed. It requires containers and/or Kubernetes, tested advertised functionality and explicit testing instructions. This document is the testing guide, separate from the research article.
+
+<!-- pagebreak -->
+## 1.1 Quick Start - Running and Testing the Application
+### A. Before you start
+Use Windows x64 PowerShell in the extracted repository folder (containing demo.py), Python 3.10+ and running Docker Desktop with Linux containers. Allow at least 2 CPUs and 4 GiB Docker RAM; 8 GiB is recommended. First startup needs internet and several minutes. Full checks, ports and load-test resources: Section 3.
+
+### B. Open the main application
+Run one startup option, then open its address in a browser. Kubernetes:
+```powershell
+python demo.py --kubernetes
+```
+Main Kubernetes: http://127.0.0.1:18090. Alternatively, Docker Compose:
+```powershell
+python demo.py
+```
+Compose: http://127.0.0.1:18080. Existing bookings are retained. This opens the main application; no lab reset is required. For retained older dispatcher storage, read Section 11.1 before upgrading.
+
+### C. Demonstrate a booking
+1. Open the address for your chosen startup option. Use a fresh pre-sale inventory for the TC-01 acceptance test; see Section 4 for the isolated lab.
+2. Retrieve the local password with python experiments/access.py --namespace csc3104 (Kubernetes) or python experiments/access.py --compose. Choose Administrator sign in > enter password > Sign in. This is local administrator access, not customer account registration.
+3. Open My booking > New user; enter a fictional name such as Alice Test > Continue.
+4. Choose Section A and Party size 2 > Register once. Record the User ID and Request ID.
+5. In Overview, choose Start sale once. If already open, do not restart it; use a fresh lab for the exact pre-sale TC-01 procedure.
+6. Return to My booking. Wait for RESERVED / Seats reserved; check two adjacent seats and the Pay before deadline.
+7. Choose Pay before that deadline. This simulates payment; no card details or money are required. Wait for CONFIRMED.
+8. Check Seat map, then reload My booking. The confirmed seats and original booking identity should remain. Full TC-01 checks are in Section 5.
+
+### D. Use the isolated test lab
+Main Kubernetes uses csc3104; experiments use separate csc3104-lab at http://127.0.0.1:18100. Build/load images with the Kubernetes startup first, then follow Section 4 for lab creation, its separate port-forward window and administrator password.
+**WARNING - DELETES LAB DATA:** python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10 deletes existing isolated lab bookings, queue, PVCs and credentials. Preserve lab evidence first. It is not needed merely to open main. Never reset main storage for these tests.
+
+### E. View evidence or run a new test
+Sections 5-9.6 contain all 25 procedures; Section 1.2 suggests demonstrations. Sections 9.7-9.9 locate the recorded 25/25 local PASS results, final report and exported raw evidence in output/review-package/. Reading saved evidence generates no traffic. A new execution needs fresh observations and a new run ID; its result is not pre-filled PASS.
+
+<!-- pagebreak -->
+## 1.2 Recommended Examiner Demonstration Route
+These five demonstrations highlight the distributed mechanisms. They do not replace the complete 25-case suite. Read each detailed precondition, save evidence, restore components and prepare the required fresh lab between independent tests. Do not run them against one unchanged lab state.
+
+| Test / method | What it demonstrates | Detailed instructions |
+|---|---|---|
+| TC-01 / Mixed | Normal booking, adjacent seats, mock payment and original identity after reload. | Section 5, TC-01; manual UI actions plus automated SQL invariants. |
+| TC-08 / Automated | Concurrent hold requests and double-booking prevention. | Section 6, TC-08; contention driver, exact outcome counts and SQL checks. |
+| TC-10 / Mixed | Kubernetes allocation API pod replacement and booking recovery. | Section 7, TC-10; manual deletion/inspection and browser reload. |
+| TC-21 / Automated | Recovery after a lost committed reply or abrupt worker crash. | Section 9.4, TC-21/22; run the lost-reply and crash commands separately. |
+| TC-24 / Automated | Actual API/worker scale-out, scale-in and repeated scale-out. | Section 9.5, TC-24; full phase, CPU, backlog and safety criteria. |
+
+### Saved evidence and effect of reproduction
+All five have saved passing evidence. Viewing those files changes no deployment. The paths below are under .local/test-results/ after the raw evidence ZIP is extracted; full case selection is in Section 9.8.
+
+| Test | Saved evidence available | Changes when reproduced |
+|---|---|---|
+| TC-01 | Yes: examiner-20261114-final-a/journeys; screenshots and IDs. | Creates a lab booking. Prepare clean five-minute pre-sale lab; reset deletes old lab data. |
+| TC-08 | Yes: examiner-20261114-final-a/contention. | Reset to ten fresh Section C seats first; creates contested lab holds. |
+| TC-10 | Yes: examiner-20261114-final-a/replacement. | Requires a confirmed lab booking; deletes allocation API pod, preserving stored booking data. |
+| TC-21 | Yes: tc-fix-regression-v9 and its TC21 child runs. | Each fault run needs fresh lab setup; resets lab and injects reply loss/worker termination. |
+| TC-24 | Yes: tc-fix-24-api-v9 and tc-fix-24-worker-v9. | Each study resets lab, creates HPA/load and changes replicas; restore after each target. |
+
+**TC-24 is lengthy:** each target requires at least 18.5 minutes of measured phases, plus deployment, admission and evidence collection. API and worker studies run sequentially. For review without reproduction, inspect timeline.json/jsonl, phases.json, summary.json, HPA/pod/CPU/backlog samples and report-v9/tc24-*.png/.svg (Section 9.9). Saved-timeline inspection is not a newly executed HPA test.
+
+### Navigation and recording
+The PDF bookmarks follow the numbered headings. Section 10 gives concepts and expected outcomes; its companion Section 10.1 gives methods and the dated recorded result. Section 11 distinguishes inspection, component restart, storage-preserving stop and destructive lab reset. Retain your own observed result and evidence for every newly executed case.
 
 <!-- pagebreak -->
 ## 2. System Architecture
@@ -179,7 +242,7 @@ python experiments/run.py invariants --run TC-01
 **Evidence:** before/after customer and seat-map screenshots; invariant JSON.
 
 <!-- pagebreak -->
-## 5. Functional Testing (continued)
+## 5.1 Functional Testing (continued)
 ### TC-04 | Expiry and late-payment rejection
 **Objective:** verify backend expiry and rejection of a late payment.
 **Preconditions:** five-minute lab, sale open, free D seats.
@@ -365,7 +428,7 @@ python experiments/run.py invariants --run TC-12
 **Restore:** allocation-worker=1. Process replacement without original work progressing is insufficient.
 
 <!-- pagebreak -->
-## 8. Fault Tolerance and Recovery (continued)
+## 8.1 Fault Tolerance and Recovery (continued)
 ### TC-13 | Seat API dependency outage
 **Objective:** verify pending payment is retained without false success.
 **Preconditions:** fresh lab, open sale, active A/1 hold; enough original TTL for restoration.
@@ -453,7 +516,7 @@ Total workload time excludes image builds/reset. Booking goodput=confirmed custo
 Scheduled launch is measured at aiohttp's headers-send callback after connection acquisition. Maximum launch lag must be <=1 second. Client/session preparation is recorded separately before the offered-arrival epoch; no HTTP connection is warmed up. Connection delays and runtime stalls after that epoch still count. Gateway upstream attempts are recorded separately from client HTTP success; successful HTTP alone does not prove there was no internal retry.
 
 <!-- pagebreak -->
-## 9. Performance and Scalability (continued)
+## 9.1 Worker Scaling Procedure
 ### TC-16 | Compare 1, 2 and 4 allocation workers
 **Objective:** measure equivalent workloads and inspect worker participation.
 **Preconditions:** images loaded; lab can be reset; other replicas unchanged.
@@ -477,7 +540,7 @@ k logs -l app=allocation-worker --all-containers=true --prefix=true --tail=200
 **Restore:** Section 4 lab reset restores one replica and demand-cycle; restart B forward.
 
 <!-- pagebreak -->
-## 9. Policy Comparison Procedure
+## 9.2 Policy Comparison Procedure
 ### TC-18 | Demand-Cycle versus FCFS
 **Objective:** compare policy trade-offs with identical input/physical inventory.
 **Preconditions:** TC-16; retain all pairs, including inconclusive.
@@ -499,10 +562,14 @@ python experiments/run.py compare @comparisonArgs --replicas 1 --run TC-18-F6
 **Verification Method:** compare per-section/party-size reservation and confirmation rates, sample sizes, median/P95 decision waits, overtakes and unknowns.
 **Evidence:** trace.json, comparison.json, raw customers/inventory. Use at least ten independent seeds for research fairness claims; repetitions of one trace are not independent samples.
 
+**How to interpret a PASS:** Passing TC-18 confirms that the scheduling policies completed the controlled comparison and satisfied the defined correctness requirements. It does not by itself establish that Demand-Cycle provides superior fairness, latency, throughput or seat utilisation.
+
+Read trade-offs together: number of booking groups served; reservation success by party size; seat utilisation; queue overtakes; waiting time; and Jain's fairness index. The recorded ten-seed F1 evidence suggests Demand-Cycle serves more booking groups on average, while FCFS has a higher party-size fairness index. Sources: tc-fix-regression-v9-TC18/comparison.json and the reviewer graphs' tc18-policy-seeds.csv / tc18-section-fairness.csv. These are descriptive observations, not universal superiority or statistical significance.
+
 Fairness objective: equal opportunity for sizes 1-4 within each section. Summaries report the maximum-minus-minimum reservation-rate gap and Jain's index over those rates. Smaller gaps and indices nearer one indicate greater equality; zero service has no score. Missing groups or unknown outcomes prevent a full-size conclusion. Read these measures alongside waits, overtakes, utilization and sample sizes. Add --seeds 10 to compare to run independent consecutive seeds; paired differences are descriptive, not statistical significance.
 
 <!-- pagebreak -->
-## 9. Extended robustness experiments
+## 9.3 Extended Robustness Experiments
 These tests address the remaining professor questions. Reset lab before EACH independent command, preserve evidence, and use a new run ID. Full procedures and interpretation: experiments/ROBUSTNESS.md. Costs are excluded.
 
 ### TC-19 | Thousands of arrivals and mixed parties
@@ -528,7 +595,7 @@ python experiments/run.py race --near-expiry --run TC-20-expiry
 **Evidence:** responses, authoritative checkout and database invariants in summary.json. Expiry housekeeping is real; no database deadline is rewritten.
 
 <!-- pagebreak -->
-## 9. Extended recovery, scaling and access
+## 9.4 Recovery, Scaling and Access
 ### TC-21/22 | Lost reply, abrupt crash and sustained outages
 **Steps:** after a fresh five-minute lab reset before EACH command:
 ```powershell
@@ -556,7 +623,7 @@ python experiments/study.py --case capacity --reset-lab --run TC23-cap-exam
 This runs 20/40/60/80/100 arrivals/s for 30 seconds at each 1/2/4 setting, one trial per point. In addition to correctness/delivery checks, sustainable means P95 <=1,000 ms and accepted throughput >=95% of offered rate. The saved final study also tested 200/s separately. Highest passing tested rate is a lower bound, not the true maximum; single capacity points have no confidence interval.
 
 <!-- pagebreak -->
-## 9. Automatic Scaling Procedure
+## 9.5 Automatic Scaling Procedure
 ### TC-24 | Optional autoscaling
 **Preconditions:** current application images built/loaded, pinned host load dependency installed, enough free resources, no concurrent experiments. Each target needs at least 18.5 minutes of measured phases plus deployment, admission and evidence collection. Run targets sequentially.
 **Steps:** if Metrics Server is absent, install it and remove the setup HPAs before measurement:
@@ -590,7 +657,7 @@ python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
 ```
 
 <!-- pagebreak -->
-## 9. Browser Access and Evidence Collection
+## 9.6 Browser Access and Evidence Collection
 ### TC-25 | Browser ownership and return
 **Steps:** use a separate browser profile without admin access. Register a customer and record request/hold IDs, queue number and original deadline. Disconnect, refresh, close all tabs, reopen within seven days and select the saved customer. Check the same booking, including honest expiry after a long absence. A second profile must receive HTTP 403 for copied request/payment/cancellation IDs, sale opening and direct seat mutation. Administrator sign-in restores privileged demo controls; sign-out removes them.
 **Evidence:** before/after identities, authoritative state, denied HTTP responses and no resulting mutation. Automated gateway and browser-access/recovery tests supplement this manual deployed procedure. Cookie deletion or a different browser does not provide account recovery.
@@ -607,6 +674,8 @@ Run one workload at a time; use a fresh run ID and preserve failures alongside p
 
 Full build/upgrade, exact measurement methods, interruption/resume rules and saved-data graph generation are documented in experiments/SCALING_STUDIES.md. No trial is run by opening or rebuilding this PDF. Examiner observations must be recorded separately from the saved results on the following page.
 
+Scope limits: verified personal accounts, HA storage, node failover, cloud-node scaling, cost analysis and exactly-once transport are not claimed. Optional features require recorded execution.
+
 ### Optional automated deployed acceptance
 After normal image build/load and with csc3104-check absent:
 ```powershell
@@ -615,7 +684,7 @@ python experiments/acceptance.py
 This optional harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. The final 15-case coverage completion used experiments/examiner_verify.py and its real Chromium UI/HTTP/database checks, rather than rerunning this optional bounded harness. TC-14/15/16/18/19/20/21/22/23/24 retain their full v9 workloads. See experiments/EXAMINER_VERIFICATION.md for the exact verification/audit workflow. No application tests were launched for this document correction.
 
 <!-- pagebreak -->
-## 9. Saved Validation Results | 14 November 2026
+## 9.7 Saved Validation Results | 14 November 2026
 These are actual saved local results for the final application images, not predictions for another machine. The complete 25-case results are in output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf and output/validation/all25/all25-audit.json. Performance/fault detail remains in output/validation/tc-fixes/FINAL_REPORT.md; diagnostic causes are in ROOT_CAUSES.md in that folder. Earlier failed/inconclusive cohorts remain preserved.
 
 | Case / cohort | Actual result | Measurements and limits |
@@ -634,8 +703,10 @@ TC-14 and TC-15: three fresh repetitions each. TC-16: three repeats at each 1/2/
 Host tests: 77 passed plus four subtests. Real PostgreSQL checks: 131 passed (61 seat, 50 payment, 11 dispatcher, nine booking). Core service sources were unchanged after that SQL preflight. The final independent verification passed 77 new evidence/coverage/continuity checks plus 244 original-workload raw checks: 321 audit checks passed, zero failed. These audit counts are distinct from the 25 case IDs and from the host/PostgreSQL test counts.
 
 <!-- pagebreak -->
-## 9. Final 25-Case Coverage and Evidence
-### Observed local result: all 25 cases PASS
+## 9.8 Final 25-Case Coverage and Evidence
+### Recorded Local Result - 14 November 2026: 25/25 PASS
+Read this evidence map first; Section 9.7 retains measurements and Section 9.9 locates archives and source provenance. Section 10.1 pairs all case IDs with methods and recorded results. Viewing these saved files does not execute a test.
+
 The final ledger was completed on 14 November 2026 at 18:10:59 SGT. Fifteen cases have newly completed final-version functional/browser/deployment checks; ten retain their full original-scope final v9 measurements and were independently re-audited. All 96 compared application/configuration files remained unchanged, and captured deployed image IDs matched v9. No application code was changed during the later functional verification.
 
 | Case IDs | Actual result / scope | Final evidence run under .local/test-results/ |
@@ -655,12 +726,12 @@ The first serial run's overall status remains FAIL because its initial TC-09/13 
 The 10-12 November results in experiments/VALIDATION.md, acceptance-summary.json, robustness-implementation.json and browser-recovery.json remain historical. Earlier incomplete HPA attempts stay INCONCLUSIVE. Current 25-case conclusions use the later complete evidence above, not those earlier bounded checks. Both this guide and the updated results report now describe the same final ledger.
 
 <!-- pagebreak -->
-## 9. Environment and Evidence Package
+## 9.9 Environment and Evidence Package
 
 ### Tested environment and deployment scope
 The final local host/Docker budget reported 12 logical CPUs and approximately 7.69 GiB Docker RAM. Gateway CPU limit=1 core; PostgreSQL limit=2 cores. Other final pod resources, image/source fingerprints and runtime versions are captured in the evidence. Earlier hardware/configurations differ; do not infer a controlled old-versus-new speedup. Busy or smaller machines may miss deadlines even with the same source.
 
-Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Fixed source changes were uncommitted when validation completed; ensure the actual fixed source, scripts and manifests are included in the submission used to build images.
+Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Historically, the fixed source changes were uncommitted when validation completed. They are now included in application commit 253a6e2; the 96 compared application/configuration files still match final v9. This examiner-edition documentation remains uncommitted. SOURCE_PROVENANCE.json records the current base commit and documentation/release overlay; use the submitted source, scripts and manifests to build images.
 
 ### Supporting evidence files
 Under output/validation/tc-fixes/:
@@ -682,7 +753,7 @@ For every case record observed result, run ID, source/image version, machine lim
 
 <!-- pagebreak -->
 ## 10. Testing Summary Matrix
-Expected results are acceptance conditions; enter observed results in your own evidence log.
+Expected results are acceptance conditions. Pair rows with Section 10.1 for methods and recorded results; use detailed cases for all thresholds.
 
 | Test ID | Test Case | Concept Demonstrated | Expected Result | Verification Method |
 |---|---|---|---|---|
@@ -715,10 +786,49 @@ Expected results are acceptance conditions; enter observed results in your own e
 ### Result record template
 Record Test ID; run ID; source revision/changes; date/time; machine limits; policy/replicas/batch/TTL; input trace hash; exact actions; observed terminal counts/status; measured values; evidence filenames; expected-versus-observed differences; restoration completed. Retain run.json and before/after captures when generated. Use new run IDs instead of overwriting failing evidence.
 
-Scope limits: verified personal accounts, HA storage, node failover, cloud-node scaling, cost analysis and exactly-once transport are not claimed. Optional features require recorded execution.
+<!-- pagebreak -->
+## 10.1 Methods and Recorded Local Results
+### Recorded Local Result - 14 November 2026
+Recorded PASS results refer to the previously completed local validation. They are not predictions or guarantees for an examiner's independent execution.
+
+Pair with Section 10 for names, concepts and expected results. Each reference below leads to that case's complete Verification/Evidence fields; Section 9.8 selects the recorded cohort from all25-audit.json.
+
+**Method key:** Manual = UI/inspection; Automated = scripts with operator setup/review; Mixed = manual actions plus scripted/backend checks. Setup may reset lab even for automated tests. These describe the documented procedures.
+
+| Test ID | Testing method | Recorded local result | Verification / detailed evidence |
+|---|---|---|---|
+| TC-01 | Mixed | PASS | Section 5, TC-01 |
+| TC-02 | Mixed | PASS | Section 5, TC-02 |
+| TC-03 | Mixed | PASS | Section 5, TC-03 |
+| TC-04 | Mixed | PASS | Section 5.1, TC-04 |
+| TC-05 | Mixed | PASS | Section 5.1, TC-05 |
+| TC-06 | Automated | PASS | Section 5.1, TC-06 |
+| TC-07 | Mixed | PASS | Section 6, TC-07 |
+| TC-08 | Automated | PASS | Section 6, TC-08 |
+| TC-09 | Mixed | PASS | Section 7, TC-09 |
+| TC-10 | Mixed | PASS | Section 7, TC-10 |
+| TC-11 | Mixed | PASS | Section 8, TC-11 |
+| TC-12 | Mixed | PASS | Section 8, TC-12 |
+| TC-13 | Mixed | PASS | Section 8.1, TC-13 |
+| TC-14 | Automated | PASS | Section 9, TC-14 |
+| TC-15 | Automated | PASS | Section 9, TC-15 |
+| TC-16 | Automated | PASS | Section 9.1, TC-16 |
+| TC-17 | Mixed | PASS | Section 8.1, TC-17 |
+| TC-18 | Automated | PASS | Section 9.2, TC-18 |
+| TC-19 | Automated | PASS | Section 9.3, TC-19 |
+| TC-20 | Automated | PASS | Section 9.3, TC-20 |
+| TC-21 | Automated | PASS | Section 9.4, TC-21 |
+| TC-22 | Automated | PASS | Section 9.4, TC-22 |
+| TC-23 | Automated | PASS | Section 9.4, TC-23 |
+| TC-24 | Automated | PASS | Section 9.5, TC-24 |
+| TC-25 | Mixed | PASS | Section 9.6, TC-25 |
+
+Record each new outcome independently; retain failures, original workloads, seeds, deadlines, repetitions and safety assertions.
 
 <!-- pagebreak -->
 ## 11. Troubleshooting and Cleanup
+**Inspect first:** get, describe, logs, API status and saved-evidence reads observe state. They do not reset bookings. Avoid publishing secrets from operational output. Use the csc3104-lab-only k helper from Section 4 for commands below; it does not target main.
+
 | Symptom | Check / corrective action |
 |---|---|
 | Docker pipe missing | Start Docker Desktop/Linux engine; docker version and prerequisite check. Do not reset storage. |
@@ -744,9 +854,16 @@ k exec deployment/payment-api -- python service.py monitor
 For a restarted container, k logs <actual-pod-name> --previous may expose prior logs. Copy run folders from .local/test-results after checking for sensitive operational data; exclude generated Secrets, .env.core and kubeconfig. Captures avoid exporting Secrets.
 
 <!-- pagebreak -->
-## 11. Cleanup and Retained-State Upgrades
+## 11.1 Cleanup and Retained-State Upgrades
 ### Retained-state dispatcher upgrade
 New dispatcher storage separates active work, append-only history and receipts; inline legacy state migrates transactionally. Upgrade waiting-room API first. Quiesce BOTH old dispatcher-api and dispatcher-worker and wait for their pods to exit before starting either new version. Preserve Redis/PostgreSQL volumes. Mixed old/new dispatcher rolling upgrades are unsupported; old binaries cannot hydrate normalized history. A downgrade requires exporting/recombining history first. See experiments/SCALING_STUDIES.md. Fresh lab resets avoid this migration path; do not reset main storage for these tests.
+
+### Command effects - choose deliberately
+- **Inspect:** k get / describe / logs and payment monitor read operational state; preserve evidence before intervention.
+- **Restart:** the documented pod deletions and rollout restart commands replace components. Stored records remain on PVCs, but requests can be interrupted. Restrict test actions to csc3104-lab and wait for recovery.
+- **Stop, preserve storage:** scaling lab Deployments/StatefulSets to zero below stops processes, retaining PVCs/credentials. Restore original replicas before resuming.
+- **Affects main:** python demo.py --kubernetes --stop stops the main Kubernetes deployment; python demo.py --stop stops main Compose. Both preserve storage, but interrupt main service. Do not use them to stop only the lab.
+- **WARNING - DELETES LAB DATA:** Section 4's --reset-lab deletes isolated lab namespace data, queue, PVCs and credentials. Export evidence first; restart the lab forward and sign in with its new password afterward. This is distinct from stop/restart. Never delete main storage or the Kind cluster as routine cleanup.
 
 ### Restore and stop
 Restore each paused deployment to its original count, normally one, and wait for rollout. Stop B's forward with Ctrl+C. To stop lab while preserving its PVCs/credentials:

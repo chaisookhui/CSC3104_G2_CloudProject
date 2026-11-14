@@ -1,5 +1,10 @@
 # Reproducible TC-19, TC-23 and TC-24 studies
 
+The full final v9 studies below passed their recorded local acceptance conditions;
+their unchanged raw evidence is part of the final 25-case ledger. See the
+[current evidence index](../docs/VALIDATION_EVIDENCE.md) and results report.
+They remain measured local workloads, not universal capacity or production claims.
+
 Run one deployed experiment at a time from the repository root. These commands
 erase only `csc3104-lab`; export any lab evidence first. The dedicated Kind
 kubeconfig is used; the global kubectl context is not used or changed.

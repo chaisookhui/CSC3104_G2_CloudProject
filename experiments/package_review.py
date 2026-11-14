@@ -4,6 +4,7 @@ No tests/deployments and no Git commit/push. Reuses already-redacted sealed
 evidence archives; current source code is exported byte-for-byte.
 """
 from datetime import datetime, timezone
+import argparse
 import hashlib
 import hmac
 import json
@@ -20,7 +21,7 @@ def digest(data):return hashlib.sha256(data).hexdigest()
 def git(*args):return subprocess.check_output(['git',*args],cwd=ROOT).decode('utf-8')
 
 
-def main():
+def main(source_only=False):
     OUT.mkdir(parents=True,exist_ok=True)
     # Refuse to silently present new application code as the already-tested build.
     before=json.loads((ROOT/'.local/test-results/tc-fix-19-v9/surge-1/before.json').read_text())
@@ -52,8 +53,9 @@ Prepared 14 November 2026 from the current working checkout.
 
 GROUP02_Latest_Source.zip contains the current application, frontend, tests,
 experiment tools, Dockerfiles, SQL migrations, Compose/Kubernetes configurations,
-dependency files and public documentation. It includes the uncommitted fixes;
-it is a working-tree snapshot, not an archive of only the last Git commit.
+dependency files and public documentation. The verified application is committed
+at 253a6e2. This is a working-tree snapshot; any documentation/release overlay is
+listed in provenance rather than being described as uncommitted application fixes.
 SOURCE_PROVENANCE.json gives the base commit/branch, application continuity
 check, and the changed-file inventory. SOURCE_MANIFEST.json hashes every file.
 
@@ -62,7 +64,7 @@ output/pdf/GROUP02_INSTRUCTIONS.pdf and experiments/SCALING_STUDIES.md.
 Startup generates new local credentials. No .env.core, kubeconfig, generated
 Secrets, database files, virtual environments or browser profiles are supplied.
 The GitHub remote is identified in provenance for reference; this task does not
-commit or push the working changes. Use this source ZIP for the current fixes.
+commit or push the working changes. Use this source ZIP for the submitted snapshot.
 
 ## 2. Raw experimental results and graphs
 
@@ -106,6 +108,9 @@ same final evidence:15 newly verified cases plus10 full-scope v9 cases re-audite
 The obsolete current-guide note about15 incomplete cases has been removed.
 Corrected instructions are included in both source and results ZIPs under
 output/pdf/. Previously sealed archives retain their historical document versions.
+Earlier instructions-alignment verification records describe their original PDF
+hash. Current SOURCE_MANIFEST.json / RESULTS_MANIFEST.json identify the updated
+guide; docs/FINAL_SUBMISSION_VERIFICATION.md records this documentation-only check.
 
 RESULTS_MANIFEST.json hashes all actual exported entries. Evidence originated
 from the two previously verified/redacted ZIPs, whose checksums are retained in
@@ -126,9 +131,12 @@ historical run source fingerprints describe the code at those measurement times.
         if relative.suffix.lower() in ('.zip','.pyc','.db','.sqlite3','.key','.pfx','.p12') or not path.is_file():continue
         if ROOT not in path.resolve().parents:raise RuntimeError('Source path escapes workspace')
         files.append((posix,path))
+    status=git('status','--short').splitlines()
     provenance=dict(created_at=stamp,base_commit=git('rev-parse','HEAD').strip(),branch=git('branch','--show-current').strip(),
-                    remote=git('remote','get-url','origin').strip(),uncommitted_changes_included=True,
-                    status=git('status','--short').splitlines(),application_files_compared=len(application),
+                    remote=git('remote','get-url','origin').strip(),uncommitted_changes_included=bool(status),
+                    status=status,application_files_compared=len(application),
+                    application_commit='253a6e27a78d34aa634b92a7f724eb42166c24dc',
+                    current_operation='documentation synchronisation and release packaging; no application tests rerun',
                     application_matches_validated_v9=True,no_commit_or_push_performed=True)
     code={PREFIX+name:safe(name,p.read_bytes()) for name,p in sorted(files)}
     code[PREFIX+'START_HERE.md']=index.encode()
@@ -139,6 +147,26 @@ historical run source fingerprints describe the code at those measurement times.
         with zipfile.ZipFile(path,'w',compression=zipfile.ZIP_DEFLATED,compresslevel=6) as z:
             for name,data in sorted(entries.items()):z.writestr(name,safe(name,data))
     source=OUT/'GROUP02_Latest_Source.zip';write_zip(source,code)
+    if source_only:
+        # Refresh a documentation overlay without rewriting measured-result bundles.
+        previous=json.loads((OUT/'package-verification.json').read_text())
+        assert previous['status']=='PASS'
+        with zipfile.ZipFile(source) as z:
+            assert z.testzip() is None
+            for name,expected in manifest.items():
+                data=z.read(name);assert digest(data)==expected['sha256'];safe(name,data)
+                if name.endswith('.json'):json.loads(data)
+        for check in previous['packages']:
+            if check['archive']==source.name:
+                check.update(status='PASS',entries=len(code),bytes=source.stat().st_size,
+                             sha256=digest(source.read_bytes()),
+                             json_files_readable=sum(n.endswith('.json') for n in manifest))
+            else:
+                assert digest((OUT/check['archive']).read_bytes())==check['sha256']
+        (OUT/'package-verification.json').write_text(json.dumps(previous,indent=2),encoding='utf-8')
+        (OUT/'SHA256SUMS.txt').write_text(''.join(c['sha256']+'  '+c['archive']+'\n' for c in previous['packages']))
+        print(json.dumps(previous['packages'],indent=2))
+        return
     # Read exported evidence, never private originals or private browser profiles.
     raw={};origins=[]
     sources=[(ROOT/'output/validation/tc-fixes/CSC3104_TC19_TC23_TC24_New_Evidence.zip','48f7063db400a7d08a7da86a1a0516452aef998ba765e46b6de7b037ab93fa21'),
@@ -195,4 +223,7 @@ historical run source fingerprints describe the code at those measurement times.
     print(json.dumps(checks,indent=2))
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--source-only',action='store_true',help='Refresh source/docs; require and preserve verified results/graph packages')
+    main(source_only=parser.parse_args().source_only)

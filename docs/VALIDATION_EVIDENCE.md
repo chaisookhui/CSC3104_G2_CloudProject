@@ -7,6 +7,11 @@ matching captured image IDs. The independent audit passed 77 new checks and
 244 original-workload raw checks (321 total), with zero failed audit checks.
 These are bounded local results, not a guarantee on another machine.
 
+The application is committed in `253a6e2`; its 96 compared application/configuration
+files match the recorded v9 build. Current release documentation and packaging
+checks are recorded in [FINAL_SUBMISSION_VERIFICATION.md](FINAL_SUBMISSION_VERIFICATION.md).
+These checks do not constitute a fresh application test run.
+
 ## Version-controlled submission documents
 
 - [Testing instructions](../output/pdf/GROUP02_INSTRUCTIONS.pdf) and
@@ -26,7 +31,7 @@ separately with the reviewer; excluding them from Git does not delete them.
 
 | Local location | Contents |
 |---|---|
-| `output/review-package/GROUP02_Latest_Source.zip` | Current public working-source snapshot, including uncommitted fixes when generated |
+| `output/review-package/GROUP02_Latest_Source.zip` | Current public working-source snapshot; SOURCE_PROVENANCE.json identifies the base commit and any included documentation/release changes |
 | `output/review-package/GROUP02_Raw_Results_and_Graphs.zip` | Raw JSON/CSV, traces, configuration/source/image fingerprints, logs, HPA timelines, audits and final/historical runs |
 | `output/review-package/GROUP02_Graphs_and_CSV.zip` | Smaller PNG/SVG figure and CSV measurement bundle |
 | `output/review-package/START_HERE.md` | Exact TC-16/18/23/24 run-folder and graph index |

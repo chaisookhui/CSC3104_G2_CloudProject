@@ -1,5 +1,11 @@
 # Extended robustness experiments
 
+The final recorded results are in the [25-case report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
+and [evidence index](../docs/VALIDATION_EVIDENCE.md): all 25 local cases PASS,
+15 newly verified plus 10 full-scope final v9 cases re-audited. The 321 audit
+checks passed. The procedures below do not imply that every optional extension
+or production claim was tested.
+
 These procedures address the eight evaluation areas and the professor's first
 four questions. Cost analysis is excluded. Test cases stay in the CLI and guide.
 Run from the repository root. Keep all `.local/test-results` evidence before a
@@ -218,6 +224,9 @@ replica count; reset lab or scale explicitly to restore the baseline.
 Source tests prove specific logic; deployed experiments prove their recorded
 workload only. Preserve raw arrivals/customers, before/after captures, summary,
 invariants and interrupted records. Never relabel an inconclusive run as PASS.
-See `output/validation/robustness-implementation.json` for this revision's actual
-executions and their limits. No cost, real-payment, full account-system, storage
+Use `output/validation/all25/all25-audit.json` for the final selected case evidence
+and `output/validation/tc-fixes/FINAL_REPORT.md` for full performance/fault detail.
+`output/validation/robustness-implementation.json` records the earlier 12 November
+revision, including its incomplete HPA attempt; it remains historical. No cost,
+real-payment, full account-system, storage
 HA, consensus, cloud-node autoscaling or universal fairness claim is added.
