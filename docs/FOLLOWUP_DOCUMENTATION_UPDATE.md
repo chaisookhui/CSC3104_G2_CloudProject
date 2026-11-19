@@ -3,6 +3,8 @@
 19 November 2026 (Singapore). Documentation-only update using completed evidence.
 No application test, deployment, lab reset, image rebuild, commit or push occurred.
 
+This record documents the Appendix A edition. The current submission PDFs also include the extended TC-14 baseline in Appendix B. [Current document index](../output/pdf/README.md)
+
 The detailed analysis and evidence index were updated when testing finished. The
 main submission PDFs still described the earlier November 14 baseline. They now
 include the latest findings as labelled supplements, retaining the original results.

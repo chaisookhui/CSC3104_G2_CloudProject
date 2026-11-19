@@ -1,0 +1,1074 @@
+{
+  "trial": 4,
+  "namespace": "csc3104-tc14-c0abc377d1c24548-t4",
+  "started_at": "2026-11-19T14:32:51.214327+00:00",
+  "status": "PASS",
+  "deployment_before": {
+    "configuration": {
+      "config": {
+        "ALLOCATION_POLICY": "demand-cycle",
+        "ALLOCATION_SECTIONS": "A,B,C,D",
+        "ALLOCATION_URL": "http://allocation-api:5002",
+        "ALLOCATOR_URL": "http://allocation-api:5002",
+        "BATCH_SIZE": "10",
+        "DISPATCHER_COMPLETION_URL": "http://dispatcher-api:5005/allocator/status",
+        "DISPATCHER_URL": "http://dispatcher-api:5005",
+        "FRONTEND_AUTH": "true",
+        "FRONTEND_HOST": "0.0.0.0",
+        "FRONTEND_PORT": "8080",
+        "HOLD_TTL_SECONDS": "300",
+        "PAYMENT_HOST": "0.0.0.0",
+        "PAYMENT_PORT": "5004",
+        "PAYMENT_REQUIRE_AUTH": "true",
+        "PAYMENT_STATUS_URL": "",
+        "PAYMENT_URL": "http://payment-api:5004",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "QUEUE_KEY": "ticketing:kubernetes:queue",
+        "REDIS_URL": "redis://redis:6379/0",
+        "SEAT_MAP_TIER": "dev",
+        "SEAT_STORE_URL": "http://seat-api:5003",
+        "WAITING_ROOM_STORAGE": "redis",
+        "WAITING_ROOM_URL": "http://waiting-room:5001",
+        "WAITLIST_URL": "http://payment-api:5004"
+      },
+      "replicas": {
+        "allocation-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "allocation-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "dispatcher-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "dispatcher-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "frontend": {
+          "desired": 1,
+          "ready": 1
+        },
+        "payment-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "payment-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "seat-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "seat-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "waiting-recovery": {
+          "desired": 1,
+          "ready": 1
+        },
+        "waiting-room": {
+          "desired": 1,
+          "ready": 1
+        },
+        "postgres": {
+          "desired": 1,
+          "ready": 1
+        },
+        "redis": {
+          "desired": 1,
+          "ready": 1
+        }
+      },
+      "pods": {
+        "allocation-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-allocation:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:ac8734239c20292cb54bb88f34ca96a18ee5cb692339f7897024b6189661667d",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "allocation-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-allocation:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:ac8734239c20292cb54bb88f34ca96a18ee5cb692339f7897024b6189661667d",
+              "command": [
+                "python",
+                "worker.py"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "dispatcher-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-batch-dispatcher:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:41eb771e93726d6a2ca6c581e485c9572e953175e1245f0ff74b573e05f34ff8",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "dispatcher-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-batch-dispatcher:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:41eb771e93726d6a2ca6c581e485c9572e953175e1245f0ff74b573e05f34ff8",
+              "command": [
+                "python",
+                "app.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "frontend": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "csc3104-frontend:local",
+              "image_id": "sha256:86f22f9a1157fb3a4df5dd8af7e26ad58d2f27d74f91059ba5e11787d2ef22d5",
+              "command": [
+                "python",
+                "-m",
+                "waitress",
+                "--listen=0.0.0.0:8080",
+                "--threads=32",
+                "--connection-limit=1024",
+                "--asyncore-use-poll",
+                "--channel-timeout=30",
+                "--call",
+                "frontend.server:create_app"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "payment-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-payment:local",
+              "image_id": "sha256:bc10c7107b609bdeafaa1785f4e91886e1d6f484d8d5c835270e8e45c99b9924",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "payment-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-payment:local",
+              "image_id": "sha256:bc10c7107b609bdeafaa1785f4e91886e1d6f484d8d5c835270e8e45c99b9924",
+              "command": [
+                "python",
+                "service.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "postgres": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "postgres": {
+              "image": "postgres:17",
+              "image_id": "docker.io/library/import-2026-11-12@sha256:af46cec2d9da0460947c21353a8f1c368c8294c04ad784c32f8f4a70a9af186f",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "2",
+                  "memory": "512Mi"
+                },
+                "requests": {
+                  "cpu": "100m",
+                  "memory": "128Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "redis": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "redis": {
+              "image": "redis:7-alpine",
+              "image_id": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+              "command": null,
+              "args": [
+                "redis-server",
+                "--appendonly",
+                "yes",
+                "--appendfsync",
+                "always"
+              ],
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "100m",
+                  "memory": "64Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "seat-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-seat-store:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:f149a71cda33bdc700036f2f2c000ca1979eca3f07b6b56ef7bf95d790d3500a",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "seat-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-seat-store:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:f149a71cda33bdc700036f2f2c000ca1979eca3f07b6b56ef7bf95d790d3500a",
+              "command": [
+                "python",
+                "manage.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "waiting-recovery": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-waiting-queue:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:89ff78e2920fbe0b0a96cf1bb32b4b511a973bd82484ff124913cd37ad8f1485",
+              "command": [
+                "python",
+                "recovery.py"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "waiting-room": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-waiting-queue:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:89ff78e2920fbe0b0a96cf1bb32b4b511a973bd82484ff124913cd37ad8f1485",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        }
+      }
+    },
+    "pod_identities": {
+      "allocation-api": {
+        "uid": "bf6b1e89-2c68-4291-90db-ef50cc85b61c",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "allocation-worker": {
+        "uid": "15665a15-9fef-437f-a921-2825dfc9154d",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "dispatcher-api": {
+        "uid": "100d420b-3d60-4444-9228-8c3cf341c06f",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "dispatcher-worker": {
+        "uid": "7f7edd2b-4367-490b-81b3-adbb52335797",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "frontend": {
+        "uid": "8300ba2c-ee83-4343-ad1c-9b1c14f576b0",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "payment-api": {
+        "uid": "51b9ef58-163b-4766-84c1-460dd570c4e6",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "payment-worker": {
+        "uid": "d820487f-2657-4542-bef4-2e2f7a352e32",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "postgres": {
+        "uid": "7c03ad34-64e9-492b-8489-fa96aa773d57",
+        "restart_counts": {
+          "postgres": 0
+        }
+      },
+      "redis": {
+        "uid": "11de3c26-bcfa-4ab6-a062-d4687ba61fe5",
+        "restart_counts": {
+          "redis": 0
+        }
+      },
+      "seat-api": {
+        "uid": "77626a4e-efba-44a8-a78f-f444d180867c",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "seat-worker": {
+        "uid": "9f1f4637-be35-4f5c-8b7a-e2690ee17b0b",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "waiting-recovery": {
+        "uid": "ab1984d2-3406-466b-abe3-7b8c70cadbfa",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "waiting-room": {
+        "uid": "9c6c5595-99db-4e6a-a714-0129615050e6",
+        "restart_counts": {
+          "api": 0
+        }
+      }
+    }
+  },
+  "sql_before": {
+    "seat_checks": [
+      {
+        "test": "available_seat_has_owner",
+        "violations": 0
+      },
+      {
+        "test": "state_does_not_match_hold",
+        "violations": 0
+      },
+      {
+        "test": "partial_live_party",
+        "violations": 0
+      },
+      {
+        "test": "non_adjacent_live_party",
+        "violations": 0
+      },
+      {
+        "test": "duplicate_live_request",
+        "violations": 0
+      },
+      {
+        "test": "seat_in_multiple_live_histories",
+        "violations": 0
+      }
+    ],
+    "payment_checks": {
+      "duplicate_pending": 0,
+      "duplicate_success": 0
+    },
+    "counts": {
+      "holds": 0,
+      "seats": 260,
+      "confirmed": 0,
+      "held": 0
+    },
+    "violations": 0,
+    "status": "INCONCLUSIVE_EMPTY",
+    "captured_at": "2026-11-19T14:33:18.341455+00:00"
+  },
+  "sql_after": {
+    "seat_checks": [
+      {
+        "test": "available_seat_has_owner",
+        "violations": 0
+      },
+      {
+        "test": "state_does_not_match_hold",
+        "violations": 0
+      },
+      {
+        "test": "partial_live_party",
+        "violations": 0
+      },
+      {
+        "test": "non_adjacent_live_party",
+        "violations": 0
+      },
+      {
+        "test": "duplicate_live_request",
+        "violations": 0
+      },
+      {
+        "test": "seat_in_multiple_live_histories",
+        "violations": 0
+      }
+    ],
+    "payment_checks": {
+      "duplicate_pending": 0,
+      "duplicate_success": 0
+    },
+    "counts": {
+      "holds": 110,
+      "seats": 260,
+      "confirmed": 0,
+      "held": 110
+    },
+    "violations": 0,
+    "status": "PASS",
+    "captured_at": "2026-11-19T14:33:22.159035+00:00"
+  },
+  "deployment_after": {
+    "configuration": {
+      "config": {
+        "ALLOCATION_POLICY": "demand-cycle",
+        "ALLOCATION_SECTIONS": "A,B,C,D",
+        "ALLOCATION_URL": "http://allocation-api:5002",
+        "ALLOCATOR_URL": "http://allocation-api:5002",
+        "BATCH_SIZE": "10",
+        "DISPATCHER_COMPLETION_URL": "http://dispatcher-api:5005/allocator/status",
+        "DISPATCHER_URL": "http://dispatcher-api:5005",
+        "FRONTEND_AUTH": "true",
+        "FRONTEND_HOST": "0.0.0.0",
+        "FRONTEND_PORT": "8080",
+        "HOLD_TTL_SECONDS": "300",
+        "PAYMENT_HOST": "0.0.0.0",
+        "PAYMENT_PORT": "5004",
+        "PAYMENT_REQUIRE_AUTH": "true",
+        "PAYMENT_STATUS_URL": "",
+        "PAYMENT_URL": "http://payment-api:5004",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUNBUFFERED": "1",
+        "QUEUE_KEY": "ticketing:kubernetes:queue",
+        "REDIS_URL": "redis://redis:6379/0",
+        "SEAT_MAP_TIER": "dev",
+        "SEAT_STORE_URL": "http://seat-api:5003",
+        "WAITING_ROOM_STORAGE": "redis",
+        "WAITING_ROOM_URL": "http://waiting-room:5001",
+        "WAITLIST_URL": "http://payment-api:5004"
+      },
+      "replicas": {
+        "allocation-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "allocation-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "dispatcher-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "dispatcher-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "frontend": {
+          "desired": 1,
+          "ready": 1
+        },
+        "payment-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "payment-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "seat-api": {
+          "desired": 1,
+          "ready": 1
+        },
+        "seat-worker": {
+          "desired": 1,
+          "ready": 1
+        },
+        "waiting-recovery": {
+          "desired": 1,
+          "ready": 1
+        },
+        "waiting-room": {
+          "desired": 1,
+          "ready": 1
+        },
+        "postgres": {
+          "desired": 1,
+          "ready": 1
+        },
+        "redis": {
+          "desired": 1,
+          "ready": 1
+        }
+      },
+      "pods": {
+        "allocation-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-allocation:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:ac8734239c20292cb54bb88f34ca96a18ee5cb692339f7897024b6189661667d",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "allocation-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-allocation:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:ac8734239c20292cb54bb88f34ca96a18ee5cb692339f7897024b6189661667d",
+              "command": [
+                "python",
+                "worker.py"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "dispatcher-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-batch-dispatcher:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:41eb771e93726d6a2ca6c581e485c9572e953175e1245f0ff74b573e05f34ff8",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "dispatcher-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-batch-dispatcher:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:41eb771e93726d6a2ca6c581e485c9572e953175e1245f0ff74b573e05f34ff8",
+              "command": [
+                "python",
+                "app.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "frontend": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "csc3104-frontend:local",
+              "image_id": "sha256:86f22f9a1157fb3a4df5dd8af7e26ad58d2f27d74f91059ba5e11787d2ef22d5",
+              "command": [
+                "python",
+                "-m",
+                "waitress",
+                "--listen=0.0.0.0:8080",
+                "--threads=32",
+                "--connection-limit=1024",
+                "--asyncore-use-poll",
+                "--channel-timeout=30",
+                "--call",
+                "frontend.server:create_app"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "payment-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-payment:local",
+              "image_id": "sha256:bc10c7107b609bdeafaa1785f4e91886e1d6f484d8d5c835270e8e45c99b9924",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "payment-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-payment:local",
+              "image_id": "sha256:bc10c7107b609bdeafaa1785f4e91886e1d6f484d8d5c835270e8e45c99b9924",
+              "command": [
+                "python",
+                "service.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "postgres": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "postgres": {
+              "image": "postgres:17",
+              "image_id": "docker.io/library/import-2026-11-12@sha256:af46cec2d9da0460947c21353a8f1c368c8294c04ad784c32f8f4a70a9af186f",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "2",
+                  "memory": "512Mi"
+                },
+                "requests": {
+                  "cpu": "100m",
+                  "memory": "128Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "redis": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "redis": {
+              "image": "redis:7-alpine",
+              "image_id": "sha256:bb8953020f6597e47d5d699a9910a25d77a69608dbd58e0f722940598ed85fc0",
+              "command": null,
+              "args": [
+                "redis-server",
+                "--appendonly",
+                "yes",
+                "--appendfsync",
+                "always"
+              ],
+              "resources": {
+                "limits": {
+                  "cpu": "1",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "100m",
+                  "memory": "64Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "seat-api": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-seat-store:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:f149a71cda33bdc700036f2f2c000ca1979eca3f07b6b56ef7bf95d790d3500a",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "seat-worker": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-seat-store:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:f149a71cda33bdc700036f2f2c000ca1979eca3f07b6b56ef7bf95d790d3500a",
+              "command": [
+                "python",
+                "manage.py",
+                "worker"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "waiting-recovery": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "worker": {
+              "image": "ticketing-waiting-queue:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:89ff78e2920fbe0b0a96cf1bb32b4b511a973bd82484ff124913cd37ad8f1485",
+              "command": [
+                "python",
+                "recovery.py"
+              ],
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        },
+        "waiting-room": {
+          "node": "csc3104-control-plane",
+          "containers": {
+            "api": {
+              "image": "ticketing-waiting-queue:local",
+              "image_id": "docker.io/library/import-2026-11-13@sha256:89ff78e2920fbe0b0a96cf1bb32b4b511a973bd82484ff124913cd37ad8f1485",
+              "command": null,
+              "args": null,
+              "resources": {
+                "limits": {
+                  "cpu": "500m",
+                  "memory": "256Mi"
+                },
+                "requests": {
+                  "cpu": "50m",
+                  "memory": "96Mi"
+                }
+              },
+              "ready": true
+            }
+          }
+        }
+      }
+    },
+    "pod_identities": {
+      "allocation-api": {
+        "uid": "bf6b1e89-2c68-4291-90db-ef50cc85b61c",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "allocation-worker": {
+        "uid": "15665a15-9fef-437f-a921-2825dfc9154d",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "dispatcher-api": {
+        "uid": "100d420b-3d60-4444-9228-8c3cf341c06f",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "dispatcher-worker": {
+        "uid": "7f7edd2b-4367-490b-81b3-adbb52335797",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "frontend": {
+        "uid": "8300ba2c-ee83-4343-ad1c-9b1c14f576b0",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "payment-api": {
+        "uid": "51b9ef58-163b-4766-84c1-460dd570c4e6",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "payment-worker": {
+        "uid": "d820487f-2657-4542-bef4-2e2f7a352e32",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "postgres": {
+        "uid": "7c03ad34-64e9-492b-8489-fa96aa773d57",
+        "restart_counts": {
+          "postgres": 0
+        }
+      },
+      "redis": {
+        "uid": "11de3c26-bcfa-4ab6-a062-d4687ba61fe5",
+        "restart_counts": {
+          "redis": 0
+        }
+      },
+      "seat-api": {
+        "uid": "77626a4e-efba-44a8-a78f-f444d180867c",
+        "restart_counts": {
+          "api": 0
+        }
+      },
+      "seat-worker": {
+        "uid": "9f1f4637-be35-4f5c-8b7a-e2690ee17b0b",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "waiting-recovery": {
+        "uid": "ab1984d2-3406-466b-abe3-7b8c70cadbfa",
+        "restart_counts": {
+          "worker": 0
+        }
+      },
+      "waiting-room": {
+        "uid": "9c6c5595-99db-4e6a-a714-0129615050e6",
+        "restart_counts": {
+          "api": 0
+        }
+      }
+    }
+  },
+  "inventory": {
+    "before": 200,
+    "after": 200,
+    "available_after": 90,
+    "expected_first_fit_order": true,
+    "owners_reconciled": true
+  },
+  "configuration_matches_first": true,
+  "measurement_finished_at": "2026-11-19T14:33:22.740448+00:00",
+  "cleanup": "COMPLETE"
+}

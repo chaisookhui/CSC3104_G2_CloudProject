@@ -18,6 +18,8 @@ cases and 10 full-scope final v9 cases re-audited, with 321 audit checks passed.
 `output/validation/robustness-results.md` and `experiments/VALIDATION.md` retain
 earlier execution history; they do not replace the final ledger.
 
+For the direct seat-store latency baseline, follow [Appendix B of the testing guide](output/pdf/GROUP02_INSTRUCTIONS.pdf#page=28) and see the [extended results and raw evidence](docs/TC14_EXTENDED_RESULTS.md). The protocol uses five fresh trials of 100 sequential measured requests, with ten warm-up holds per trial. The original three single-request trials remain historical acceptance evidence.
+
 This guide explains **what to test, why it matters, what to do, and what a correct
 result looks like**. You do not need to understand every command before starting.
 Follow the basic tests first. Open the expandable technical sections only when

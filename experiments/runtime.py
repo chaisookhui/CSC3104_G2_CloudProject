@@ -56,14 +56,15 @@ def sql(database, statement):
              '-v', 'ON_ERROR_STOP=1', '-tA', capture=True, source=statement)
 
 
-def invariants():
-    checks = json.loads(sql('seats', (ROOT / 'experiments/invariants.sql').read_text(encoding='utf-8')))
-    payment = json.loads(sql('payment', """SELECT json_build_object(
+def invariants(query=None):
+    query = sql if query is None else query
+    checks = json.loads(query('seats', (ROOT / 'experiments/invariants.sql').read_text(encoding='utf-8')))
+    payment = json.loads(query('payment', """SELECT json_build_object(
       'duplicate_pending', (SELECT count(*) FROM (SELECT hold_id FROM wy_payments
        WHERE attempt_status='pending' GROUP BY hold_id HAVING count(*)>1) p),
       'duplicate_success', (SELECT count(*) FROM (SELECT hold_id FROM wy_payments
        WHERE attempt_status='succeeded' GROUP BY hold_id HAVING count(*)>1) p));"""))
-    counts = json.loads(sql('seats', """SELECT json_build_object(
+    counts = json.loads(query('seats', """SELECT json_build_object(
       'holds', (SELECT count(*) FROM holds), 'seats', (SELECT count(*) FROM seats),
       'confirmed', (SELECT count(*) FROM seats WHERE state='CONFIRMED'),
       'held', (SELECT count(*) FROM seats WHERE state='HELD'));"""))

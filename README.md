@@ -6,6 +6,8 @@
 No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
 <!-- followup-20261119:latest-results:end -->
 
+**Extended TC-14 seat-store baseline.** Five fresh trials produced 500 successful measured holds at concurrency one, with zero failures or SQL invariant violations. Median latency was 26.51 ms, P95 was 63.43 ms, and P99 was 91.67 ms. These measurements cover the direct hold request. The testing guide and results report include the procedure and findings in Appendix B. [Methodology and raw evidence](docs/TC14_EXTENDED_RESULTS.md)
+
 We are building a ticketing system that allocates adjacent seats to whole parties
 of 1-4 people. We will compare the proposed Demand-Cycle policy with correct
 baselines using measured results. Its fairness benefits are hypotheses to test.

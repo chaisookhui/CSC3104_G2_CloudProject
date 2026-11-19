@@ -908,3 +908,27 @@ Two invalid-delivery attempts are excluded from capacity inference: 374 pool dro
 
 The saved-data audit passed 1,046 checks with zero failures. Three historical interrupted attempts remain preserved and are not extra matched samples. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
 <!-- followup-20261119:supplements:end -->
+
+<!-- pagebreak -->
+## Appendix B. TC-14 Extended Direct Seat-Store Baseline
+
+The three original single-request trials in Section 9 retain their original procedure and acceptance evidence. This extended study measures the local `POST /seats/hold` HTTP path through a loopback port-forward to `seat-api`. End-to-end booking includes browser and frontend activity, waiting-room admission, batching, allocation, and payment through confirmation.
+
+### Set up and run
+
+Start Docker with Linux containers and use the project Kind cluster with its images loaded. Use host Python 3.10 or later and install Matplotlib 3.8 or later for the exporter. Run from the repository root. Use a new run ID and export directory for each cohort. Allow about 5-10 minutes for the full run.
+
+```powershell
+python experiments/tc14_extended.py --run tc14-extended-repro01
+python experiments/tc14_report.py --run tc14-extended-repro01 --output output/tc14-repro01
+```
+
+The collector creates a fresh disposable namespace per trial with one Ready pod per component, a 300-second hold TTL and batch size 10. Each trial starts with 200 available Section C seats. Ten sequential one-seat warm-up holds precede the 100 measured requests. There is one client request in flight at a time and each attempt uses a new TCP connection and a unique request ID. Run without concurrent benchmarks or changes to the cluster.
+
+### Verify and save evidence
+
+1. Check that all five trials attempted 100 measured requests each. Confirm the summary reports 500 successful holds, zero failed or missing requests, and zero SQL invariant violations for a passing cohort. The trial evidence includes deployment settings, inventory snapshots and SQL audit results.
+2. Save `raw-observations.csv` and `raw-observations.json`. Keep warm-up rows and every unsuccessful attempt. Summarize latency from successful measured holds only. Keep `summary.csv`, `summary.json` and both charts.
+3. Inspect trial variation alongside the pooled estimate. Record any failed or incomplete trial with its observed outcomes. There is no fixed latency target for this baseline.
+
+The recorded run `tc14-extended-20261119` passed all five trials. Its 500 measured holds had a 26.51 ms median, 63.43 ms P95 and 91.67 ms P99, with zero SQL invariant violations. See results report Appendix B, `docs/TC14_EXTENDED_RESULTS.md` and `output/tc14-extended-20261119/` for the methodology, data and figures.

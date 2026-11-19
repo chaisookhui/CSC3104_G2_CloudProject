@@ -1,0 +1,90 @@
+{
+  "case": "TC-14 extended",
+  "run_id": "tc14-extended-20261119",
+  "started_at": "2026-11-19T14:27:49.644311+00:00",
+  "protocol": {
+    "trials": 5,
+    "warmup_per_trial": 10,
+    "measured_per_trial": 100,
+    "concurrency": 1,
+    "endpoint": "/seats/hold",
+    "section": "C",
+    "party_size": 1,
+    "inventory_per_trial": 200,
+    "timeout_seconds": 15,
+    "hold_ttl_seconds": 300
+  },
+  "host": {
+    "host": {
+      "platform": "Windows-10-10.0.26200-SP0",
+      "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+      "logical_cpus": 12,
+      "python": "3.11.0"
+    },
+    "docker": {
+      "ServerVersion": "29.9.3",
+      "OSType": "linux",
+      "Architecture": "x86_64",
+      "NCPU": 12,
+      "MemTotal": 8259383296,
+      "CgroupVersion": "2",
+      "Driver": "overlay2",
+      "KernelVersion": "6.18.58.1-microsoft-standard-WSL2"
+    },
+    "kind": "v0.33.0",
+    "kubectl": "v1.36.4",
+    "context": "kind-csc3104",
+    "nodes": [
+      {
+        "name": "csc3104-control-plane",
+        "info": {
+          "architecture": "amd64",
+          "bootID": "eb2b6101-4fee-41a0-8b69-0eb57df863fb",
+          "containerRuntimeVersion": "containerd://2.3.4",
+          "kernelVersion": "6.18.58.1-microsoft-standard-WSL2",
+          "kubeProxyVersion": "",
+          "kubeletVersion": "v1.36.4",
+          "machineID": "49354c2b286649d58215fad8f3f265e5",
+          "operatingSystem": "linux",
+          "osImage": "Debian GNU/Linux 13 (trixie)",
+          "swap": {
+            "capacity": 2147483648
+          },
+          "systemUUID": "49354c2b286649d58215fad8f3f265e5"
+        },
+        "capacity": {
+          "cpu": "12",
+          "ephemeral-storage": "1055762868Ki",
+          "hugepages-1Gi": "0",
+          "hugepages-2Mi": "0",
+          "memory": "8065804Ki",
+          "pods": "110"
+        },
+        "allocatable": {
+          "cpu": "12",
+          "ephemeral-storage": "1055762868Ki",
+          "hugepages-1Gi": "0",
+          "hugepages-2Mi": "0",
+          "memory": "8065804Ki",
+          "pods": "110"
+        }
+      }
+    ],
+    "git_commit": "d566d03e287c894245c98c463c36bf08e3bfd117",
+    "source_sha256": {
+      "infra/k8s/local/apis.yaml": "8d5fe98df8140414f68da43b43fbac3a133708bc9397149c118052123da8988c",
+      "infra/k8s/local/config.yaml": "ad3217c722869632bf09f54bef029c0eca4a791803c5acb237c74ac2f6a7d546",
+      "infra/k8s/local/jobs.yaml": "d2b0622e84c618beb0943fb12c14fcc752286adc4dba749c21be9ee9c4ad73f7",
+      "infra/k8s/local/services.yaml": "eef38ad275dc9dc17c5585f08e02ef6085abbb9cf4b94a0d0eb473e4b52f1cd7",
+      "infra/k8s/local/storage.yaml": "2db9d542f925d8a528b9efae4014c4720d3b622e0e7ad46d0dc3af3eddf34ac5",
+      "infra/k8s/local/workers.yaml": "f7a54e8c99692b9ad230f01cc396eea672c42dadb479e985bdd38d9c58a4b058",
+      "infra/docker/init-core-db.sh": "f9b183fbc0047f3f4891ded46be74938920320fbdca5471402c250e2d95c67f3",
+      "infra/k8s/local.py": "97246de5691561bbf25fe120708cd394d8d7287a167bc8db2b6de7c15e1f3d88",
+      "experiments/runtime.py": "be10792afcd7bcaf8196858b457a011906c65fb9bb5777a2decf2436068e3b7f",
+      "experiments/invariants.sql": "13e079b8607fb05af6f78cd0539c1e50ef9004486987148e270f182ece73d539",
+      "experiments/tc14_extended.py": "eab54ef983daad2442d7ffc848f836beb327069cb2ac971493f96c6ccb0162df"
+    }
+  },
+  "finished_at": "2026-11-19T14:36:14.347084+00:00",
+  "status": "PASS"
+}

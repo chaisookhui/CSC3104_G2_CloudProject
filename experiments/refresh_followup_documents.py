@@ -1,7 +1,7 @@
-"""Append the audited 19-Nov follow-up to current submission documents.
+"""Rebuild the submission documents with the 19-Nov follow-up and extended TC-14.
 
 Offline only. Preserves the existing 22-page report as the baseline, appends a
-four-page supplement, and rebuilds instructions from its edited Markdown source.
+four-page follow-up and two-page TC-14 appendix, and rebuilds instructions from Markdown.
 Never invokes the historical builder that also recreates the deleted combined PDF.
 The sealed test-evidence ZIP is not changed. Requires reportlab and pypdf.
 """
@@ -19,11 +19,14 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from reportlab.pdfgen import canvas
 
+from build_tc14_supplement import build as build_tc14_supplement
+
 ROOT=Path(__file__).resolve().parents[1]
 OUT=ROOT/'output/pdf'
 EVIDENCE=ROOT/'output/validation/followup-20261119'
 REPORT=EVIDENCE/'report'
 REFRESH=EVIDENCE/'document-refresh'
+TC14_EVIDENCE=ROOT/'output/tc14-extended-20261119'
 STEM='GROUP02_Test_Results_and_Distributed_Concepts_Report'
 MARK='followup-20261119'
 INK=colors.HexColor('#1B2A41')
@@ -143,13 +146,22 @@ def main():
           (ROOT/'docs/FOLLOWUP_TESTING_APPENDIX.md').read_text(encoding='utf-8'))
     original=PdfReader(baseline);count=len(original.pages)
     assert count==22,'Expected the preserved 22-page baseline'
+    tc14_pdf = BytesIO()
+    build_tc14_supplement(TC14_EVIDENCE, tc14_pdf, page_offset=count+4)
+    tc14_pdf.seek(0)
+    tc14_appendix = PdfReader(tc14_pdf)
+    if len(tc14_appendix.pages) != 2:
+        raise ValueError('The TC-14 results appendix must fit on two pages')
     writer=PdfWriter();writer.append(original,import_outline=True)
     overlay=BytesIO();c=canvas.Canvas(overlay,pagesize=A4);c.setFont('Helvetica-Bold',7.2);c.setFillColor(TEAL)
-    c.drawString(42,36,f'19 November 2026 follow-up: Appendix A, pages {count+1}-{count+4}. Original 25-case baseline retained.')
+    c.drawString(42,36,'19 November 2026: follow-up results in Appendix A. Extended TC-14 baseline in Appendix B.')
     c.save();overlay.seek(0);writer.pages[0].merge_page(PdfReader(overlay).pages[0])
     for i,page in enumerate(report_supplement(capacity,bursts,scheduler,count)):
         writer.append(page,import_outline=False)
         writer.add_outline_item(['Latest follow-up: results','Paired scheduler comparisons','Fresh HPA cycles','Capacity and delivery validity'][i],count+i)
+    writer.append(tc14_appendix,import_outline=False)
+    bookmark = writer.add_outline_item('Appendix B. TC-14 extended baseline',count+4)
+    writer.add_outline_item('Latency distribution and trial comparison',count+5,parent=bookmark)
     writer.add_metadata({'/Title':'Group 02 - Verified baseline and 19 November follow-up results','/Author':'CSC3104 Group 02'})
     target=OUT/(STEM+'.pdf')
     with target.open('wb') as stream:writer.write(stream)
@@ -160,13 +172,18 @@ def main():
                        ('Fresh HPA cycles','hpa-fresh-overview'),('Traffic and delivery validity','traffic-offered-achieved')):
         supplement+=f'\n\n### {title}\n\n![{title}](../validation/followup-20261119/report/{name}.png)\n'
     block(OUT/(STEM+'.md'),'latest-results','## Appendix A - Latest measured follow-up\n\n19 November 2026. Original baseline above is retained; the PDF supplement begins on page 23.\n\n'+supplement)
-    block(OUT/(STEM+'.md'),'notice','**19 November 2026 follow-up:** this report now includes the latest measured scheduler, HPA, capacity and burst results in Appendix A. The earlier 25-case baseline below remains dated and unchanged.',prefix=True)
+    tc14_source = (ROOT/'docs/TC14_EXTENDED_RESULTS.md').read_text(encoding='utf-8').partition('\n')[2]
+    tc14_source = re.sub(r'^## ', '### ', tc14_source, flags=re.M)
+    tc14_source = (tc14_source.replace('../output/tc14-', '../tc14-')
+                   .replace('../infra/', '../../infra/').replace('../output/pdf/', ''))
+    block(OUT/(STEM+'.md'),'tc14-extended','## Appendix B. TC-14 extended seat reservation baseline\n'+tc14_source)
+    block(OUT/(STEM+'.md'),'notice','**19 November 2026:** Appendix A covers scheduler, HPA, capacity and burst results. Appendix B presents the extended direct seat-store latency baseline. The original 25-case results appear first.',prefix=True)
     from build_instructions import build
     build()
     guide=OUT/'GROUP02_INSTRUCTIONS.pdf';reader=PdfReader(guide);guide_writer=PdfWriter()
     guide_writer.clone_document_from_reader(reader)
     overlay=BytesIO();c=canvas.Canvas(overlay,pagesize=A4);c.setFont('Helvetica-Bold',7.2);c.setFillColor(TEAL)
-    c.drawString(42,37,'19 November 2026 follow-up: see Appendix A. Original 25-case baseline retained.')
+    c.drawString(42,37,'19 November 2026: follow-up results in Appendix A. Extended TC-14 procedure in Appendix B.')
     c.save();overlay.seek(0);guide_writer.pages[0].merge_page(PdfReader(overlay).pages[0])
     with guide.open('wb') as stream:guide_writer.write(stream)
     print('Updated report:',len(PdfReader(target).pages),'pages')

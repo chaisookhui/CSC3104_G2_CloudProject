@@ -1,0 +1,2002 @@
+[
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-001",
+    "hold_expiry": "2026-11-19T14:38:18.624568Z",
+    "hold_id": "1b6cb129-fc4a-494a-994d-722e206c6869",
+    "position_in_row": 1,
+    "row": 1,
+    "seat_id": "C-1-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-002",
+    "hold_expiry": "2026-11-19T14:38:18.653821Z",
+    "hold_id": "7a4371c9-8662-4bd4-a9cf-bd31fd80e356",
+    "position_in_row": 2,
+    "row": 1,
+    "seat_id": "C-1-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-003",
+    "hold_expiry": "2026-11-19T14:38:18.679759Z",
+    "hold_id": "071f1985-36bb-4cfb-94c1-c7303776a1b8",
+    "position_in_row": 3,
+    "row": 1,
+    "seat_id": "C-1-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-004",
+    "hold_expiry": "2026-11-19T14:38:18.703943Z",
+    "hold_id": "148473b4-6379-4aca-b5cf-df60c945a074",
+    "position_in_row": 4,
+    "row": 1,
+    "seat_id": "C-1-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-005",
+    "hold_expiry": "2026-11-19T14:38:18.740027Z",
+    "hold_id": "4bb5d3c1-a624-4156-8877-961b72b8c6c9",
+    "position_in_row": 5,
+    "row": 1,
+    "seat_id": "C-1-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-006",
+    "hold_expiry": "2026-11-19T14:38:18.765718Z",
+    "hold_id": "de03ecaf-947e-4988-a9e4-11e05c9aa0d9",
+    "position_in_row": 6,
+    "row": 1,
+    "seat_id": "C-1-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-007",
+    "hold_expiry": "2026-11-19T14:38:18.787237Z",
+    "hold_id": "4688240a-d395-4d40-9123-9b8b4e6070a7",
+    "position_in_row": 7,
+    "row": 1,
+    "seat_id": "C-1-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-008",
+    "hold_expiry": "2026-11-19T14:38:18.808516Z",
+    "hold_id": "15b32ba1-6935-4b7f-999c-0b236a621c8d",
+    "position_in_row": 8,
+    "row": 1,
+    "seat_id": "C-1-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-009",
+    "hold_expiry": "2026-11-19T14:38:18.832370Z",
+    "hold_id": "7bf7f472-e6ec-43a2-b88d-f75e6e8bad3c",
+    "position_in_row": 9,
+    "row": 1,
+    "seat_id": "C-1-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-warmup-010",
+    "hold_expiry": "2026-11-19T14:38:18.855835Z",
+    "hold_id": "996223b1-3b58-4b40-97fb-92519aeab1eb",
+    "position_in_row": 10,
+    "row": 1,
+    "seat_id": "C-1-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-001",
+    "hold_expiry": "2026-11-19T14:38:18.878352Z",
+    "hold_id": "262120e6-7747-4481-8883-419b81687c7c",
+    "position_in_row": 1,
+    "row": 2,
+    "seat_id": "C-2-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-002",
+    "hold_expiry": "2026-11-19T14:38:18.900037Z",
+    "hold_id": "c805fb97-90f9-49ea-a887-35f5619d5345",
+    "position_in_row": 2,
+    "row": 2,
+    "seat_id": "C-2-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-003",
+    "hold_expiry": "2026-11-19T14:38:18.939101Z",
+    "hold_id": "fd5dc3ac-55c6-4778-93c3-08ebd75bced4",
+    "position_in_row": 3,
+    "row": 2,
+    "seat_id": "C-2-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-004",
+    "hold_expiry": "2026-11-19T14:38:18.959215Z",
+    "hold_id": "1f7df51a-8397-4952-a600-f160a7e275b9",
+    "position_in_row": 4,
+    "row": 2,
+    "seat_id": "C-2-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-005",
+    "hold_expiry": "2026-11-19T14:38:18.979877Z",
+    "hold_id": "84db2105-f445-4a72-8b32-e91d0f7c21e8",
+    "position_in_row": 5,
+    "row": 2,
+    "seat_id": "C-2-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-006",
+    "hold_expiry": "2026-11-19T14:38:19.001732Z",
+    "hold_id": "1e8aec71-26b2-4337-b7ee-92ce579b9715",
+    "position_in_row": 6,
+    "row": 2,
+    "seat_id": "C-2-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-007",
+    "hold_expiry": "2026-11-19T14:38:19.023313Z",
+    "hold_id": "e6b2ba55-d1d5-4c20-a27f-27afa08069b8",
+    "position_in_row": 7,
+    "row": 2,
+    "seat_id": "C-2-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-008",
+    "hold_expiry": "2026-11-19T14:38:19.044337Z",
+    "hold_id": "534e7d95-ddb1-41b8-bd24-3d1c7a837c91",
+    "position_in_row": 8,
+    "row": 2,
+    "seat_id": "C-2-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-009",
+    "hold_expiry": "2026-11-19T14:38:19.065581Z",
+    "hold_id": "185c8344-3194-4fa5-a4c6-6184b4831d34",
+    "position_in_row": 9,
+    "row": 2,
+    "seat_id": "C-2-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-010",
+    "hold_expiry": "2026-11-19T14:38:19.087234Z",
+    "hold_id": "79a0b2ea-4dad-44ce-bc1f-6adf77ec063f",
+    "position_in_row": 10,
+    "row": 2,
+    "seat_id": "C-2-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-011",
+    "hold_expiry": "2026-11-19T14:38:19.108743Z",
+    "hold_id": "73d2715a-c4ee-4e6a-8fb7-a71263baddb6",
+    "position_in_row": 1,
+    "row": 3,
+    "seat_id": "C-3-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-012",
+    "hold_expiry": "2026-11-19T14:38:19.130357Z",
+    "hold_id": "5f1d5347-b777-4226-8af4-5db29e8764fc",
+    "position_in_row": 2,
+    "row": 3,
+    "seat_id": "C-3-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-013",
+    "hold_expiry": "2026-11-19T14:38:19.151706Z",
+    "hold_id": "b3169204-133f-4799-b349-3e68f33fe744",
+    "position_in_row": 3,
+    "row": 3,
+    "seat_id": "C-3-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-014",
+    "hold_expiry": "2026-11-19T14:38:19.172839Z",
+    "hold_id": "16f136ff-2cc1-4add-b752-36babad72cfa",
+    "position_in_row": 4,
+    "row": 3,
+    "seat_id": "C-3-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-015",
+    "hold_expiry": "2026-11-19T14:38:19.194668Z",
+    "hold_id": "6ad74759-03f6-44b6-b10f-ba5de2cdb374",
+    "position_in_row": 5,
+    "row": 3,
+    "seat_id": "C-3-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-016",
+    "hold_expiry": "2026-11-19T14:38:19.216522Z",
+    "hold_id": "c60e1389-5eb1-44a1-bb56-510f4ae7433c",
+    "position_in_row": 6,
+    "row": 3,
+    "seat_id": "C-3-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-017",
+    "hold_expiry": "2026-11-19T14:38:19.237316Z",
+    "hold_id": "06464248-96d3-43d4-bc0f-4ec69dfdeae5",
+    "position_in_row": 7,
+    "row": 3,
+    "seat_id": "C-3-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-018",
+    "hold_expiry": "2026-11-19T14:38:19.257626Z",
+    "hold_id": "7fb2681b-cd4d-4312-8a25-f7d40e77b3a9",
+    "position_in_row": 8,
+    "row": 3,
+    "seat_id": "C-3-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-019",
+    "hold_expiry": "2026-11-19T14:38:19.279683Z",
+    "hold_id": "1bb845c6-d59a-4394-a574-18585489257e",
+    "position_in_row": 9,
+    "row": 3,
+    "seat_id": "C-3-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-020",
+    "hold_expiry": "2026-11-19T14:38:19.302440Z",
+    "hold_id": "65e62fe9-3f87-4595-b916-a657fec7137b",
+    "position_in_row": 10,
+    "row": 3,
+    "seat_id": "C-3-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-021",
+    "hold_expiry": "2026-11-19T14:38:19.322484Z",
+    "hold_id": "96896478-6446-4eab-8a78-cccd88047969",
+    "position_in_row": 1,
+    "row": 4,
+    "seat_id": "C-4-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-022",
+    "hold_expiry": "2026-11-19T14:38:19.342541Z",
+    "hold_id": "99daa120-dd2a-4179-a25c-57230a6362f6",
+    "position_in_row": 2,
+    "row": 4,
+    "seat_id": "C-4-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-023",
+    "hold_expiry": "2026-11-19T14:38:19.362736Z",
+    "hold_id": "d6a14af7-8aa0-4aa8-bffb-f9a8d4cbafb1",
+    "position_in_row": 3,
+    "row": 4,
+    "seat_id": "C-4-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-024",
+    "hold_expiry": "2026-11-19T14:38:19.383575Z",
+    "hold_id": "93100d85-f3fa-4dd2-9f0f-7a58a74dc1ab",
+    "position_in_row": 4,
+    "row": 4,
+    "seat_id": "C-4-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-025",
+    "hold_expiry": "2026-11-19T14:38:19.405740Z",
+    "hold_id": "1c9cbe9a-cc40-448a-8e90-f83bb851a167",
+    "position_in_row": 5,
+    "row": 4,
+    "seat_id": "C-4-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-026",
+    "hold_expiry": "2026-11-19T14:38:19.436658Z",
+    "hold_id": "790aca6a-d61a-4aa9-a956-28794b4ab04f",
+    "position_in_row": 6,
+    "row": 4,
+    "seat_id": "C-4-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-027",
+    "hold_expiry": "2026-11-19T14:38:19.457277Z",
+    "hold_id": "5b281198-98b3-4b9a-a62f-6996daf8a5c3",
+    "position_in_row": 7,
+    "row": 4,
+    "seat_id": "C-4-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-028",
+    "hold_expiry": "2026-11-19T14:38:19.477595Z",
+    "hold_id": "721551c7-9751-4b14-8112-81209afc80a6",
+    "position_in_row": 8,
+    "row": 4,
+    "seat_id": "C-4-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-029",
+    "hold_expiry": "2026-11-19T14:38:19.552964Z",
+    "hold_id": "1a682331-71cb-4cf5-bcbe-c24f20366a9f",
+    "position_in_row": 9,
+    "row": 4,
+    "seat_id": "C-4-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-030",
+    "hold_expiry": "2026-11-19T14:38:19.576517Z",
+    "hold_id": "dcf59cb2-f60f-4fa4-90e3-cead319111c6",
+    "position_in_row": 10,
+    "row": 4,
+    "seat_id": "C-4-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-031",
+    "hold_expiry": "2026-11-19T14:38:19.597763Z",
+    "hold_id": "7b70b201-6ce6-458c-8320-3580bd51ce49",
+    "position_in_row": 1,
+    "row": 5,
+    "seat_id": "C-5-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-032",
+    "hold_expiry": "2026-11-19T14:38:19.619283Z",
+    "hold_id": "784218cc-a6ff-46b1-a165-bce3fd9d1a2b",
+    "position_in_row": 2,
+    "row": 5,
+    "seat_id": "C-5-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-033",
+    "hold_expiry": "2026-11-19T14:38:19.642097Z",
+    "hold_id": "97f08087-3336-4f25-9aec-96d75a6a499b",
+    "position_in_row": 3,
+    "row": 5,
+    "seat_id": "C-5-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-034",
+    "hold_expiry": "2026-11-19T14:38:19.664567Z",
+    "hold_id": "cd875fff-cd24-4d86-a194-4ae794fa7a7b",
+    "position_in_row": 4,
+    "row": 5,
+    "seat_id": "C-5-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-035",
+    "hold_expiry": "2026-11-19T14:38:19.686276Z",
+    "hold_id": "f8cb761f-f6a2-4ad2-bfb7-b1051fe32e72",
+    "position_in_row": 5,
+    "row": 5,
+    "seat_id": "C-5-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-036",
+    "hold_expiry": "2026-11-19T14:38:19.710658Z",
+    "hold_id": "45e8e4e5-bc79-451f-be6a-8010d2dc6964",
+    "position_in_row": 6,
+    "row": 5,
+    "seat_id": "C-5-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-037",
+    "hold_expiry": "2026-11-19T14:38:19.737187Z",
+    "hold_id": "3add6fbc-e25b-4338-a3f0-52dd6e80ebc9",
+    "position_in_row": 7,
+    "row": 5,
+    "seat_id": "C-5-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-038",
+    "hold_expiry": "2026-11-19T14:38:19.759481Z",
+    "hold_id": "a0e9ed29-19f5-4c22-9a23-1301a6baf9f2",
+    "position_in_row": 8,
+    "row": 5,
+    "seat_id": "C-5-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-039",
+    "hold_expiry": "2026-11-19T14:38:19.805684Z",
+    "hold_id": "6c0d6cc1-b8ce-4cd5-8eca-c12371492140",
+    "position_in_row": 9,
+    "row": 5,
+    "seat_id": "C-5-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-040",
+    "hold_expiry": "2026-11-19T14:38:19.853714Z",
+    "hold_id": "aa1cc18f-c20c-4516-9d3d-9a08c81f2ca4",
+    "position_in_row": 10,
+    "row": 5,
+    "seat_id": "C-5-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-041",
+    "hold_expiry": "2026-11-19T14:38:19.885249Z",
+    "hold_id": "de6c26e8-246a-4abb-af6b-495a6fb444db",
+    "position_in_row": 1,
+    "row": 6,
+    "seat_id": "C-6-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-042",
+    "hold_expiry": "2026-11-19T14:38:19.910933Z",
+    "hold_id": "6b63655a-223d-4956-a6ad-371f6a360d07",
+    "position_in_row": 2,
+    "row": 6,
+    "seat_id": "C-6-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-043",
+    "hold_expiry": "2026-11-19T14:38:19.968352Z",
+    "hold_id": "e65534cb-605a-41ad-bdf8-f1d32d3ff0da",
+    "position_in_row": 3,
+    "row": 6,
+    "seat_id": "C-6-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-044",
+    "hold_expiry": "2026-11-19T14:38:20.001945Z",
+    "hold_id": "ee5e7596-6ac6-4b39-9c44-ebd65a76c754",
+    "position_in_row": 4,
+    "row": 6,
+    "seat_id": "C-6-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-045",
+    "hold_expiry": "2026-11-19T14:38:20.035560Z",
+    "hold_id": "2548e4fb-4381-49d7-a9a0-e39ccf75a2d6",
+    "position_in_row": 5,
+    "row": 6,
+    "seat_id": "C-6-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-046",
+    "hold_expiry": "2026-11-19T14:38:20.078783Z",
+    "hold_id": "29b583e4-f696-42da-a471-d4e0f5bccb63",
+    "position_in_row": 6,
+    "row": 6,
+    "seat_id": "C-6-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-047",
+    "hold_expiry": "2026-11-19T14:38:20.100884Z",
+    "hold_id": "717d8083-df7b-4389-9b8f-e9239c6f8b6d",
+    "position_in_row": 7,
+    "row": 6,
+    "seat_id": "C-6-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-048",
+    "hold_expiry": "2026-11-19T14:38:20.122611Z",
+    "hold_id": "879523a0-11d5-4f10-a1d7-d341f99d92ee",
+    "position_in_row": 8,
+    "row": 6,
+    "seat_id": "C-6-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-049",
+    "hold_expiry": "2026-11-19T14:38:20.144806Z",
+    "hold_id": "f790945a-97c1-493f-80ee-db6fb5a74911",
+    "position_in_row": 9,
+    "row": 6,
+    "seat_id": "C-6-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-050",
+    "hold_expiry": "2026-11-19T14:38:20.178055Z",
+    "hold_id": "9e056586-63d5-49fb-9d65-47b15a52e27e",
+    "position_in_row": 10,
+    "row": 6,
+    "seat_id": "C-6-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-051",
+    "hold_expiry": "2026-11-19T14:38:20.200560Z",
+    "hold_id": "6f33b2cc-0c6d-4374-8a65-9ec8e5fefb8a",
+    "position_in_row": 1,
+    "row": 7,
+    "seat_id": "C-7-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-052",
+    "hold_expiry": "2026-11-19T14:38:20.226343Z",
+    "hold_id": "224f0b14-be17-471b-a7ff-dafbc53fd615",
+    "position_in_row": 2,
+    "row": 7,
+    "seat_id": "C-7-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-053",
+    "hold_expiry": "2026-11-19T14:38:20.248772Z",
+    "hold_id": "02f3fb55-a13f-48b3-9dfa-db8d154c698d",
+    "position_in_row": 3,
+    "row": 7,
+    "seat_id": "C-7-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-054",
+    "hold_expiry": "2026-11-19T14:38:20.271073Z",
+    "hold_id": "13a15959-51f7-46dc-8396-112c55300597",
+    "position_in_row": 4,
+    "row": 7,
+    "seat_id": "C-7-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-055",
+    "hold_expiry": "2026-11-19T14:38:20.301237Z",
+    "hold_id": "21d2924e-19e1-4351-a891-beba0997ce27",
+    "position_in_row": 5,
+    "row": 7,
+    "seat_id": "C-7-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-056",
+    "hold_expiry": "2026-11-19T14:38:20.349495Z",
+    "hold_id": "212c68fa-ee92-49ff-91f1-321a18302e27",
+    "position_in_row": 6,
+    "row": 7,
+    "seat_id": "C-7-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-057",
+    "hold_expiry": "2026-11-19T14:38:20.373980Z",
+    "hold_id": "ce434e6f-4aec-48aa-8164-2acadb3d54fe",
+    "position_in_row": 7,
+    "row": 7,
+    "seat_id": "C-7-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-058",
+    "hold_expiry": "2026-11-19T14:38:20.395394Z",
+    "hold_id": "420251f2-41fd-4f78-a671-e5b13a1c61b6",
+    "position_in_row": 8,
+    "row": 7,
+    "seat_id": "C-7-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-059",
+    "hold_expiry": "2026-11-19T14:38:20.436851Z",
+    "hold_id": "3eea057f-de65-4c9d-84e1-991fcf8900ca",
+    "position_in_row": 9,
+    "row": 7,
+    "seat_id": "C-7-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-060",
+    "hold_expiry": "2026-11-19T14:38:20.458343Z",
+    "hold_id": "b57fb91c-492d-4d8d-9816-5ed11743f952",
+    "position_in_row": 10,
+    "row": 7,
+    "seat_id": "C-7-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-061",
+    "hold_expiry": "2026-11-19T14:38:20.488904Z",
+    "hold_id": "5635f2cf-f0fa-4853-a298-7db4592a3d00",
+    "position_in_row": 1,
+    "row": 8,
+    "seat_id": "C-8-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-062",
+    "hold_expiry": "2026-11-19T14:38:20.512163Z",
+    "hold_id": "9fedb36e-ea4f-42a4-b3d3-bf9118f588a3",
+    "position_in_row": 2,
+    "row": 8,
+    "seat_id": "C-8-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-063",
+    "hold_expiry": "2026-11-19T14:38:20.535246Z",
+    "hold_id": "af98116a-ef1a-482a-989a-d7353c167d64",
+    "position_in_row": 3,
+    "row": 8,
+    "seat_id": "C-8-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-064",
+    "hold_expiry": "2026-11-19T14:38:20.557958Z",
+    "hold_id": "ea230efd-3c91-4f7a-ac18-0885d0be4305",
+    "position_in_row": 4,
+    "row": 8,
+    "seat_id": "C-8-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-065",
+    "hold_expiry": "2026-11-19T14:38:20.583389Z",
+    "hold_id": "5b818107-64ff-47b9-a75c-222166ac76c0",
+    "position_in_row": 5,
+    "row": 8,
+    "seat_id": "C-8-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-066",
+    "hold_expiry": "2026-11-19T14:38:20.610567Z",
+    "hold_id": "57a6e1dd-9aba-4109-8664-65d412f6d84d",
+    "position_in_row": 6,
+    "row": 8,
+    "seat_id": "C-8-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-067",
+    "hold_expiry": "2026-11-19T14:38:20.632220Z",
+    "hold_id": "3bf5e09d-9614-4ec8-aa48-80b146b6ebec",
+    "position_in_row": 7,
+    "row": 8,
+    "seat_id": "C-8-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-068",
+    "hold_expiry": "2026-11-19T14:38:20.655306Z",
+    "hold_id": "4f1c37da-7632-4851-bda5-f9aa1a754cb5",
+    "position_in_row": 8,
+    "row": 8,
+    "seat_id": "C-8-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-069",
+    "hold_expiry": "2026-11-19T14:38:20.678191Z",
+    "hold_id": "67f638f0-5f1e-47d4-bd46-07cd07117d52",
+    "position_in_row": 9,
+    "row": 8,
+    "seat_id": "C-8-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-070",
+    "hold_expiry": "2026-11-19T14:38:20.703079Z",
+    "hold_id": "f52aba1f-f3cc-4786-a38c-d3cd3599628b",
+    "position_in_row": 10,
+    "row": 8,
+    "seat_id": "C-8-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-071",
+    "hold_expiry": "2026-11-19T14:38:20.725718Z",
+    "hold_id": "a70455be-d682-47cb-8940-223537c6103f",
+    "position_in_row": 1,
+    "row": 9,
+    "seat_id": "C-9-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-072",
+    "hold_expiry": "2026-11-19T14:38:20.747962Z",
+    "hold_id": "904e3f1d-f8fa-4b9f-8748-481ae27ce575",
+    "position_in_row": 2,
+    "row": 9,
+    "seat_id": "C-9-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-073",
+    "hold_expiry": "2026-11-19T14:38:20.769910Z",
+    "hold_id": "5d35892b-a6e7-4600-ace3-dc8d175de98b",
+    "position_in_row": 3,
+    "row": 9,
+    "seat_id": "C-9-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-074",
+    "hold_expiry": "2026-11-19T14:38:20.792675Z",
+    "hold_id": "f1d32308-1af4-4a1e-bad7-69d24f79e39f",
+    "position_in_row": 4,
+    "row": 9,
+    "seat_id": "C-9-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-075",
+    "hold_expiry": "2026-11-19T14:38:20.815761Z",
+    "hold_id": "2892ee25-aa27-4442-97db-aa114d47110d",
+    "position_in_row": 5,
+    "row": 9,
+    "seat_id": "C-9-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-076",
+    "hold_expiry": "2026-11-19T14:38:20.839639Z",
+    "hold_id": "1b368b2e-d4ca-4c3c-9953-4192a6eb263f",
+    "position_in_row": 6,
+    "row": 9,
+    "seat_id": "C-9-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-077",
+    "hold_expiry": "2026-11-19T14:38:20.864836Z",
+    "hold_id": "b7bee828-b515-42b6-9169-02e916ef928b",
+    "position_in_row": 7,
+    "row": 9,
+    "seat_id": "C-9-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-078",
+    "hold_expiry": "2026-11-19T14:38:20.907600Z",
+    "hold_id": "c0846c0c-fbe3-4b09-beaf-dec4e01e8c01",
+    "position_in_row": 8,
+    "row": 9,
+    "seat_id": "C-9-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-079",
+    "hold_expiry": "2026-11-19T14:38:20.938168Z",
+    "hold_id": "fb482afb-56f4-44ac-9fc3-7f321911812a",
+    "position_in_row": 9,
+    "row": 9,
+    "seat_id": "C-9-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-080",
+    "hold_expiry": "2026-11-19T14:38:20.959692Z",
+    "hold_id": "9e96acb0-dc92-4007-991e-2f99f8720447",
+    "position_in_row": 10,
+    "row": 9,
+    "seat_id": "C-9-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-081",
+    "hold_expiry": "2026-11-19T14:38:20.981391Z",
+    "hold_id": "846d15c3-2f12-4a37-beea-7a414a417cb7",
+    "position_in_row": 1,
+    "row": 10,
+    "seat_id": "C-10-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-082",
+    "hold_expiry": "2026-11-19T14:38:21.002855Z",
+    "hold_id": "72a23738-b741-4610-9c63-29b57832877b",
+    "position_in_row": 2,
+    "row": 10,
+    "seat_id": "C-10-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-083",
+    "hold_expiry": "2026-11-19T14:38:21.023889Z",
+    "hold_id": "8cf68b62-5062-443f-96e8-bd9f64424c1c",
+    "position_in_row": 3,
+    "row": 10,
+    "seat_id": "C-10-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-084",
+    "hold_expiry": "2026-11-19T14:38:21.066563Z",
+    "hold_id": "21dd2f26-9eee-4b14-bd76-a6e1d9dae618",
+    "position_in_row": 4,
+    "row": 10,
+    "seat_id": "C-10-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-085",
+    "hold_expiry": "2026-11-19T14:38:21.091668Z",
+    "hold_id": "aee29cbd-f9c8-4136-ae60-2d48b962b34d",
+    "position_in_row": 5,
+    "row": 10,
+    "seat_id": "C-10-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-086",
+    "hold_expiry": "2026-11-19T14:38:21.117471Z",
+    "hold_id": "9c838945-ba70-4d2c-b806-4dd0a43d37a3",
+    "position_in_row": 6,
+    "row": 10,
+    "seat_id": "C-10-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-087",
+    "hold_expiry": "2026-11-19T14:38:21.162108Z",
+    "hold_id": "e74ce799-d50d-450f-a9c3-d22acfb18eda",
+    "position_in_row": 7,
+    "row": 10,
+    "seat_id": "C-10-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-088",
+    "hold_expiry": "2026-11-19T14:38:21.186105Z",
+    "hold_id": "8f93565d-9f79-4801-8805-2d8356d5a29e",
+    "position_in_row": 8,
+    "row": 10,
+    "seat_id": "C-10-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-089",
+    "hold_expiry": "2026-11-19T14:38:21.215997Z",
+    "hold_id": "74a7aaea-005e-4196-abd6-116bb58b4524",
+    "position_in_row": 9,
+    "row": 10,
+    "seat_id": "C-10-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-090",
+    "hold_expiry": "2026-11-19T14:38:21.240326Z",
+    "hold_id": "55b0661c-69b4-4e2b-844c-8c5eb0d80984",
+    "position_in_row": 10,
+    "row": 10,
+    "seat_id": "C-10-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-091",
+    "hold_expiry": "2026-11-19T14:38:21.263993Z",
+    "hold_id": "701ca7ec-763b-4315-8481-9e921d4b3ba9",
+    "position_in_row": 1,
+    "row": 11,
+    "seat_id": "C-11-1",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-092",
+    "hold_expiry": "2026-11-19T14:38:21.297344Z",
+    "hold_id": "ac90b61c-087e-4e93-aa68-44f37c613a65",
+    "position_in_row": 2,
+    "row": 11,
+    "seat_id": "C-11-2",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-093",
+    "hold_expiry": "2026-11-19T14:38:21.318396Z",
+    "hold_id": "b67d5748-216b-417e-8cd9-57c89098a00e",
+    "position_in_row": 3,
+    "row": 11,
+    "seat_id": "C-11-3",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-094",
+    "hold_expiry": "2026-11-19T14:38:21.340359Z",
+    "hold_id": "becdd7a1-7e7a-40a4-9bb3-1eb38b959e05",
+    "position_in_row": 4,
+    "row": 11,
+    "seat_id": "C-11-4",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-095",
+    "hold_expiry": "2026-11-19T14:38:21.363498Z",
+    "hold_id": "684140d2-9f93-4ca4-afd7-dd075dd06291",
+    "position_in_row": 5,
+    "row": 11,
+    "seat_id": "C-11-5",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-096",
+    "hold_expiry": "2026-11-19T14:38:21.383624Z",
+    "hold_id": "6b521621-e48a-42da-9184-381820e5eb69",
+    "position_in_row": 6,
+    "row": 11,
+    "seat_id": "C-11-6",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-097",
+    "hold_expiry": "2026-11-19T14:38:21.404361Z",
+    "hold_id": "b1e20b6a-b11d-4a7e-9788-2818bee2a04d",
+    "position_in_row": 7,
+    "row": 11,
+    "seat_id": "C-11-7",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-098",
+    "hold_expiry": "2026-11-19T14:38:21.459593Z",
+    "hold_id": "f68a811f-022c-43d6-9672-b8c10dcf9c8f",
+    "position_in_row": 8,
+    "row": 11,
+    "seat_id": "C-11-8",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-099",
+    "hold_expiry": "2026-11-19T14:38:21.482127Z",
+    "hold_id": "f860fad3-9836-433b-a0e4-68ac816bf612",
+    "position_in_row": 9,
+    "row": 11,
+    "seat_id": "C-11-9",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": "tc14-extended-20261119-t04-measured-100",
+    "hold_expiry": "2026-11-19T14:38:21.504874Z",
+    "hold_id": "e174020b-be56-453d-9107-6ec202dd0b65",
+    "position_in_row": 10,
+    "row": 11,
+    "seat_id": "C-11-10",
+    "section": "C",
+    "state": "HELD"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 12,
+    "seat_id": "C-12-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 12,
+    "seat_id": "C-12-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 12,
+    "seat_id": "C-12-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 12,
+    "seat_id": "C-12-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 12,
+    "seat_id": "C-12-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 12,
+    "seat_id": "C-12-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 12,
+    "seat_id": "C-12-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 12,
+    "seat_id": "C-12-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 12,
+    "seat_id": "C-12-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 12,
+    "seat_id": "C-12-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 13,
+    "seat_id": "C-13-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 13,
+    "seat_id": "C-13-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 13,
+    "seat_id": "C-13-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 13,
+    "seat_id": "C-13-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 13,
+    "seat_id": "C-13-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 13,
+    "seat_id": "C-13-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 13,
+    "seat_id": "C-13-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 13,
+    "seat_id": "C-13-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 13,
+    "seat_id": "C-13-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 13,
+    "seat_id": "C-13-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 14,
+    "seat_id": "C-14-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 14,
+    "seat_id": "C-14-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 14,
+    "seat_id": "C-14-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 14,
+    "seat_id": "C-14-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 14,
+    "seat_id": "C-14-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 14,
+    "seat_id": "C-14-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 14,
+    "seat_id": "C-14-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 14,
+    "seat_id": "C-14-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 14,
+    "seat_id": "C-14-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 14,
+    "seat_id": "C-14-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 15,
+    "seat_id": "C-15-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 15,
+    "seat_id": "C-15-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 15,
+    "seat_id": "C-15-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 15,
+    "seat_id": "C-15-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 15,
+    "seat_id": "C-15-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 15,
+    "seat_id": "C-15-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 15,
+    "seat_id": "C-15-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 15,
+    "seat_id": "C-15-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 15,
+    "seat_id": "C-15-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 15,
+    "seat_id": "C-15-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 16,
+    "seat_id": "C-16-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 16,
+    "seat_id": "C-16-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 16,
+    "seat_id": "C-16-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 16,
+    "seat_id": "C-16-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 16,
+    "seat_id": "C-16-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 16,
+    "seat_id": "C-16-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 16,
+    "seat_id": "C-16-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 16,
+    "seat_id": "C-16-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 16,
+    "seat_id": "C-16-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 16,
+    "seat_id": "C-16-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 17,
+    "seat_id": "C-17-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 17,
+    "seat_id": "C-17-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 17,
+    "seat_id": "C-17-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 17,
+    "seat_id": "C-17-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 17,
+    "seat_id": "C-17-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 17,
+    "seat_id": "C-17-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 17,
+    "seat_id": "C-17-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 17,
+    "seat_id": "C-17-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 17,
+    "seat_id": "C-17-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 17,
+    "seat_id": "C-17-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 18,
+    "seat_id": "C-18-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 18,
+    "seat_id": "C-18-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 18,
+    "seat_id": "C-18-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 18,
+    "seat_id": "C-18-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 18,
+    "seat_id": "C-18-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 18,
+    "seat_id": "C-18-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 18,
+    "seat_id": "C-18-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 18,
+    "seat_id": "C-18-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 18,
+    "seat_id": "C-18-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 18,
+    "seat_id": "C-18-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 19,
+    "seat_id": "C-19-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 19,
+    "seat_id": "C-19-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 19,
+    "seat_id": "C-19-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 19,
+    "seat_id": "C-19-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 19,
+    "seat_id": "C-19-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 19,
+    "seat_id": "C-19-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 19,
+    "seat_id": "C-19-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 19,
+    "seat_id": "C-19-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 19,
+    "seat_id": "C-19-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 19,
+    "seat_id": "C-19-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 1,
+    "row": 20,
+    "seat_id": "C-20-1",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 2,
+    "row": 20,
+    "seat_id": "C-20-2",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 3,
+    "row": 20,
+    "seat_id": "C-20-3",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 4,
+    "row": 20,
+    "seat_id": "C-20-4",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 5,
+    "row": 20,
+    "seat_id": "C-20-5",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 6,
+    "row": 20,
+    "seat_id": "C-20-6",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 7,
+    "row": 20,
+    "seat_id": "C-20-7",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 8,
+    "row": 20,
+    "seat_id": "C-20-8",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 9,
+    "row": 20,
+    "seat_id": "C-20-9",
+    "section": "C",
+    "state": "AVAILABLE"
+  },
+  {
+    "held_by_request_id": null,
+    "hold_expiry": null,
+    "hold_id": null,
+    "position_in_row": 10,
+    "row": 20,
+    "seat_id": "C-20-10",
+    "section": "C",
+    "state": "AVAILABLE"
+  }
+]

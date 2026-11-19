@@ -94,6 +94,17 @@ not the number of database transactions executing simultaneously. It checks real
 PostgreSQL invariants. C1/C2/C3/C4 are 10/50/100/500 requests; calibrate before the
 larger runs. Maximum client workers is 64.
 
+## TC-14 extended seat-store baseline
+
+With the project Kind cluster and images already available, run from the repository root:
+
+```powershell
+python experiments/tc14_extended.py --run tc14-extended-repro01
+python experiments/tc14_report.py --run tc14-extended-repro01 --output output/tc14-repro01
+```
+
+The collector uses host Python 3.10+ and the project launcher. The offline exporter requires Matplotlib. Allow 5–10 minutes for deployment, measurement, SQL verification and cleanup. Use a new run ID and export directory each time. The collector creates one disposable namespace per trial and saves raw observations under `.local/test-results/<run-id>/`. Run without concurrent benchmarks or changes to the cluster. See the [protocol and recorded results](../docs/TC14_EXTENDED_RESULTS.md).
+
 ## Trace replay and equivalent FCFS
 
 ```powershell
