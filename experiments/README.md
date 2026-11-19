@@ -1,5 +1,11 @@
 # Lab measurement and testing tools
 
+<!-- followup-20261119:latest-results:start -->
+**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+
+No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+<!-- followup-20261119:latest-results:end -->
+
 Recorded final local status: all 25 documented cases PASS, comprising 15 newly
 verified cases plus 10 full-scope final v9 cases independently re-audited.
 The evidence audit passed 77 new and 244 original-workload checks (321 total).
@@ -183,6 +189,9 @@ Cost analysis is excluded.
 
 For the full surge repetitions, fixed-replica/capacity grids and automated HPA
 baseline/spike/recovery/repeat cycle, use [the scaling study procedure](SCALING_STUDIES.md).
+
+For the additional F2/F3/F6 seed comparisons, repeated HPA cycles and bounded
+200/250/300 requests/s capacity grid, use [the follow-up procedure](FOLLOWUP_STUDIES.md).
 
 `build_instructions.py` is the PDF renderer for the current editable submission
 Markdown. Re-render and inspect the PDF after changes.

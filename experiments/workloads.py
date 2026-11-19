@@ -9,6 +9,7 @@ import math
 import random
 import threading
 import time
+import control
 
 from runtime import api, guard_lab, invariants, k, request, utc, write_json
 from fairness import fairness_summary
@@ -106,7 +107,7 @@ def registration(base, payload):
             return dict(outcome='ACCEPTED', request=response['data'], attempts=attempts)
         if 400 <= response['status'] < 500:
             return dict(outcome='REJECTED', attempts=attempts)
-        time.sleep(.2)
+        control.sleep(.2)
     # Unknown replies are reconciled with the same identity, not a new UUID.
     response = request(base, 'waiting-room/queue')
     if response['status'] == 200:
@@ -222,11 +223,13 @@ def summarize(rows, initial, final, elapsed):
     requested_seats=sum(row['party_size'] for row in rows)
     reserved_seats=sum(row['party_size'] for row in rows if row.get('allocation_state')=='RESERVED')
     confirmed_seats=sum(row['party_size'] for row in rows if row.get('outcome')=='CONFIRMED')
+    waits=[row['decision_wait_seconds'] for row in rows if row.get('decision_wait_seconds') is not None]
     return dict(customers=len(rows), outcomes=outcomes, elapsed_seconds=elapsed,
         allocation_decisions_per_second=decided/elapsed if elapsed else None,
         reservations=sum(row.get('allocation_state') == 'RESERVED' for row in rows),
         confirmations=outcomes.get('CONFIRMED', 0), groups=groups, fairness=fairness_summary(groups), overtakes=overtakes,
         requested_seats=requested_seats,reserved_trace_seats=reserved_seats,confirmed_trace_seats=confirmed_seats,
+        measured_waits=len(waits),median_wait_seconds=percentile(waits,50),p95_wait_seconds=percentile(waits,95),
         seat_reservation_rate=reserved_seats/requested_seats if requested_seats else None,
         seat_confirmation_rate=confirmed_seats/requested_seats if requested_seats else None,
         incremental_venue_utilization=confirmed_seats/len(final) if final else None,
@@ -340,7 +343,7 @@ def replay(base, trace, directory, timeout=420):
                 write_rows(directory, rows)
                 if all(row['outcome'] in final_states for row in active):
                     break
-                time.sleep(.5)
+                control.sleep(.5)
             if any(row['outcome'] not in final_states for row in active):
                 break
         # Load all recorded fixed-batch jobs, including unsuccessful decisions.
@@ -379,11 +382,14 @@ def replay(base, trace, directory, timeout=420):
         write_json(directory / 'inventory-after.json', final)
         return result
     finally:
-        if original_dispatcher is not None:
-            k('scale', 'deployment/dispatcher-worker', f'--replicas={original_dispatcher}')
-        for row in rows:
-            row.pop('reserved_observed_at', None)
-        write_rows(directory, rows)
+        try:
+            with control.cleanup():
+                if original_dispatcher is not None:
+                    k('scale', 'deployment/dispatcher-worker', f'--replicas={original_dispatcher}')
+        finally:
+            for row in rows:
+                row.pop('reserved_observed_at', None)
+            write_rows(directory, rows)
 
 
 def arrival_schedule(rate,duration,profile):
@@ -395,16 +401,26 @@ def arrival_schedule(rate,duration,profile):
             for i in range(math.ceil((end-start)*rps)) if start+i/rps<end]
 
 
-def registration_load(base, directory, rate=5, duration=10, profile='constant', admit=False, timeout=600, fresh=True):
+def validate_load(rate, duration, allow_high_rate_lab=False):
+    limit=300 if allow_high_rate_lab else 200
+    if not 1 <= rate <= limit or not 1 <= duration <= 300 or rate*duration > 20000:
+        raise ValueError(f'Use 1-{limit}/s, 1-300 seconds and at most 20,000 offered arrivals; '
+                         '201-300/s requires explicit allow_high_rate_lab opt-in')
+
+
+def registration_load(base, directory, rate=5, duration=10, profile='constant', admit=False, timeout=600, fresh=True,
+                      allow_high_rate_lab=False):
+    validate_load(rate,duration,allow_high_rate_lab)
     context=guard_lab(base)
-    if not 1 <= rate <= 200 or not 1 <= duration <= 300 or rate*duration > 20000:
-        raise ValueError('Use 1-200/s, 1-300 seconds and at most 20,000 offered arrivals')
     status = api(base, 'waiting-room/status')
     if fresh and (status['sale_state'] != 'pre_sale' or status['waiting_count'] != 0):
         raise RuntimeError('Registration load needs an empty pre-sale lab')
     from loadgen import generate
     rows = []
     schedule = arrival_schedule(rate,duration,profile)
+    write_json(directory/'schedule.json',dict(rate=rate,duration=duration,profile=profile,
+        planned_requests=len(schedule),allow_high_rate_lab=allow_high_rate_lab,
+        arrivals=[dict(scheduled_seconds=t,phase=p) for t,p in schedule]))
     try:
         generator = generate(base, schedule, directory.name, rows)
     finally:
@@ -412,28 +428,32 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
         write_rows(directory, rows, 'arrivals')
     elapsed = generator['elapsed']
     write_json(directory/'generator.json',generator)
-    queue = api(base, 'waiting-room/queue')['requests']
-    by_user = {party['user_id']: party for party in queue}
+    reconciliation_error=None
+    try:queue = api(base, 'waiting-room/queue')['requests']
+    except RuntimeError as error:
+        queue=None;reconciliation_error=str(error)
+        write_json(directory/'reconciliation-unavailable.json',dict(at=utc(),error=reconciliation_error))
+    by_user = {party['user_id']: party for party in (queue or [])}
     missing, reconciled = [], 0
     for row in rows:
         stored = by_user.get(row['payload']['user_id'])
         row['stored_request_id'] = stored.get('request_id') if stored else None
-        if row['outcome'] == 'ACCEPTED' and (not stored or stored['request_id'] != row['response']['data']['request_id']):
+        if queue is not None and row['outcome'] == 'ACCEPTED' and (not stored or stored['request_id'] != row['response']['data']['request_id']):
             missing.append(row['payload']['user_id'])
         if row['outcome'] in ('UNKNOWN', 'TIMED_OUT') and stored:
             row['outcome'] = 'ACCEPTED_RECONCILED'; reconciled += 1
     latencies = [row['response']['elapsed_ms'] for row in rows if 'response' in row]
     # Retain arrivals even if sale opening or draining is interrupted later.
     write_rows(directory,rows,'arrivals')
-    write_json(directory/'registered-queue.json',queue)
+    if queue is not None:write_json(directory/'registered-queue.json',queue)
     outcomes = Counter(row['outcome'] for row in rows)
     admission = None
-    if admit:
+    if admit and reconciliation_error is None:
         admission_started=time.perf_counter()
         deadline=time.monotonic()+timeout
         while api(base,'waiting-room/sale/start',{}).get('sale_state') != 'sale_started':
             if time.monotonic()>=deadline: raise RuntimeError('Opening timed out')
-            time.sleep(.5)
+            control.sleep(.5)
         numbered=api(base,'waiting-room/queue')['requests']
         write_json(directory/'numbered-queue.json',numbered)
         current=numbered
@@ -441,7 +461,7 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
         while time.monotonic()<deadline:
             current=api(base,'waiting-room/queue')['requests']
             if all(p['status'] not in ('REGISTERED','QUEUED','ADMITTED') for p in current): break
-            time.sleep(1)
+            control.sleep(1)
         current_by_id={p['request_id']:p for p in current}
         changed=[rid for rid,position in original.items() if
                  rid not in current_by_id or current_by_id[rid].get('queue_number')!=position]
@@ -458,7 +478,7 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
                        changed_or_missing_ids=changed, unresolved_ids=unresolved,
                        outcomes=dict(Counter(p['status'] for p in current)), invariants=invariants())
         write_json(directory/'admission.json',admission)
-    passed=len(rows)==len(schedule) and all(row['outcome'].startswith('ACCEPTED') for row in rows)
+    passed=reconciliation_error is None and len(rows)==len(schedule) and all(row['outcome'].startswith('ACCEPTED') for row in rows)
     launch_lags=[max(0,r['launched_seconds']-r['scheduled_seconds']) for r in rows if 'launched_seconds' in r]
     faithful=bool(launch_lags) and len(launch_lags)==len(rows) and max(launch_lags)<=1
     if not faithful:passed=False
@@ -472,6 +492,13 @@ def registration_load(base, directory, rate=5, duration=10, profile='constant', 
                   workload='registrations followed by admission; no client checkout' if admit else 'registration-only; no seat contention or payment', profile=profile, rate=rate, duration=duration,
                   elapsed_including_drain=elapsed, offered=len(rows), outcomes=dict(outcomes), admission=admission,
                   generator=generator,timing_fidelity=faithful,
+                  reconciliation_error=reconciliation_error,identity_verification_complete=reconciliation_error is None,
+                  allow_high_rate_lab=allow_high_rate_lab,
+                  generator_headroom=dict(capacity=generator['capacity'],peak_in_flight=generator['peak_in_flight'],
+                      spare_at_peak=generator['capacity']-generator['peak_in_flight'],
+                      cpu_fraction=generator['cpu_seconds']/elapsed if elapsed else None,
+                      interpretation='Observed task headroom and launch lag; the 4096 pool cannot cover 300/s for a full 15s timeout. '
+                                     'Drops, missing launches or lag >1s invalidate load delivery, not system capacity.'),
                   scheduled=len(schedule),launched=sum('launched_seconds' in r for r in rows),
                   accepted=sum(r['outcome'].startswith('ACCEPTED') for r in rows),
                   rejected=sum(r['outcome']=='REJECTED' for r in rows),
@@ -523,11 +550,19 @@ def contention(base, directory, count=10, workers=10, mixed=False):
             return row
         finally:
             row['finished_seconds'] = time.monotonic()-started
-            with lock: active -= 1
-    with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = [pool.submit(hold, index) for index in range(count)]
-        gate.set()
-        rows = [future.result() for future in futures]
+            with lock:
+                active -= 1
+                row.setdefault('outcome','INTERRUPTED')
+                rows.append(row)
+    rows=[]
+    try:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(hold, index) for index in range(count)]
+            gate.set()
+            for future in futures:
+                future.result()
+    finally:
+        write_rows(directory,rows)
     checks = invariants()
     final = api(base, 'seats/seats/C')
     outcomes = dict(Counter(row['outcome'] for row in rows))

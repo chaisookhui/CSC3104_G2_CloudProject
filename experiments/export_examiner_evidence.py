@@ -23,7 +23,7 @@ def main():
     files.update(f for f in out.rglob('*') if f.is_file() and f.suffix not in ('.zip','.pyc') and f.name not in ('evidence-manifest.json','export-verification.json','evidence-zip.sha256'))
     for name in ('examiner_verify.py','examiner_browser.cjs','examiner_audit.py','build_all25_report.py','export_examiner_evidence.py','runtime.py','workloads.py','acceptance.py','SCALING_STUDIES.md','EXAMINER_VERIFICATION.md'):
         files.add(ROOT/'experiments'/name)
-    for name in ('GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf','GROUP02_Test_Results_and_Distributed_Concepts_Report.md','GROUP02_Combined_Test_Results.pdf','GROUP02_INSTRUCTIONS.pdf','GROUP02_INSTRUCTIONS.md'):
+    for name in ('GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf','GROUP02_Test_Results_and_Distributed_Concepts_Report.md','GROUP02_INSTRUCTIONS.pdf','GROUP02_INSTRUCTIONS.md'):
         files.add(ROOT/'output/pdf'/name)
     values=set()
     for source in (ROOT/'.local/k8s').glob('secrets-*.json'):

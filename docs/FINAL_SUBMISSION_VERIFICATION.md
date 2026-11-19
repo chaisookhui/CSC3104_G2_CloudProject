@@ -1,5 +1,9 @@
 # Final documentation and submission verification
 
+<!-- followup-20261119:historical-notice:start -->
+**Historical verification snapshot:** page counts and package checks below describe the earlier November 14 documents. Current results/instructions now include the November 19 follow-up; see [documentation synchronization](FOLLOWUP_DOCUMENTATION_UPDATE.md). Existing sealed packages were not overwritten. Current document hashes are recorded separately.
+<!-- followup-20261119:historical-notice:end -->
+
 **Earlier verification snapshot:** this report records the completed submission
 synchronisation of the previous 23-page guide. Its original findings are retained
 below. The later 26-page examiner edition and refreshed package checks are in

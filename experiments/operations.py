@@ -1,9 +1,10 @@
 """API replica comparison and optional CPU autoscaling in the private Kind lab."""
 import json
 import time
+import control
 from collections import Counter
 from runtime import LAB, api, capture, invariants, k, lab_connection, local, setup_lab, utc, write_json
-from workloads import arrival_schedule, registration_load
+from workloads import arrival_schedule, registration_load, validate_load
 from observability import monitor, preflight, ready_replicas
 
 
@@ -101,7 +102,7 @@ def worker_drain_diagnostic(base,directory,phases,samples,limit=2400):
             except RuntimeError as error:
                 result['observation_errors'].append(dict(at=utc(),message=str(error)))
                 write_json(directory/'extended-drain.json',result)
-                time.sleep(1)
+                control.sleep(1)
                 continue
             missing=expected-{p['request_id'] for p in queue}
             if missing:
@@ -112,12 +113,12 @@ def worker_drain_diagnostic(base,directory,phases,samples,limit=2400):
                 result.update(drained=True,drained_at=utc(),drained_monotonic=time.monotonic(),
                               terminal_counts=dict(Counter(p['status'] for p in queue)))
                 break
-        time.sleep(1)
+        control.sleep(1)
     if result['drained']:
         phases['idle_observation']=dict(at=utc(),monotonic=time.monotonic(),rate=0,duration=300)
         write_json(directory/'phases.json',phases)
         end=time.monotonic()+300
-        while time.monotonic()<end:time.sleep(min(1,max(0,end-time.monotonic())))
+        while time.monotonic()<end:control.sleep(min(1,max(0,end-time.monotonic())))
     result['finished_at']=utc()
     write_json(directory/'extended-drain.json',result)
     return result
@@ -154,19 +155,19 @@ def hpa_trial(directory,target):
                 # Fast final responses must not shorten a nominal baseline/high
                 # phase (e.g. 1/s ends its last request at second 119 of 120).
                 remaining=duration-(time.monotonic()-phases[name]['monotonic'])
-                if remaining>0:time.sleep(remaining)
+                if remaining>0:control.sleep(remaining)
                 loads.append(result)
                 return result
             # The original 9,450-arrival spike is retained, plus baseline and
             # repeat phases. Worker demand is tested with the sale genuinely open.
             if target=='allocation-worker':
-                while api(base,'waiting-room/sale/start',{})['sale_state']!='sale_started': time.sleep(.5)
+                while api(base,'waiting-room/sale/start',{})['sale_state']!='sale_started': control.sleep(.5)
             load('baseline',1 if target=='allocation-worker' else 2,120)
             load('high',100,180,'spike')
             phases['recovery']=dict(at=utc(),monotonic=time.monotonic(),rate=0,duration=600)
             write_json(directory/'phases.json',phases)
             deadline=time.monotonic()+600
-            while time.monotonic()<deadline: time.sleep(min(1,max(0,deadline-time.monotonic())))
+            while time.monotonic()<deadline: control.sleep(min(1,max(0,deadline-time.monotonic())))
             recovery_unresolved=None
             checkpoint=None;extended=None
             if target=='allocation-worker':
@@ -187,11 +188,12 @@ def hpa_trial(directory,target):
                     extended=worker_drain_diagnostic(base,directory,phases,samples)
             load('repeat',100,180,'spike')
             # Allow the final burst's HPA metrics window to be observed.
-            time.sleep(30)
+            control.sleep(30)
         return finalize_hpa(directory,target,base,samples)
     finally:
         # Removing the HPA is cleanup, never counted as observed scale-in.
-        k('delete','hpa',target,'--ignore-not-found')
+        with control.cleanup():
+            k('delete','hpa',target,'--ignore-not-found')
 
 
 def finalize_hpa(directory,target,base,samples=None):
@@ -234,6 +236,16 @@ def finalize_hpa(directory,target,base,samples=None):
             ('baseline_one','scale_out','scale_in','repeat_scale_out')) and cpu['exceeds_target']
             and cpu['recovered_below_target'] and checks['violations']==0 else 'INCONCLUSIVE')
     if target=='allocation-worker':
+        api_dependency=[]
+        for sample in samples:
+            deployment=next((d for d in sample.get('deployments',{}).get('items',[]) if d['metadata']['name']=='waiting-room'),{})
+            api_dependency.append(dict(at=sample.get('at'),desired=deployment.get('spec',{}).get('replicas'),
+                ready=deployment.get('status',{}).get('readyReplicas'),
+                hpa_attached=any(h['spec']['scaleTargetRef']['name']=='waiting-room' for h in sample.get('hpa',{}).get('items',[]))))
+        result['fixed_api_observations']=api_dependency
+        result['fixed_api_four_ready_throughout']=bool(api_dependency) and all(
+            p['desired']==p['ready']==4 and not p['hpa_attached'] for p in api_dependency)
+        if not result['fixed_api_four_ready_throughout']:result['status']='INCONCLUSIVE'
         backlog=samples[-1].get('backlog',{}) if samples else {}
         result['remaining_backlog']=backlog
         result['demand_interpretation']='Real sale-open allocation jobs; CPU must correlate with backlog. No synthetic CPU burners or manual scaling.'
@@ -268,19 +280,25 @@ def finalize_hpa(directory,target,base,samples=None):
     return result
 
 
-def scale_api(directory,rate=50,duration=30,repeats=3,rates=None,resume=False):
+def scale_api(directory,rate=50,duration=30,repeats=3,rates=None,resume=False,allow_high_rate_lab=False,replica_counts=None):
     if not 1<=repeats<=5:raise ValueError('Use 1-5 repeats')
+    for offered_rate in (rates or [rate]):validate_load(offered_rate,duration,allow_high_rate_lab)
+    replica_counts=replica_counts or [1,2,4]
+    if not replica_counts or len(set(replica_counts))!=len(replica_counts) or any(n not in (1,2,4) for n in replica_counts):
+        raise ValueError('Use distinct fixed API replica counts from 1,2,4')
     results=[]
     image_signature=None
+    control.plan([f'rate-{offered}-repeat-{repeat+1}-replicas-{replicas}'
+                  for repeat in range(repeats) for offered in (rates or [rate]) for replicas in replica_counts])
     def images(snapshot):
         return {name:sorted({c['imageID'] for pod in snapshot['pods'] if pod['name'].startswith(name+'-')
                             for c in pod['containers']})
                 for name in ('waiting-room','frontend','dispatcher-worker','allocation-worker','seat-api','payment-api')}
     for repeat in range(repeats):
       for offered_rate in (rates or [rate]):
-        for replicas in ([1,2,4] if repeat%2==0 else [4,2,1]):
+        for replicas in (replica_counts if repeat%2==0 else list(reversed(replica_counts))):
             child=directory/f'rate-{offered_rate}-repeat-{repeat+1}-replicas-{replicas}'
-            if child.exists():
+            if not control.active() and child.exists():
                 if not resume or not (child/'summary.json').exists():
                     raise RuntimeError('Existing incomplete trial is preserved; use a new cohort: '+str(child))
                 previous=json.loads((child/'summary.json').read_text())
@@ -291,48 +309,66 @@ def scale_api(directory,rate=50,duration=30,repeats=3,rates=None,resume=False):
                 image_signature=signature
                 results.append(previous)
                 continue
-            setup_lab(True,'demand-cycle',300,10)
-            k('delete','hpa','waiting-room','allocation-worker','--ignore-not-found')
-            k('scale','deployment/waiting-room','--replicas='+str(replicas))
-            k('rollout','status','deployment/waiting-room','--timeout=180s')
-            if not ready_replicas('waiting-room',replicas):
-                raise RuntimeError('Requested waiting-room replicas are not all ready')
-            child.mkdir()
-            with lab_connection() as base:
-                write_json(child/'preflight.json',preflight(base))
-                before=capture(base,'api-scale','before')
-                write_json(child/'before.json',before)
-                signature=images(before)
-                if image_signature is not None and signature!=image_signature:raise RuntimeError('Application images changed before trial; preserve this cohort')
-                image_signature=signature
-                with monitor(child) as samples:
-                    result=registration_load(base,child,offered_rate,duration,'constant')
-                write_json(child/'after.json',capture(base,'api-scale','after'))
-            rows=json.loads((child/'arrivals.json').read_text())
-            result['served_by_instance']=dict(Counter(r['response'].get('instance') for r in rows if r.get('response',{}).get('instance')))
-            result['replicas']=replicas;result['repeat']=repeat+1
-            result['distinct_serving_replicas']=len(result['served_by_instance'])
-            observed=[];metric_counts=[];hpa_interference=False
-            for sample in samples:
-                deployment=next((d for d in sample.get('deployments',{}).get('items',[]) if d['metadata']['name']=='waiting-room'),None)
-                if deployment:observed.append(deployment.get('status',{}).get('readyReplicas',0))
-                hpa_interference|=any(h['spec']['scaleTargetRef']['name']=='waiting-room' for h in sample.get('hpa',{}).get('items',[]))
-                pod_names={p['metadata']['name'] for p in sample.get('pods',{}).get('items',[]) if p['metadata'].get('labels',{}).get('app')=='waiting-room'}
-                metric_counts.append(sum(p['metadata']['name'] in pod_names for p in sample.get('metrics',{}).get('items',[])))
-            result['observed_ready_replicas']=sorted(set(observed))
-            result['resource_metrics_cover_all_replicas']=bool(metric_counts) and max(metric_counts)>=replicas
-            result['hpa_interference']=hpa_interference
-            if (result['distinct_serving_replicas']!=replicas or observed!=[replicas]*len(samples)
-                    or not result['resource_metrics_cover_all_replicas'] or hpa_interference) and result['status']=='PASS':
-                result['status']='INCONCLUSIVE'
-            # Capacity-study SLO, specified before execution. Fixed-load correctness
-            # and timing requirements remain unchanged, even above this SLO.
-            result['sustainable']=(result['status']=='PASS' and result['http_failed']==0
-                and result['p95_ms']<=1000 and result['achieved_registration_rps']>=offered_rate*.95)
-            write_json(child/'summary.json',result);results.append(result)
-            write_json(directory/'partial-results.json',results)
+            prior=json.loads((child/'summary.json').read_text()) if (child/'summary.json').exists() else None
+            if prior and any(prior.get(k)!=v for k,v in dict(rate=offered_rate,duration=duration,replicas=replicas,repeat=repeat+1,profile='constant').items()):
+                raise RuntimeError('Resume conditions differ from the recorded trial')
+            with control.unit(child.name,child,prior) as trial:
+                if trial.skip:
+                    previous=trial.result
+                    signature=images(json.loads((trial.directory/'before.json').read_text()))
+                    if image_signature is not None and signature!=image_signature:raise RuntimeError('Application images differ within cohort')
+                    image_signature=signature
+                    results.append(previous)
+                    continue
+                child=trial.directory
+                setup_lab(True,'demand-cycle',300,10)
+                k('delete','hpa','waiting-room','allocation-worker','--ignore-not-found')
+                k('scale','deployment/waiting-room','--replicas='+str(replicas))
+                k('rollout','status','deployment/waiting-room','--timeout=180s')
+                if not ready_replicas('waiting-room',replicas):
+                    raise RuntimeError('Requested waiting-room replicas are not all ready')
+                child.mkdir(exist_ok=True)
+                with lab_connection() as base:
+                    write_json(child/'preflight.json',preflight(base))
+                    before=capture(base,'api-scale','before')
+                    write_json(child/'before.json',before)
+                    signature=images(before)
+                    if image_signature is not None and signature!=image_signature:raise RuntimeError('Application images changed before trial; preserve this cohort')
+                    image_signature=signature
+                    with monitor(child) as samples:
+                        result=registration_load(base,child,offered_rate,duration,'constant',allow_high_rate_lab=allow_high_rate_lab)
+                    try:write_json(child/'after.json',capture(base,'api-scale','after'))
+                    except RuntimeError as error:
+                        write_json(child/'after-unavailable.json',dict(at=utc(),error=str(error)))
+                        result['after_capture_error']=str(error)
+                        if result['status']=='PASS':result['status']='INCONCLUSIVE'
+                rows=json.loads((child/'arrivals.json').read_text())
+                result['served_by_instance']=dict(Counter(r['response'].get('instance') for r in rows if r.get('response',{}).get('instance')))
+                result['replicas']=replicas;result['repeat']=repeat+1
+                result['distinct_serving_replicas']=len(result['served_by_instance'])
+                observed=[];metric_counts=[];hpa_interference=False
+                for sample in samples:
+                    deployment=next((d for d in sample.get('deployments',{}).get('items',[]) if d['metadata']['name']=='waiting-room'),None)
+                    if deployment:observed.append(deployment.get('status',{}).get('readyReplicas',0))
+                    hpa_interference|=any(h['spec']['scaleTargetRef']['name']=='waiting-room' for h in sample.get('hpa',{}).get('items',[]))
+                    pod_names={p['metadata']['name'] for p in sample.get('pods',{}).get('items',[]) if p['metadata'].get('labels',{}).get('app')=='waiting-room'}
+                    metric_counts.append(sum(p['metadata']['name'] in pod_names for p in sample.get('metrics',{}).get('items',[])))
+                result['observed_ready_replicas']=sorted(set(observed))
+                result['resource_metrics_cover_all_replicas']=bool(metric_counts) and max(metric_counts)>=replicas
+                result['hpa_interference']=hpa_interference
+                if (result['distinct_serving_replicas']!=replicas or observed!=[replicas]*len(samples)
+                        or not result['resource_metrics_cover_all_replicas'] or hpa_interference) and result['status']=='PASS':
+                    result['status']='INCONCLUSIVE'
+                # Capacity-study SLO, specified before execution. Fixed-load correctness
+                # and timing requirements remain unchanged, even above this SLO.
+                result['sustainable']=(result['status']=='PASS' and result['http_failed']==0
+                    and result['p95_ms']<=1000 and result['achieved_registration_rps']>=offered_rate*.95)
+                write_json(child/'summary.json',result);results.append(result)
+                write_json(directory/'partial-results.json',results)
+                trial.complete(result)
     result=dict(status='PASS' if all(r['status']=='PASS' for r in results) else 'INCONCLUSIVE',results=results,
         repetitions=repeats, rates=rates or [rate], resumed=resume,application_images=image_signature,
+        allow_high_rate_lab=allow_high_rate_lab,replica_counts=replica_counts,
         capacity_slo='P95 <= 1000 ms, achieved >= 95% offered rate, zero HTTP failures, complete delivery within 1s launch lag, correct IDs and SQL, all requested replicas serving.',
         interpretation='Identical offered rate/duration and seed; alternating replica order. '
         'A pass means workload completeness, not a throughput speedup. Port-forward and frontend can be bottlenecks.')

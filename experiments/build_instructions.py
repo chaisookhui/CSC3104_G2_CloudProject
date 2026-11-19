@@ -1,12 +1,14 @@
 """Render the submission Markdown as a bookmarked A4 PDF.
 
 Author/edit output/pdf/GROUP02_INSTRUCTIONS.md, then run this script with
-a Python runtime containing reportlab. No application services are contacted.
+a Python runtime containing reportlab and pypdf. No application services are contacted.
 """
 from html import escape
+from io import BytesIO
 from pathlib import Path
 import re
 
+from pypdf import PdfReader, PdfWriter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -133,7 +135,7 @@ def page(canvas, doc):
     canvas.line(42, h-29, w-42, h-29)
     canvas.setFillColor(MUTED)
     canvas.setFont('Helvetica', 7.3)
-    canvas.drawString(42, h-42, 'CSC3104 / GROUP 02 / TESTING INSTRUCTIONS / 14 NOV 2026')
+    canvas.drawString(42, h-42, 'CSC3104 / GROUP 02 / TESTING INSTRUCTIONS')
     canvas.setStrokeColor(colors.HexColor('#D9E0E7'))
     canvas.setLineWidth(.5)
     canvas.line(42, 34, w-42, 34)
@@ -176,6 +178,8 @@ def build():
             story.append(PageBreak())
         elif line == '<!-- architecture -->':
             story.extend([Diagram(), Spacer(1, 12)])
+        elif line.startswith('<!--') and line.endswith('-->'):
+            continue
         elif line.startswith('```'):
             block = []
             while i < len(lines) and not lines[i].startswith('```'):
@@ -231,6 +235,14 @@ def build():
                                        leftPadding=0, rightPadding=0,
                                        topPadding=0, bottomPadding=0)], onPage=page)])
     doc.build(story)
+    # Keep the public guide undated, including the document properties.
+    reader = PdfReader(BytesIO(output.read_bytes()))
+    writer = PdfWriter()
+    writer.clone_document_from_reader(reader)
+    writer.metadata = {key: value for key, value in (reader.metadata or {}).items()
+                       if key not in ('/CreationDate', '/ModDate')}
+    with output.open('wb') as stream:
+        writer.write(stream)
     print('Created:', output)
 
 

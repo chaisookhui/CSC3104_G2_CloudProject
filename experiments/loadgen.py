@@ -8,6 +8,7 @@ import asyncio
 import json
 import random
 import time
+import control
 
 from runtime import request_headers, utc
 
@@ -59,6 +60,10 @@ async def arrivals(base, schedule, identity, rows, capacity=4096, timeout=15):
                 row['outcome'] = ('ACCEPTED' if response.status in (200, 201)
                     and isinstance(data, dict) and data.get('request_id') else
                     'REJECTED' if 400 <= response.status < 500 else 'UNKNOWN')
+        except asyncio.CancelledError:
+            row.update(outcome='INTERRUPTED', completed_seconds=time.perf_counter()-started,
+                       response=dict(status=0,data=None,error='CancelledForPause'))
+            raise
         except (aiohttp.ClientError, OSError, asyncio.TimeoutError) as error:
             row['response'] = dict(status=0, data=None, error=type(error).__name__,
                 error_message=str(error),os_errno=getattr(error,'errno',None),
@@ -86,7 +91,7 @@ async def arrivals(base, schedule, identity, rows, capacity=4096, timeout=15):
         session_seconds = started-session_started
         try:
             for index, (scheduled, phase) in enumerate(schedule):
-                await asyncio.sleep(max(0, started+scheduled-time.perf_counter()))
+                await control.async_sleep(max(0, started+scheduled-time.perf_counter()))
                 for task in pending:
                     if task.done(): task.result()
                 pending = {task for task in pending if not task.done()}
@@ -99,7 +104,12 @@ async def arrivals(base, schedule, identity, rows, capacity=4096, timeout=15):
                     peak = max(peak, len(pending))
                 else:
                     row['drop_reason']='concurrency_capacity_exhausted'
-            await asyncio.gather(*pending)
+            while pending:
+                control.immediate()
+                done, _ = await asyncio.wait(pending, timeout=.1, return_when=asyncio.FIRST_COMPLETED)
+                for task in done:
+                    task.result()
+                pending.difference_update(done)
         finally:
             # Do not leave active requests after an interrupted run.
             for task in pending:

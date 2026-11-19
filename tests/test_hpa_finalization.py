@@ -20,7 +20,9 @@ class HpaFinalizationTests(unittest.TestCase):
             (p/'arrivals.json').write_text(json.dumps([dict(outcome='ACCEPTED',stored_request_id=name,
                 phase='baseline' if name=='baseline' else 'surge',scheduled_seconds=0,launched_seconds=0,
                 response={'status':201})] if rows else []))
-        return [dict(monotonic=800,backlog={}),dict(monotonic=1085,backlog={})]
+        return [dict(monotonic=t,backlog={},deployments={'items':[
+            dict(metadata={'name':'waiting-room'},spec={'replicas':4},status={'readyReplicas':4})]})
+            for t in (800,1085)]
 
     def assessment(self,root,samples,target):
         transitions=dict(baseline_one=True,scale_out=True,scale_in=True,repeat_scale_out=True)
@@ -35,6 +37,17 @@ class HpaFinalizationTests(unittest.TestCase):
             result=self.assessment(root,samples,'waiting-room')
             self.assertEqual(result['status'],'INCONCLUSIVE')
             self.assertTrue(all(not c['meets_delivery'] for c in result['phase_checks'].values()))
+
+    def test_worker_dependency_must_remain_four_ready_without_an_api_hpa(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);samples=self.files(root,True)
+            samples[0]['deployments']['items'][0]['status']['readyReplicas']=3
+            (root/'ten-minute-checkpoint.json').write_text(json.dumps(dict(unresolved_ids=[],window_met=True,ready_replicas=1)))
+            def schedule(rate,duration,profile):return [(0,'baseline' if profile=='constant' else 'surge')]
+            with patch('operations.arrival_schedule',side_effect=schedule):
+                result=self.assessment(root,samples,'allocation-worker')
+            self.assertFalse(result['fixed_api_four_ready_throughout'])
+            self.assertEqual(result['status'],'INCONCLUSIVE')
 
     def test_extended_cycle_cannot_erase_a_missed_ten_minute_checkpoint(self):
         with tempfile.TemporaryDirectory() as folder:

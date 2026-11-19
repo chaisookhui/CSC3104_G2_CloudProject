@@ -184,7 +184,7 @@ historical run source fingerprints describe the code at those measurement times.
                 raw[PREFIX+name]=safe(name,z.read(info))
     for path in (OUT/'graphs').iterdir():
         if path.is_file():raw[PREFIX+'review/graphs/'+path.name]=path.read_bytes()
-    for name in ('GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf','GROUP02_Test_Results_and_Distributed_Concepts_Report.md','GROUP02_Combined_Test_Results.pdf','GROUP02_INSTRUCTIONS.pdf','GROUP02_INSTRUCTIONS.md'):
+    for name in ('GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf','GROUP02_Test_Results_and_Distributed_Concepts_Report.md','GROUP02_INSTRUCTIONS.pdf','GROUP02_INSTRUCTIONS.md'):
         raw[PREFIX+'output/pdf/'+name]=(ROOT/'output/pdf'/name).read_bytes()
     for folder,patterns in [('tc-fixes',('archive-verification.json','evidence-zip.sha256')),('all25',('all25-audit.json','final-environment-verification.json','pdf-content-verification.json','export-verification.json','evidence-zip.sha256','README.md'))]:
         for name in patterns:raw[PREFIX+'output/validation/'+folder+'/'+name]=(ROOT/'output/validation'/folder/name).read_bytes()

@@ -1,5 +1,11 @@
 # Testing our ticket-booking application
 
+<!-- followup-20261119:latest-results:start -->
+**Latest measured follow-up - 19 November 2026:** [Results and evidence](docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+
+No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+<!-- followup-20261119:latest-results:end -->
+
 The submission-facing [testing PDF](output/pdf/GROUP02_INSTRUCTIONS.pdf) and its
 [editable source](output/pdf/GROUP02_INSTRUCTIONS.md) provide 25 explicit procedures
 across the eleven requested sections. Test cases are kept outside the main frontend.

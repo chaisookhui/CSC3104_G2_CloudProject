@@ -1,7 +1,7 @@
 # Fair Seat Allocation
 CSC3104 Cloud and Distributed Computing | Group 02
 
-**Testing Instructions | Examiner edition, 14 November 2026**
+**Testing Instructions | Examiner edition**
 
 ## 1. Introduction
 This application allocates adjacent seats to parties of one to four people. Customers register for a sale, receive a queue position when the sale opens, and receive a whole-party reservation if a suitable block exists. A mock payment confirms the reservation. Unpaid reservations expire; customers can cancel an unpaid reservation. No money or real payment details are involved.
@@ -27,7 +27,7 @@ This document lets an examiner deploy the submitted source, test the implementat
 
 **Submission revision:** the verified application is now committed in 253a6e2; its 96 compared application/configuration files match the recorded final v9 build. This edition synchronises documentation and release packaging only. The current source-package manifest identifies the base commit and any documentation/release changes included. See docs/FINAL_SUBMISSION_VERIFICATION.md for submission checks; no new application execution is implied.
 
-**Source basis:** service implementations, schemas/migrations, Dockerfiles, deployment configurations, launcher, frontend, tests and experiment tools in this checkout. The local four-page Project_2026-27.pdf assignment brief was reviewed. It requires containers and/or Kubernetes, tested advertised functionality and explicit testing instructions. This document is the testing guide, separate from the research article.
+**Source basis:** service implementations, schemas/migrations, Dockerfiles, deployment configurations, launcher, frontend, tests and experiment tools in this checkout. The local four-page project assignment brief was reviewed. It requires containers and/or Kubernetes, tested advertised functionality and explicit testing instructions. This document is the testing guide, separate from the research article.
 
 <!-- pagebreak -->
 ## 1.1 Quick Start - Running and Testing the Application
@@ -79,16 +79,18 @@ All five have saved passing evidence. Viewing those files changes no deployment.
 
 | Test | Saved evidence available | Changes when reproduced |
 |---|---|---|
-| TC-01 | Yes: examiner-20261114-final-a/journeys; screenshots and IDs. | Creates a lab booking. Prepare clean five-minute pre-sale lab; reset deletes old lab data. |
-| TC-08 | Yes: examiner-20261114-final-a/contention. | Reset to ten fresh Section C seats first; creates contested lab holds. |
-| TC-10 | Yes: examiner-20261114-final-a/replacement. | Requires a confirmed lab booking; deletes allocation API pod, preserving stored booking data. |
+| TC-01 | Yes: all25-audit.json: TC-01 evidence; screenshots and IDs. | Creates a lab booking. Prepare clean five-minute pre-sale lab; reset deletes old lab data. |
+| TC-08 | Yes: all25-audit.json: TC-08 evidence. | Reset to ten fresh Section C seats first; creates contested lab holds. |
+| TC-10 | Yes: all25-audit.json: TC-10 evidence. | Requires a confirmed lab booking; deletes allocation API pod, preserving stored booking data. |
 | TC-21 | Yes: tc-fix-regression-v9 and its TC21 child runs. | Each fault run needs fresh lab setup; resets lab and injects reply loss/worker termination. |
 | TC-24 | Yes: tc-fix-24-api-v9 and tc-fix-24-worker-v9. | Each study resets lab, creates HPA/load and changes replicas; restore after each target. |
 
 **TC-24 is lengthy:** each target requires at least 18.5 minutes of measured phases, plus deployment, admission and evidence collection. API and worker studies run sequentially. For review without reproduction, inspect timeline.json/jsonl, phases.json, summary.json, HPA/pod/CPU/backlog samples and report-v9/tc24-*.png/.svg (Section 9.9). Saved-timeline inspection is not a newly executed HPA test.
 
 ### Navigation and recording
-The PDF bookmarks follow the numbered headings. Section 10 gives concepts and expected outcomes; its companion Section 10.1 gives methods and the dated recorded result. Section 11 distinguishes inspection, component restart, storage-preserving stop and destructive lab reset. Retain your own observed result and evidence for every newly executed case.
+To locate a saved run, open output/validation/all25/all25-audit.json and use the named case's evidence field as its actual folder path.
+
+The PDF bookmarks follow the numbered headings. Section 10 gives concepts and expected outcomes; its companion Section 10.1 gives methods and the recorded result. Section 11 distinguishes inspection, component restart, storage-preserving stop and destructive lab reset. Retain your own observed result and evidence for every newly executed case.
 
 <!-- pagebreak -->
 ## 2. System Architecture
@@ -684,7 +686,7 @@ python experiments/acceptance.py
 This optional harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. The final 15-case coverage completion used experiments/examiner_verify.py and its real Chromium UI/HTTP/database checks, rather than rerunning this optional bounded harness. TC-14/15/16/18/19/20/21/22/23/24 retain their full v9 workloads. See experiments/EXAMINER_VERIFICATION.md for the exact verification/audit workflow. No application tests were launched for this document correction.
 
 <!-- pagebreak -->
-## 9.7 Saved Validation Results | 14 November 2026
+## 9.7 Saved Validation Results
 These are actual saved local results for the final application images, not predictions for another machine. The complete 25-case results are in output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf and output/validation/all25/all25-audit.json. Performance/fault detail remains in output/validation/tc-fixes/FINAL_REPORT.md; diagnostic causes are in ROOT_CAUSES.md in that folder. Earlier failed/inconclusive cohorts remain preserved.
 
 | Case / cohort | Actual result | Measurements and limits |
@@ -704,16 +706,16 @@ Host tests: 77 passed plus four subtests. Real PostgreSQL checks: 131 passed (61
 
 <!-- pagebreak -->
 ## 9.8 Final 25-Case Coverage and Evidence
-### Recorded Local Result - 14 November 2026: 25/25 PASS
+### Recorded Local Result: 25/25 PASS
 Read this evidence map first; Section 9.7 retains measurements and Section 9.9 locates archives and source provenance. Section 10.1 pairs all case IDs with methods and recorded results. Viewing these saved files does not execute a test.
 
-The final ledger was completed on 14 November 2026 at 18:10:59 SGT. Fifteen cases have newly completed final-version functional/browser/deployment checks; ten retain their full original-scope final v9 measurements and were independently re-audited. All 96 compared application/configuration files remained unchanged, and captured deployed image IDs matched v9. No application code was changed during the later functional verification.
+The final ledger records the completed local validation. Fifteen cases have newly completed final-version functional/browser/deployment checks; ten retain their full original-scope final v9 measurements and were independently re-audited. All 96 compared application/configuration files remained unchanged, and captured deployed image IDs matched v9. No application code was changed during the later functional verification.
 
 | Case IDs | Actual result / scope | Final evidence run under .local/test-results/ |
 |---|---|---|
-| TC-01 to TC-08; TC-10 to TC-12; TC-17; TC-25 | PASS - new final-version checks | examiner-20261114-final-a, selected case folders only |
-| TC-09 | PASS - completed corrected Compose rerun | examiner-20261114-compose-b |
-| TC-13 | PASS - completed corrected seat-outage rerun | examiner-20261114-seat-d |
+| TC-01 to TC-08; TC-10 to TC-12; TC-17; TC-25 | PASS - new final-version checks | all25-audit.json: each listed case's evidence field |
+| TC-09 | PASS - completed corrected Compose rerun | all25-audit.json: TC-09 evidence |
+| TC-13 | PASS - completed corrected seat-outage rerun | all25-audit.json: TC-13 evidence |
 | TC-14/15/16/18/20/21/22 | PASS - original full regression scope | tc-fix-regression-v9 and its per-case child runs |
 | TC-19 | PASS - three original surges and mixed parties | tc-fix-19-v9 |
 | TC-23 | PASS - fixed replicas and tested capacity points | tc-fix-23-v9; tc-fix-capacity-v9; tc-fix-capacity-upper-v9 |
@@ -723,7 +725,7 @@ The new browser checks include actual refresh of both same-customer tabs, an unc
 
 The first serial run's overall status remains FAIL because its initial TC-09/13 checker attempts stopped. A separate TC-13 browser-bootstrap attempt also stopped before booking. Those attempts are preserved; only the completed passing reruns above support those cases. The all25-audit.json ledger selects each actual passing case and retains the failure history. No failed attempt was relabelled PASS.
 
-The 10-12 November results in experiments/VALIDATION.md, acceptance-summary.json, robustness-implementation.json and browser-recovery.json remain historical. Earlier incomplete HPA attempts stay INCONCLUSIVE. Current 25-case conclusions use the later complete evidence above, not those earlier bounded checks. Both this guide and the updated results report now describe the same final ledger.
+The earlier results in experiments/VALIDATION.md, acceptance-summary.json, robustness-implementation.json and browser-recovery.json remain historical. Earlier incomplete HPA attempts stay INCONCLUSIVE. Current 25-case conclusions use the later complete evidence above, not those earlier bounded checks. Both this guide and the updated results report now describe the same final ledger.
 
 <!-- pagebreak -->
 ## 9.9 Environment and Evidence Package
@@ -784,11 +786,11 @@ Expected results are acceptance conditions. Pair rows with Section 10.1 for meth
 | TC-25 | Browser ownership | Access/session recovery | Own booking restored; cross-user denied | Cookies/HTTP/state |
 
 ### Result record template
-Record Test ID; run ID; source revision/changes; date/time; machine limits; policy/replicas/batch/TTL; input trace hash; exact actions; observed terminal counts/status; measured values; evidence filenames; expected-versus-observed differences; restoration completed. Retain run.json and before/after captures when generated. Use new run IDs instead of overwriting failing evidence.
+Record Test ID; run ID; source revision/changes; machine limits; policy/replicas/batch/TTL; input trace hash; exact actions; observed terminal counts/status; measured values; evidence filenames; expected-versus-observed differences; restoration completed. Retain run.json and before/after captures when generated. Use new run IDs instead of overwriting failing evidence.
 
 <!-- pagebreak -->
 ## 10.1 Methods and Recorded Local Results
-### Recorded Local Result - 14 November 2026
+### Recorded Local Result
 Recorded PASS results refer to the previously completed local validation. They are not predictions or guarantees for an examiner's independent execution.
 
 Pair with Section 10 for names, concepts and expected results. Each reference below leads to that case's complete Verification/Evidence fields; Section 9.8 selects the recorded cohort from all25-audit.json.
@@ -878,5 +880,31 @@ python demo.py --stop
 ```
 Resume main with its normal startup; resume lab with python experiments/run.py lab without --reset-lab and restart forwarding. To return the disposable lab to initial empty state, save evidence then repeat Section 4's --reset-lab. Do not delete main namespace/volumes/PVCs or Kind cluster as routine cleanup; cluster deletion loses node-local storage. Verification harnesses remove their own csc3104-check; inspect leftovers before rerunning.
 
-**Supporting scripts:** experiments/run.py, study.py, loadgen.py, observability.py, runtime.py, workloads.py, metrics.py, invariants.sql; tests/docker_booking_smoke.py and http_validation_smoke.py. Editable source: output/pdf/GROUP02_INSTRUCTIONS.md; renderer: experiments/build_instructions.py (requires reportlab).
+**Supporting scripts:** experiments/run.py, study.py, loadgen.py, observability.py, runtime.py, workloads.py, metrics.py, invariants.sql; tests/docker_booking_smoke.py and http_validation_smoke.py. Editable source: output/pdf/GROUP02_INSTRUCTIONS.md; renderer: experiments/build_instructions.py (requires reportlab and pypdf).
 
+<!-- followup-20261119:supplements:start -->
+<!-- pagebreak -->
+## Appendix A. Latest Follow-up Results - 19 November 2026
+
+This supplement extends the original November 14, 25-case baseline. The earlier PASS matrix is retained within its recorded scope; it does not mean every higher-rate follow-up met its SLO. All 64 planned follow-up units are COMPLETE, with no measurement pending. No application tests were rerun for this documentation update.
+
+| Study | Completed evidence | Observed result |
+|---|---|---|
+| TC-18 F2/F3/F6 | 30 matched seed pairs; 60 policy replays | All correctness checks passed. Mean DC-FCFS party/Jain deltas: F2 -0.1/+0.009405; F3 +0.5/+0.028361; F6 0/0. |
+| TC-24 CPU HPA | Two full cycles per target | All four passed scale-out, original 600s recovery and repeated scale-out. API held at four Ready replicas in worker-only tests. |
+| TC-19 bursts | Three trials per peak 100/150/200 per second | All nine passed; all 27,900 offers accepted. Maximum admission 178.1/269.7/352.0s, within 600s. |
+| TC-23 capacity | 21 trials; 19 valid delivery, two invalid delivery | Eight met the composite SLO. Fourteen workload PASS and seven INCONCLUSIVE outcomes remain separate from SLO status. |
+
+### Observed API capacity - unchanged composite SLO
+| API replicas | Highest observed pass | Passing / valid trials at that rate | First observed valid-delivery miss |
+|---|---|---|---|
+| 1 | 200/s | 3/3 | 250/s: two valid misses; one other attempt had invalid delivery |
+| 2 | 250/s | 1/3 | 200/s: one miss among three valid trials |
+| 4 | 250/s | 1/3 | 250/s: two misses among three valid trials |
+
+These maxima describe observed trials, not stable or production capacity. All five completed 300/s attempts remain INCONCLUSIVE with unavailable accepted-ID reconciliation; acknowledgements are lower bounds. A P95 of 536ms at 250/s with four replicas still missed because 158 HTTP requests timed out. All unchanged SLO conditions must pass, not P95 alone.
+
+Two invalid-delivery attempts are excluded from capacity inference: 374 pool drops at 300/s with one replica, and 4.08s launch lag in an extra 250/s one-replica trial. The original F1 parties-versus-Jain trade-off did not recur on mean paired effects. F3 nevertheless had a worse rate gap despite higher Jain. Missing sizes remain missing; Jain requires all four sizes, known outcomes and positive service. F6 fixture bookings are excluded. Burst success means terminal processing, including unavailable/expired parties, not thousands of booked seats.
+
+The saved-data audit passed 1,046 checks with zero failures. Three historical interrupted attempts remain preserved and are not extra matched samples. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
+<!-- followup-20261119:supplements:end -->

@@ -20,9 +20,6 @@ These checks do not constitute a fresh application test run.
 - [Current results and concepts report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
   and [editable source](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.md):
   the current 25-case results, measurements, graphs and interpretation limits.
-- [Combined results](../output/pdf/GROUP02_Combined_Test_Results.pdf): the same
-  current results followed by the two original reports as historical appendices.
-  Original failed/inconclusive attempts retain their original status.
 
 ## Separate raw evidence and reviewer packages
 
@@ -60,3 +57,17 @@ and selected final documents belong in the source commit. Generated raw runs,
 logs, reviewer ZIPs, private credentials/profiles, temporary page renders and
 local chat checkpoints are excluded by `.gitignore`. Previously tracked
 historical evidence is preserved; this cleanup does not untrack or delete it.
+
+## Follow-up evaluation
+
+[Follow-up results and evidence](FOLLOWUP_EVALUATION_RESULTS.md) record the
+completed F2/F3/F6 scheduler comparisons, four full HPA cycles, higher-rate API
+capacity trials and burst admission repetitions. They extend the original
+25-case evidence separately, retaining mixed, inconclusive and interrupted
+outcomes. The saved-data audit passed 1,046 checks with zero failures.
+
+<!-- followup-20261119:current-documents:start -->
+## Current document synchronization
+
+The current results report and instructions PDFs/Markdown now include the November 19 follow-up, including mixed/inconclusive capacity results. See [the document synchronization record](FOLLOWUP_DOCUMENTATION_UPDATE.md). November 14 package/guide verification records remain historical. The sealed follow-up evidence ZIP is unchanged; supply the current PDFs alongside it for the latest documentation.
+<!-- followup-20261119:current-documents:end -->

@@ -3,10 +3,12 @@ import asyncio
 from pathlib import Path
 import sys
 import time
+import tempfile
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]/'experiments'))
+import control
 from loadgen import arrivals
 
 
@@ -98,6 +100,42 @@ class AsyncArrivalsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(rows[0]['outcome'], 'REJECTED')
         self.assertEqual(rows[1]['outcome'], 'TIMED_OUT')
         self.assertEqual(rows[1]['response']['status'], 0)
+
+    async def test_immediate_pause_cancels_inflight_requests_and_stops_future_arrivals(self):
+        rows=[];self.delay=.4
+        with tempfile.TemporaryDirectory() as folder,patch.dict('os.environ',{},clear=True),patch('loadgen.request_headers',return_value={}):
+            session=control.Session(Path(folder),[],deployed=False,identity={})
+            async def pause():
+                while not self.seen:await asyncio.sleep(.005)
+                control.atomic_json(session.request_path,dict(id='immediate-request',mode='immediate'))
+            with self.assertRaises(control.Pause),session.activate():
+                task=asyncio.create_task(pause())
+                try:
+                    await arrivals(self.base,[(0,'surge'),(2,'surge'),(3,'surge')],'pause',rows)
+                finally:
+                    await task
+            self.assertEqual(len(self.seen),1)
+            self.assertEqual(len(rows),1)
+            self.assertEqual(rows[0]['outcome'],'INTERRUPTED')
+            self.assertEqual(control.read(session.path)['state'],'PAUSED')
+
+    async def test_safe_pause_preserves_the_full_offer_schedule_and_response_drain(self):
+        rows=[]
+        with tempfile.TemporaryDirectory() as folder,patch.dict('os.environ',{},clear=True),patch('loadgen.request_headers',return_value={}):
+            session=control.Session(Path(folder),[],deployed=False,identity={})
+            async def pause():
+                await asyncio.sleep(.02)
+                control.atomic_json(session.request_path,dict(id='safe-request',mode='safe'))
+            with self.assertRaises(control.Pause),session.activate():
+                with control.unit('trial',Path(folder)/'trial') as unit:
+                    task=asyncio.create_task(pause())
+                    result=await arrivals(self.base,[(0,'surge'),(.05,'surge'),(.1,'surge')],'safe',rows)
+                    await task
+                    control.atomic_json(unit.directory/'arrivals.json',rows)
+                    unit.complete(result)
+            self.assertEqual(len(self.seen),3)
+            self.assertTrue(all(r['outcome']=='ACCEPTED' for r in rows))
+            self.assertEqual(control.read(session.path)['units']['trial']['state'],'COMPLETE')
 
 
 if __name__ == '__main__':

@@ -14,11 +14,14 @@ def fairness_summary(groups):
         unknown=sum(g['unknown'] for g in values)
         # Equal weight per offered party-size stratum, conditional on section.
         # A zero-service population has no fairness score, rather than perfect fairness.
-        jain=total**2/(len(rates)*sum(r*r for r in rates)) if total else None
+        interpretable=not unknown and len(values)==4 and total>0
+        jain=total**2/(len(rates)*sum(r*r for r in rates)) if interpretable else None
         result.append(dict(section=section, represented_sizes=sorted(g['party_size'] for g in values),
             reservation_rate_gap=max(rates)-min(rates), jain_reservation_rates=jain,
             unknown_customers=unknown, complete_size_coverage=len(values)==4,
-            interpretable=not unknown and len(values)==4 and total>0))
+            offered_by_size={str(g['party_size']):g.get('offered') for g in values},
+            missing_sizes=sorted(set(range(1,5))-{g['party_size'] for g in values}),
+            interpretable=interpretable))
     return dict(objective='Equal opportunity to reserve a whole party across sizes 1-4 within each section; '
                 'evaluate reservation-rate gaps alongside decision waits, FCFS overtakes and seat utilization. '
                 'Capacity and adjacency can make equal rates infeasible; no policy is assumed superior.',
@@ -35,6 +38,8 @@ def paired_analysis(results):
         demand,fcfs=pair['demand-cycle'],pair['fcfs']
         if demand['status']!='PASS' or fcfs['status']!='PASS': continue
         if demand['initial_fingerprint']!=fcfs['initial_fingerprint']: continue
+        if demand.get('trace_sha256')!=fcfs.get('trace_sha256'): continue
+        if not demand.get('batch_boundaries_match') or not fcfs.get('batch_boundaries_match'): continue
         for left in demand['fairness']['sections']:
             right=next((s for s in fcfs['fairness']['sections'] if s['section']==left['section']),None)
             if not right or not left['interpretable'] or not right['interpretable']: continue

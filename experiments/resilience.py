@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import json
 import re
 import time
+import control
 from runtime import LAB, ROOT, api, guard_lab, invariants, k, local, request, sql, utc, write_json
 
 
@@ -17,7 +18,7 @@ def until(read,predicate,timeout=120):
         try:
             if predicate(value):return value
         except KeyError:pass
-        time.sleep(.4)
+        control.sleep(.4)
     raise RuntimeError('Timed out waiting for recovery: '+str(value)[:400])
 
 
@@ -60,10 +61,11 @@ def proxy(mode):
         k('rollout','status','deployment/allocation-worker','--timeout=120s')
         yield
     finally:
-        k('patch','deployment','allocation-worker','--type=json','-p',json.dumps([
-            dict(op='replace',path='/spec/template/spec/containers/0/env',value=env)]))
-        k('rollout','status','deployment/allocation-worker','--timeout=180s')
-        k('delete','deployment,service,configmap','experiment-fault-proxy','--ignore-not-found')
+        with control.cleanup():
+            k('patch','deployment','allocation-worker','--type=json','-p',json.dumps([
+                dict(op='replace',path='/spec/template/spec/containers/0/env',value=env)]))
+            k('rollout','status','deployment/allocation-worker','--timeout=180s')
+            k('delete','deployment,service,configmap','experiment-fault-proxy','--ignore-not-found')
 
 
 def proxy_control(path):
@@ -144,11 +146,12 @@ def outage(base,directory,dependency='redis',seconds=30):
         while time.monotonic()<deadline:
             samples.append(dict(at=utc(),request=request(base,'waiting-room/requests/'+rid,timeout=6),
                                 confirmed_checkout=request(base,'waiting-room/requests/'+kid+'/checkout',timeout=6)))
-            time.sleep(min(2,max(0,deadline-time.monotonic())))
+            control.sleep(min(2,max(0,deadline-time.monotonic())))
     finally:
-        for name,count in old.items():scale('statefulset',name,count)
-        scale('deployment','allocation-worker',workers)
-        write_json(directory/'outage-samples.json',samples)
+        with control.cleanup():
+            for name,count in old.items():scale('statefulset',name,count)
+            scale('deployment','allocation-worker',workers)
+            write_json(directory/'outage-samples.json',samples)
     current=until(lambda:api(base,'waiting-room/requests/'+rid),lambda p:p['status'] in ('RESERVED','EXPIRED'),180)
     duplicate=api(base,'waiting-room/submit',dict(user_id=directory.name,section='A',party_size=2))
     checks=invariants()
@@ -170,7 +173,7 @@ def lifecycle_race(base,directory,near_expiry=False):
     if near_expiry:
         from datetime import datetime, timezone
         expiry=datetime.fromisoformat(party['allocation']['hold_expiry'].replace('Z','+00:00'))
-        while (expiry-datetime.now(timezone.utc)).total_seconds()>.15:time.sleep(.1)
+        while (expiry-datetime.now(timezone.utc)).total_seconds()>.15:control.sleep(.1)
     import threading
     gate=threading.Barrier(3)
     def send(path,body):

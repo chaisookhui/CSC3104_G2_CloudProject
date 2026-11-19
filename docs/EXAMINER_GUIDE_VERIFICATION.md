@@ -1,5 +1,9 @@
 # Examiner-edition guide verification
 
+<!-- followup-20261119:historical-notice:start -->
+**Historical verification snapshot:** page counts and package checks below describe the earlier November 14 documents. Current results/instructions now include the November 19 follow-up; see [documentation synchronization](FOLLOWUP_DOCUMENTATION_UPDATE.md). Existing sealed packages were not overwritten. Current document hashes are recorded separately.
+<!-- followup-20261119:historical-notice:end -->
+
 14 November 2026. Documentation and release packaging only. No application test,
 experiment, deployment, lab reset, Git commit or push was executed for this task.
 The application remains at `253a6e27a78d34aa634b92a7f724eb42166c24dc`, with the

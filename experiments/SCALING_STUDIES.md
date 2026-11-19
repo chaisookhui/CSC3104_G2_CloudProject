@@ -1,5 +1,15 @@
 # Reproducible TC-19, TC-23 and TC-24 studies
 
+<!-- followup-20261119:latest-results:start -->
+**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+
+No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+<!-- followup-20261119:latest-results:end -->
+
+Additional F2/F3/F6 scheduler comparisons, repeated full HPA cycles and explicitly
+opted-in higher-rate trials are documented in [FOLLOWUP_STUDIES.md](FOLLOWUP_STUDIES.md).
+They retain the original defaults and original evidence as separate baselines.
+
 The full final v9 studies below passed their recorded local acceptance conditions;
 their unchanged raw evidence is part of the final 25-case ledger. See the
 [current evidence index](../docs/VALIDATION_EVIDENCE.md) and results report.
@@ -26,7 +36,7 @@ python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
 ```
 
 The study commands also reset/deploy the lab before every independent trial.
-Use new run IDs, including when repeating an interrupted command.
+Use a fresh run ID for a new study. Preserve raw evidence and distinguish each new independent study from the recorded results.
 The new dispatcher uses `/queue/next/<batch-size>`. When updating without a lab
 reset, deploy the new waiting-room API before the dispatcher. The full `/queue`
 endpoint remains available. Derived Redis indexes rebuild from canonical records

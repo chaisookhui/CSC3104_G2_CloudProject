@@ -15,7 +15,7 @@ class LoadCompletenessTests(unittest.TestCase):
         def generate(base,schedule,identity,rows):
             rows.append(dict(payload={'user_id':'one'},scheduled_seconds=0,launched_seconds=0,
                 phase='baseline',outcome='ACCEPTED',response=dict(status=201,data={'request_id':'r1'},elapsed_ms=2)))
-            return dict(elapsed=1)
+            return dict(elapsed=1,capacity=4096,peak_in_flight=1,cpu_seconds=.01)
         def api(base,path,body=None):
             if path.endswith('status'):return dict(sale_state='pre_sale',waiting_count=0)
             if path.endswith('sale/start'):return dict(sale_state='sale_started')
@@ -34,7 +34,7 @@ class LoadCompletenessTests(unittest.TestCase):
         def generate(base,schedule,identity,rows):
             rows.append(dict(payload={'user_id':'one'},scheduled_seconds=0,launched_seconds=0,
                 phase='baseline',outcome='ACCEPTED',response=dict(status=201,data={'request_id':'r1'},elapsed_ms=2)))
-            return dict(elapsed=1)
+            return dict(elapsed=1,capacity=4096,peak_in_flight=1,cpu_seconds=.01)
         def api(base,path):
             return dict(sale_state='pre_sale',waiting_count=0) if path.endswith('status') else dict(requests=[{'request_id':'r1','user_id':'one'}])
         with tempfile.TemporaryDirectory() as folder,patch.object(loadgen,'generate',side_effect=generate),patch.object(workloads,'invariants',return_value={'violations':0}),patch.object(workloads,'guard_lab',return_value={'namespace':'csc3104-lab'}),patch.object(workloads,'api',side_effect=api):
@@ -54,7 +54,7 @@ class LoadCompletenessTests(unittest.TestCase):
             return dict(sale_state='pre_sale',waiting_count=0) if path.endswith('status') else dict(requests=[])
         def generate(base,schedule,identity,rows):
             rows.append(dict(payload={'user_id':'rejected'},scheduled_seconds=0,launched_seconds=0,phase='baseline',outcome='REJECTED',response=dict(status=429,data={},elapsed_ms=2)))
-            return dict(elapsed=1)
+            return dict(elapsed=1,capacity=4096,peak_in_flight=1,cpu_seconds=.01)
         with tempfile.TemporaryDirectory() as folder,patch.object(loadgen,'generate',side_effect=generate),patch.object(workloads,'invariants',return_value={'violations':0}),patch.object(workloads,'guard_lab',return_value={'namespace':'csc3104-lab'}),patch.object(workloads,'api',side_effect=api),patch.object(workloads,'request',return_value=dict(status=429,data={},elapsed_ms=2)):
             result=workloads.registration_load('http://127.0.0.1:1',Path(folder),rate=1,duration=1)
         self.assertEqual(result['outcomes'],{'REJECTED':1})

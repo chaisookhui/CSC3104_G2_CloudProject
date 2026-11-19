@@ -10,6 +10,7 @@ import socket
 import subprocess
 import sys
 import time
+import control
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
@@ -17,6 +18,10 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'infra/k8s'))
 import local
+_local_run = local.run
+def _controlled_run(command, **kwargs):
+    return control.command(_local_run, command, **kwargs)
+local.run = _controlled_run
 
 LAB = 'csc3104-lab'
 RESULTS = ROOT / '.local/test-results'
@@ -36,7 +41,7 @@ def run_directory(name=None):
 
 
 def write_json(path, value):
-    path.write_text(json.dumps(value, indent=2, default=str), encoding='utf-8')
+    control.atomic_json(path, value)
 
 
 def k(*args, **kwargs):
@@ -78,6 +83,7 @@ def request_headers():
 
 
 def request(base, path, body=None, timeout=15):
+    control.immediate()
     payload = None if body is None else json.dumps(body).encode()
     started = time.perf_counter()
     sent = utc()
@@ -143,7 +149,7 @@ def lab_connection():
                 except (RuntimeError, ValueError):
                     if time.monotonic() >= deadline:
                         raise RuntimeError('Lab frontend unavailable or not the lab. See ' + str(log_path))
-                    time.sleep(.3)
+                    control.sleep(.3)
             yield base
         finally:
             process.terminate()
@@ -155,6 +161,7 @@ def lab_connection():
 
 
 def setup_lab(reset=False, policy='demand-cycle', hold_ttl=300, batch_size=10):
+    control.before_mutation()
     if policy not in ('demand-cycle', 'fcfs') or not 1 <= batch_size <= 100 or not 20 <= hold_ttl <= 900:
         raise ValueError('Invalid lab policy, batch size (1-100), or hold TTL (20-900 seconds)')
     if reset:

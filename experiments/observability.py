@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import threading
+import control
 import time
 
 from runtime import api, guard_lab, k, sql, utc, write_json
@@ -92,7 +93,10 @@ def monitor(directory, interval=5):
     def collect():
         with (directory/'timeline.jsonl').open('a', encoding='utf-8') as output:
             while not stop.is_set():
-                value = sample(queue_meta)
+                try:
+                    value = sample(queue_meta)
+                except control.Pause:
+                    break
                 samples.append(value)
                 output.write(json.dumps(value)+'\n')
                 output.flush()
@@ -108,6 +112,7 @@ def monitor(directory, interval=5):
         collect_logs(directory)
 
 
+@control.uncancellable
 def collect_logs(directory):
     errors = {}
     for key, command in [('events', ('get', 'events', '-o', 'json'))] + [

@@ -1,5 +1,9 @@
 # Evaluation matrix and experimental contracts
 
+<!-- followup-20261119:later-evidence:start -->
+**Later measured evidence - 19 November 2026:** [The completed local follow-up](../docs/FOLLOWUP_EVALUATION_RESULTS.md) adds F2/F3/F6 policy comparisons, repeated CPU-based HPA, higher-rate API capacity and burst admission results. The November 8 plan/audit below remains historical. Its broader cloud-cost, multi-node, production and larger-sample proposals are not certified by these local measurements.
+<!-- followup-20261119:later-evidence:end -->
+
 **Historical research plan:** the proposed experiments and targets below belong
 to the 8 November source revision. They are not the current 25-case result ledger.
 See the [current evidence index](../docs/VALIDATION_EVIDENCE.md) for the completed

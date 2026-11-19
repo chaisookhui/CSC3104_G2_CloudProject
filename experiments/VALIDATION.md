@@ -1,5 +1,11 @@
 # Validation records
 
+<!-- followup-20261119:latest-results:start -->
+**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+
+No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+<!-- followup-20261119:latest-results:end -->
+
 This file retains historical executions. Current final results are in
 `output/validation/all25/all25-audit.json`, the
 [25-case results report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)

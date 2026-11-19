@@ -1,5 +1,9 @@
 # CSC3104 implementation audit and evidence assessment
 
+<!-- followup-20261119:later-evidence:start -->
+**Later measured evidence - 19 November 2026:** [The completed local follow-up](../docs/FOLLOWUP_EVALUATION_RESULTS.md) adds F2/F3/F6 policy comparisons, repeated CPU-based HPA, higher-rate API capacity and burst admission results. The November 8 plan/audit below remains historical. Its broader cloud-cost, multi-node, production and larger-sample proposals are not certified by these local measurements.
+<!-- followup-20261119:later-evidence:end -->
+
 **Historical assessment:** the conclusions below apply to the explicitly dated
 8 November revision, before the later fixes and final 25-case validation. Keep
 its original findings as history; use the [current evidence index](../docs/VALIDATION_EVIDENCE.md)

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import sys
 import time
+import control
 from fairness import paired_analysis, write_report
 from resilience import crash_or_lost_reply, outage, lifecycle_race
 from operations import autoscale, scale_api
@@ -16,6 +17,7 @@ from workloads import (contention, digest, make_trace, registration_load, replay
                        validate_trace)
 
 
+@control.controlled_main
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
@@ -57,6 +59,7 @@ def main():
     auto.add_argument('--install-metrics',action='store_true',help='Install pinned metrics-server into private Kind, with local kubelet TLS exception')
     auto.add_argument('--disable',action='store_true')
     for command in (snap,check,load,compete,journey,pair,fault,race,scaling,auto,gateway): command.add_argument('--run')
+    for command in (load,compete,journey,pair,fault,race,scaling,gateway): command.add_argument('--resume',action='store_true')
     args = parser.parse_args()
     if args.command in ('register','scale-api'):
         from loadgen import check_runtime
@@ -70,14 +73,25 @@ def main():
         setup_lab(args.reset_lab,args.policy,args.hold_ttl,args.batch_size)
         print('Lab ready. Open http://127.0.0.1:18100 using the documented port-forward; follow output/pdf/GROUP02_INSTRUCTIONS.pdf.'); return 0
     directory = run_directory(args.run)
-    if any(directory.iterdir()):
+    if any(p.name!='.control' for p in directory.iterdir()) and not getattr(args,'resume',False):
         # Capture supports appending phases to a run; workload results must not overwrite earlier evidence.
         if args.command not in ('capture','invariants'):
             raise RuntimeError('Run directory already has evidence. Choose a new --run ID.')
     manifest_path=directory/'run.json'
     manifest=json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else dict(namespace=LAB,started_at=utc(),commands=[])
-    manifest['commands'].append(dict(arguments=vars(args),at=utc()))
-    write_json(manifest_path,manifest)
+    if getattr(args,'resume',False) and manifest.get('commands'):
+        recorded=manifest['commands'][-1]['arguments']
+        for key,value in vars(args).items():
+            if key not in ('resume','run') and recorded.get(key,False if isinstance(value,bool) else None)!=(str(value) if isinstance(value,Path) else value):
+                raise ValueError('Resume conditions differ: '+key)
+    if not manifest_path.exists():
+        manifest['commands'].append(dict(arguments=vars(args),at=utc()))
+        write_json(manifest_path,manifest)
+    completed=directory/('comparison.json' if args.command=='compare' else 'summary.json')
+    if getattr(args,'resume',False) and completed.exists() and not control.session().data['units']:
+        previous=json.loads(completed.read_text())
+        control.session().adopt('legacy-completed-study',directory,previous)
+        return 0 if previous['status']=='PASS' else 2
     try:
         if args.command=='autoscale':
             result=autoscale(directory,args.install_metrics,args.disable);print(json.dumps(result,indent=2));return 0
@@ -95,52 +109,101 @@ def main():
             write_json(directory/'trace.json',trace_data)
             results=[]
             original_trace=trace_data
+            control.plan([f'seed-{original_trace["seed"]+seed}-repeat-{repeat+1}'
+                          for seed in range(args.seeds) for repeat in range(args.repeats)])
             for trial in range(args.repeats*args.seeds):
                 repeat=trial%args.repeats
                 seed=original_trace['seed']+trial//args.repeats
                 trace_data=original_trace if args.seeds==1 else make_trace(original_trace['scenario'],len(original_trace['customers']),seed,original_trace['batch_size'])
                 policies = ['demand-cycle','fcfs'] if trial%2==0 else ['fcfs','demand-cycle']
-                for policy in policies:
-                    print(f'Repeat {repeat+1}/{args.repeats}, {policy}: resetting only {LAB}',flush=True)
-                    setup_lab(True,policy,args.hold_ttl,trace_data['batch_size'])
-                    k('scale','deployment/allocation-worker',f'--replicas={args.replicas}')
-                    k('rollout','status','deployment/allocation-worker','--timeout=180s')
-                    child=directory/f'seed-{seed}-repeat-{repeat+1}-{policy}'; child.mkdir()
-                    with lab_connection() as base:
-                        write_json(child/'before.json',capture(base,'F01','before'))
-                        result=replay(base,trace_data,child,args.timeout)
-                        write_json(child/'after.json',capture(base,'F01','after'))
-                    collect_logs(child)
-                    results.append(dict(seed=seed,repeat=repeat+1,policy=policy,result=result))
+                key=f'seed-{seed}-repeat-{repeat+1}'
+                legacy_paths=[directory/(key+'-'+policy) for policy in policies]
+                legacy=None
+                if all((p/'summary.json').exists() and (p/'after.json').exists() for p in legacy_paths):
+                    legacy=dict(legacy_directories=[str(p) for p in legacy_paths],result=[dict(seed=seed,repeat=repeat+1,policy=policy,
+                        result=json.loads((path/'summary.json').read_text()),evidence_path=str(path.relative_to(directory))) for policy,path in zip(policies,legacy_paths)])
+                with control.unit(key,directory/key,legacy) as pair_trial:
+                    if pair_trial.skip:
+                        results.extend(pair_trial.result)
+                        continue
+                    pair_start=len(results)
+                    for policy in policies:
+                        print(f'Repeat {repeat+1}/{args.repeats}, {policy}: resetting only {LAB}',flush=True)
+                        setup_lab(True,policy,args.hold_ttl,trace_data['batch_size'])
+                        k('scale','deployment/allocation-worker',f'--replicas={args.replicas}')
+                        k('rollout','status','deployment/allocation-worker','--timeout=180s')
+                        child=pair_trial.directory/policy; child.mkdir()
+                        try:
+                            with lab_connection() as base:
+                                write_json(child/'before.json',capture(base,'TC-18-'+trace_data['scenario'],'before'))
+                                result=replay(base,trace_data,child,args.timeout)
+                                write_json(child/'after.json',capture(base,'TC-18-'+trace_data['scenario'],'after'))
+                        finally:
+                            collect_logs(child)
+                        results.append(dict(seed=seed,repeat=repeat+1,policy=policy,result=result,evidence_path=str(child.relative_to(directory))))
+                        write_json(directory/'partial-results.json',results)
+                    completed_pair=results[pair_start:]
+                    expected=digest(trace_data)
+                    matched=(len({e['result']['initial_fingerprint'] for e in completed_pair})==1 and
+                             all(e['result']['trace_sha256']==expected and e['result']['batch_boundaries_match'] for e in completed_pair))
+                    write_json(pair_trial.directory/'pair.json',dict(seed=seed,repeat=repeat+1,matched=matched,
+                        trace_sha256=expected,results=completed_pair))
+                    pair_trial.complete(completed_pair)
+            write_json(directory/'partial-results.json',results)
             matching=len({entry['result']['initial_fingerprint'] for entry in results})==1
-            status='PASS' if matching and all(entry['result']['status']=='PASS' for entry in results) else 'INCONCLUSIVE'
+            pairs=[]
+            for seed in sorted({e['seed'] for e in results}):
+                for repeat in range(1,args.repeats+1):
+                    pair=[e for e in results if e['seed']==seed and e['repeat']==repeat]
+                    expected=digest(make_trace(original_trace['scenario'],len(original_trace['customers']),seed,original_trace['batch_size'])) if args.seeds>1 else digest(original_trace)
+                    pairs.append(dict(seed=seed,repeat=repeat,trace_sha256=expected,
+                        matched=len(pair)==2 and {e['policy'] for e in pair}=={'demand-cycle','fcfs'} and
+                            len({e['result']['initial_fingerprint'] for e in pair})==1 and
+                            all(e['result']['trace_sha256']==expected and e['result']['batch_boundaries_match'] for e in pair)))
+            status='PASS' if all(p['matched'] for p in pairs) and all(entry['result']['status']=='PASS' for entry in results) else 'INCONCLUSIVE'
             if any(entry['result']['status']=='FAIL' for entry in results): status='FAIL'
             write_json(directory/'comparison.json',dict(namespace=LAB,status=status, identical_initial_inventory=matching,
-                trace_sha256=digest(original_trace),results=results, fairness=paired_analysis(results),
+                trace_sha256=digest(original_trace),results=results,matched_pairs=pairs,fairness=paired_analysis(results),
                 interpretation='PASS means comparable executions and safety, not Demand-Cycle superiority or statistical significance.'))
             write_report(directory,results)
             print(f'{status}: paired comparison saved in {directory}'); return 0 if status=='PASS' else 2
-        with lab_connection() as base:
-            if args.command == 'capture':
-                safe=''.join(c for c in args.phase if c.isalnum() or c in '-_') or 'snapshot'
-                path=directory/(time.strftime('%Y%m%d-%H%M%S')+f'-{time.time_ns()}-'+safe+'.json')
-                write_json(path,capture(base,args.case,args.phase)); print(path); return 0
-            if args.command == 'invariants':
-                result=invariants(); write_json(directory/f'invariants-{time.time_ns()}.json',result)
+        if args.command in ('capture','invariants'):
+            with lab_connection() as base:
+                if args.command == 'capture':
+                    safe=''.join(c for c in args.phase if c.isalnum() or c in '-_') or 'snapshot'
+                    path=directory/(time.strftime('%Y%m%d-%H%M%S')+f'-{time.time_ns()}-'+safe+'.json')
+                    write_json(path,capture(base,args.case,args.phase)); print(path); return 0
+                if args.command == 'invariants':
+                    result=invariants(); write_json(directory/f'invariants-{time.time_ns()}.json',result)
+                collect_logs(directory)
+                print(json.dumps(result,indent=2,default=str))
+                return 0 if result['status']=='PASS' else 2
+        cohort=directory
+        control.plan([args.command])
+        with control.unit(args.command,cohort/'trial') as trial:
+            if trial.skip:
+                result=trial.result
             else:
-                write_json(directory/'before.json',capture(base,args.command,'before'))
-                if args.command=='register': result=registration_load(base,directory,args.rate,args.duration,args.profile,args.admit,args.timeout)
-                elif args.command=='contention': result=contention(base,directory,args.count,args.workers,args.mixed)
-                elif args.command=='fault':
-                    result=crash_or_lost_reply(base,directory,args.scenario=='worker-crash') if args.scenario in ('lost-reply','worker-crash') else outage(base,directory,args.scenario,args.seconds)
-                elif args.command=='race': result=lifecycle_race(base,directory,args.near_expiry)
-                elif args.command=='gateway':result=gateway_check(base,directory)
-                else: result=replay(base,validate_trace(json.loads(args.trace.read_text(encoding='utf-8'))),directory,args.timeout)
-                write_json(directory/'after.json',capture(base,args.command,'after'))
-            collect_logs(directory)
-            print(json.dumps(result,indent=2,default=str))
-            print('Evidence:',directory)
-            return 0 if result['status']=='PASS' else 2
+                directory=trial.directory
+                try:
+                    with lab_connection() as base:
+                        write_json(directory/'before.json',capture(base,args.command,'before'))
+                        if args.command=='register': result=registration_load(base,directory,args.rate,args.duration,args.profile,args.admit,args.timeout)
+                        elif args.command=='contention': result=contention(base,directory,args.count,args.workers,args.mixed)
+                        elif args.command=='fault':
+                            result=crash_or_lost_reply(base,directory,args.scenario=='worker-crash') if args.scenario in ('lost-reply','worker-crash') else outage(base,directory,args.scenario,args.seconds)
+                        elif args.command=='race': result=lifecycle_race(base,directory,args.near_expiry)
+                        elif args.command=='gateway':result=gateway_check(base,directory)
+                        else: result=replay(base,validate_trace(json.loads(args.trace.read_text(encoding='utf-8'))),directory,args.timeout)
+                        write_json(directory/'after.json',capture(base,args.command,'after'))
+                finally:
+                    collect_logs(directory)
+                trial.complete(result)
+        write_json(cohort/'summary.json',result)
+        print(json.dumps(result,indent=2,default=str))
+        return 0 if result['status']=='PASS' else 2
+    except control.Pause:
+        raise
     except BaseException as error:
         write_json(directory/'interrupted.json',dict(at=utc(),error=type(error).__name__,message=str(error)))
         raise
