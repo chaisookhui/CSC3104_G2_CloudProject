@@ -1,5 +1,31 @@
 # Validation evidence and submission files
 
+## Instructions, results and supporting evidence
+
+The testing instructions explain **how to run the tests**. The results report
+explains **what was observed and what it means**. Raw evidence provides the
+underlying records used to check those findings: individual request measurements,
+logs, screenshots, inventory snapshots and SQL checks. Audit files identify and
+assess those records. A summary report does not replace its supporting evidence.
+
+Download the attached `GROUP02_Submission.zip` from the
+[submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest).
+Extract it once and open `CSC3104_G2_CloudProject/START_HERE.md`. Most raw evidence
+is distributed through this release attachment rather than the branch file listing.
+The TC-14 export and a few earlier validation records are also committed to `twy`.
+
+| Location inside the extracted project | Purpose |
+|---|---|
+| `output/pdf/` | The two readable submission reports and their editable sources. |
+| `.local/test-results/` | Reviewed exported raw runs, including logs, observations and screenshots where collected. |
+| `output/validation/all25/all25-audit.json` | Selects the recorded evidence folder supporting each of the 25 cases. |
+| `output/validation/tc-fixes/` | Baseline performance/failure reports and audits. |
+| `output/validation/followup-20261119/` | Follow-up reports, measurement tables and audits. |
+| `output/tc14-extended-20261119/` | Extended TC-14 observations, summaries, charts and trial checks. |
+
+The evidence paths in the guide are relative to this extracted project folder.
+Opening recorded evidence does not run new tests or change a deployment.
+
 The recorded final local validation covers all 25 documented case IDs: 15 newly
 completed functional/browser/deployment cases and 10 full-scope final v9 cases
 independently re-audited with unchanged application/configuration sources and

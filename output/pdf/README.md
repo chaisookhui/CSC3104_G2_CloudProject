@@ -9,6 +9,12 @@ There are two submission PDFs:
 Both reports integrate extensions within their relevant test cases. The separate
 TC-14 supplement and duplicate PDF editions are unnecessary.
 
+The instructions explain **how to test**; the results report explains **what was
+observed**. Raw evidence supplies the underlying request records, logs, screenshots
+and database checks that verify those findings. Most raw evidence is provided in
+the release ZIP rather than tracked directly in the branch. The
+[evidence index](../../docs/VALIDATION_EVIDENCE.md) maps its extracted folders.
+
 Submit the [repository URL](https://github.com/chaisookhui/CSC3104_G2_CloudProject).
 The [submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest)
 provides `GROUP02_Submission.zip`, containing these two PDFs, current source and

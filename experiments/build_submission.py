@@ -214,6 +214,14 @@ Extract GROUP02_Submission.zip once and open CSC3104_G2_CloudProject/.
 All paths in the testing guide are relative to this folder. The submission
 contains current source and exactly two PDFs under output/pdf/.
 
+## Reports versus evidence
+
+GROUP02_INSTRUCTIONS.pdf explains how to deploy and run tests.
+GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf summarises what was
+observed and what the results mean. Raw runs and audits are the underlying
+records used to verify those summaries. Most raw evidence is supplied in this
+release attachment rather than the branch file listing; its paths are mapped below.
+
 ## Verify recorded results
 
 1. Open output/validation/all25/all25-audit.json. Each case's evidence field

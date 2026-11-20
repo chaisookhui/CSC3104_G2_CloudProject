@@ -59,6 +59,10 @@ Main Kubernetes uses csc3104; experiments use separate csc3104-lab at http://127
 **WARNING - DELETES LAB DATA:** python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10 deletes existing isolated lab bookings, queue, PVCs and credentials. Preserve lab evidence first. It is not needed merely to open main. Never reset main storage for these tests.
 
 ### E. View evidence or run a new test
+This PDF explains **how to test**. GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf summarises **what was observed and what it means**. The supporting raw evidence contains the individual request measurements, logs, screenshots and database checks used to verify those summaries; audits assess the saved records.
+
+Most raw evidence is supplied in the attached GROUP02_Submission.zip on the [submission release page](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest), rather than the branch file listing. Extract it once and open CSC3104_G2_CloudProject/START_HERE.md. Section 9.9 maps the evidence folders inside that extracted project.
+
 Sections 5-9.6 contain all 25 procedures; Section 1.2 suggests demonstrations. Sections 9.7-9.9 locate the recorded 25/25 local PASS results, final report and exported raw evidence in output/review-package/. Reading saved evidence generates no traffic. A new execution needs fresh observations and a new run ID; its result is not pre-filled PASS.
 
 <!-- pagebreak -->
@@ -731,7 +735,7 @@ This optional harness runs booking/policy/recovery/storage checks in its own dis
 
 <!-- pagebreak -->
 ## 9.7 Saved Validation Results
-These are actual saved local results for the final application images, not predictions for another machine. The complete 25-case results are in output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf and output/validation/all25/all25-audit.json. Performance/fault detail remains in output/validation/tc-fixes/FINAL_REPORT.md; diagnostic causes are in ROOT_CAUSES.md in that folder. Earlier failed/inconclusive cohorts remain preserved.
+These are actual saved local results for the final application images, not predictions for another machine. The complete 25-case results are in output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf and output/validation/all25/all25-audit.json. Performance/fault detail remains in output/validation/tc-fixes/FINAL_REPORT.md.
 
 | Case / cohort | Actual result | Measurements and limits |
 |---|---|---|
@@ -758,8 +762,8 @@ The final ledger records the completed local validation. Fifteen cases have newl
 | Case IDs | Actual result / scope | Final evidence run under .local/test-results/ |
 |---|---|---|
 | TC-01 to TC-08; TC-10 to TC-12; TC-17; TC-25 | PASS - new final-version checks | all25-audit.json: each listed case's evidence field |
-| TC-09 | PASS - completed corrected Compose rerun | all25-audit.json: TC-09 evidence |
-| TC-13 | PASS - completed corrected seat-outage rerun | all25-audit.json: TC-13 evidence |
+| TC-09 | PASS - completed Compose validation | all25-audit.json: TC-09 evidence |
+| TC-13 | PASS - completed seat-outage validation | all25-audit.json: TC-13 evidence |
 | TC-14/15/16/18/20/21/22 | PASS - original full regression scope | tc-fix-regression-v9 and its per-case child runs |
 | TC-19 | PASS - three original surges and mixed parties | tc-fix-19-v9 |
 | TC-23 | PASS - fixed replicas and tested capacity points | tc-fix-23-v9; tc-fix-capacity-v9; tc-fix-capacity-upper-v9 |
@@ -773,30 +777,33 @@ Current 25-case conclusions use the completed evidence above. Both this guide an
 ## 9.9 Environment and Evidence Package
 
 ### Tested environment and deployment scope
-The final local host/Docker budget reported 12 logical CPUs and approximately 7.69 GiB Docker RAM. Gateway CPU limit=1 core; PostgreSQL limit=2 cores. Other final pod resources, image/source fingerprints and runtime versions are captured in the evidence. Earlier hardware/configurations differ; do not infer a controlled old-versus-new speedup. Busy or smaller machines may miss deadlines even with the same source.
+The final local host/Docker budget reported 12 logical CPUs and approximately 7.69 GiB Docker RAM. Gateway CPU limit=1 core; PostgreSQL limit=2 cores. Other final pod resources, image/source fingerprints and runtime versions are captured in the evidence. Busy or smaller machines may miss deadlines even with the same source.
 
-Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Historically, the fixed source changes were uncommitted when validation completed. They are now included in application commit 253a6e2; the 96 compared application/configuration files still match final v9. This examiner-edition documentation remains uncommitted. SOURCE_PROVENANCE.json records the current base commit and documentation/release overlay; use the submitted source, scripts and manifests to build images.
+Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Application commit 253a6e2 contains the validated source; the 96 compared application/configuration files match final v9. SOURCE_PROVENANCE.json records the submission source snapshot and documentation/release overlay; use the submitted source, scripts and manifests to build images.
 
 ### Follow-up evidence scope
 
-All 64 planned follow-up units are COMPLETE, with no measurement pending. The original 25-case PASS matrix retains its recorded scope; completion does not mean every higher-rate follow-up met its SLO. No application tests were rerun for this documentation update.
+All 64 planned follow-up units are COMPLETE, with no measurement pending. The original 25-case PASS matrix retains its recorded scope. No application tests were rerun for this documentation update.
 
-The saved-data audit passed 1,046 checks with zero failures. Three historical interrupted attempts remain preserved and are not extra matched samples. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
+The saved-data audit passed 1,046 checks with zero failures. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
 
 ### Supporting evidence files
-Under output/validation/tc-fixes/:
-- FINAL_REPORT.md: actual run tables, graphs, scope and limitations.
-- ROOT_CAUSES.md and CHANGES.md: observations, diagnosis and implemented fixes.
-- final-acceptance-audit.json: independent raw-evidence checks.
-- report-v9/: eight PNG/SVG graph pairs, runs.csv and pod-metrics.csv.
-- CSC3104_TC19_TC23_TC24_New_Evidence.zip: exported raw runs, source snapshot/patch and reports.
-- evidence-manifest.json, evidence-zip.sha256 and archive-verification.json: file hashes, redactions and archive verification.
+The two PDFs and the raw evidence have different roles. The instructions describe the procedures; the results report summarises outcomes, charts and interpretation; raw records and audits allow independent verification of those findings.
 
-The archive was verified for CRC, manifest hashes, readable JSON and configured-secret redaction. It contains 3,640 entries (172,139,714 bytes). Exported logs redact credentials; do not submit kubeconfig, Secrets, .env.core or private originals. Raw ignored run folders must accompany a submission if the archive is not supplied. The separately updated guide does not alter that previously sealed archive or its checksums.
+Download the attached GROUP02_Submission.zip from the [submission release page](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest). GitHub's automatically generated Source code ZIP omits ignored raw evidence. Extract the attachment once and work from CSC3104_G2_CloudProject/. Most raw evidence is in this attachment rather than the branch file listing.
 
-Under output/validation/all25/, all25-audit.json selects the final 25 passing cases; final-acceptance-audit.json records the 244 original-workload checks; checker-corrections.json retains the preliminary checker errors. final-environment-verification.json records restoration and unchanged main deployment specifications/UIDs. GROUP02_All25_Additional_Evidence.zip supplies the new functional/browser runs alongside the separately sealed v9 archive; neither historical archive is rewritten by this document correction.
+| Location inside the extracted project | What it contains |
+|---|---|
+| output/pdf/ | Testing instructions, results report and their editable sources. |
+| .local/test-results/ | Reviewed exported raw runs: logs, request observations, snapshots and screenshots where collected. |
+| output/validation/all25/all25-audit.json | Selects the recorded evidence folder supporting each of the 25 cases. |
+| output/validation/tc-fixes/ | Validation reports, graphs and audits. |
+| output/validation/followup-20261119/ | Follow-up reports, measurement tables and audits. |
+| output/tc14-extended-20261119/ | Extended latency observations, summaries, charts and trial checks. |
 
-For submission, use output/review-package/GROUP02_Submission.zip. Extract it once and work from CSC3104_G2_CloudProject/. It includes the current source, the two submission PDFs, the all25 audit and selected raw case folders, historical experiment reports, the follow-up export and the extended TC-14 data. START_HERE.md explains the evidence paths; SUBMISSION_MANIFEST.json hashes each included file and SUBMISSION_VERIFICATION.json records the packaging checks. Read the selected recorded run paths in Section 9.8 and all25-audit.json; example names such as TC-01 and TC19-exam are destinations for new manual reruns. Original sealed ZIPs and older source-only/figure bundles are archival inputs, not additional files required to open the extracted evidence. They are not nested inside the submission ZIP.
+All evidence paths in this guide are relative to that extracted project folder. Start with START_HERE.md, then open all25-audit.json and follow each case's evidence field. Example names such as TC-01 and TC19-exam are destinations for new manual reruns, not the selected recorded run IDs. Reading saved evidence requires no Docker deployment and generates no new test results.
+
+SUBMISSION_MANIFEST.json hashes each included payload file; SUBMISSION_VERIFICATION.json records packaging checks. The all25 audit folder also retains original-workload checks and environment restoration records. Exported logs are reviewed for credentials; private browser profiles, kubeconfig, generated Secrets and .env.core are excluded. Reviewed evidence is extracted into this package; no nested ZIPs or separate archive downloads are needed.
 
 ### Examiner result log
 For every case record observed result, run ID, source/image version, machine limits, exact steps, configuration, timestamps, IDs, terminal counts, errors, invariant output, evidence filenames and restoration. Expected results in Section 10 are acceptance conditions; the examiner must enter their own observations. All 25 cases passed the recorded local checks. This does not establish a clean-machine result, production security, storage HA or a guaranteed outcome on another machine.

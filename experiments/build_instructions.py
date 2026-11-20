@@ -52,6 +52,8 @@ STYLES = {
 
 def markup(text):
     value = escape(text)
+    value = re.sub(r'\[([^\]]+)\]\((https?://[^)\s]+)\)',
+                   r'<a href="\2" color="#15656D">\1</a>', value)
     value = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', value)
     value = re.sub(r'`([^`]+)`', r'<font name="Courier">\1</font>', value)
     return value
