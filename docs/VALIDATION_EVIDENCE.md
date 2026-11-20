@@ -28,7 +28,7 @@ These checks do not constitute a fresh application test run.
 
 The extended run `tc14-extended-20261119` completed five trials of 100 sequential measured holds each. All 500 succeeded, with zero failures or SQL invariant violations. The pooled median was 26.51 ms, P95 was 63.43 ms and P99 was 91.67 ms. The original three single-request TC-14 trials remain part of the 25-case acceptance record.
 
-- Appendix B of the [testing guide](../output/pdf/GROUP02_INSTRUCTIONS.pdf#page=28) contains the procedure. Appendix B of the [results report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf#page=27) contains the per-trial table and both charts.
+- Section 9, TC-14 of the [testing guide](../output/pdf/GROUP02_INSTRUCTIONS.pdf) contains the extended procedure. The TC-14 section of the [results report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf) contains the per-trial table and both charts.
 - [Methodology and interpretation](TC14_EXTENDED_RESULTS.md) explain the direct seat-store timing boundary and its limits for end-to-end booking.
 - [Raw CSV](../output/tc14-extended-20261119/raw-observations.csv), [raw JSON](../output/tc14-extended-20261119/raw-observations.json) and [statistical summary](../output/tc14-extended-20261119/summary.json) are stored with trial-level deployment, inventory and SQL evidence in [the cohort export](../output/tc14-extended-20261119/). The raw files include all 550 observations, including 50 warm-ups.
 
@@ -81,5 +81,5 @@ outcomes. The saved-data audit passed 1,046 checks with zero failures.
 <!-- followup-20261119:current-documents:start -->
 ## Current document synchronization
 
-The current results report and instructions include the November 19 follow-up in Appendix A and extended TC-14 in Appendix B. The [document index](../output/pdf/README.md) lists the current pages and evidence locations. The [Appendix A synchronization record](FOLLOWUP_DOCUMENTATION_UPDATE.md) and November 14 package and guide verification records describe earlier editions. Supply the current PDFs and the TC-14 export alongside the sealed follow-up evidence ZIP.
+The current results report and instructions integrate the November 19 follow-up into TC-18, TC-19, TC-23 and TC-24, and the extended latency study into TC-14. The [document index](../output/pdf/README.md) lists the sections and evidence locations. The [earlier synchronization record](FOLLOWUP_DOCUMENTATION_UPDATE.md) and November 14 package and guide verification records describe historical editions. Supply the current PDFs and the TC-14 export alongside the sealed follow-up evidence ZIP.
 <!-- followup-20261119:current-documents:end -->

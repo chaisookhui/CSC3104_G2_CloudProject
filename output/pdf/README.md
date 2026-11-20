@@ -5,15 +5,14 @@ original **25-case baseline**. That baseline recorded 25 PASS cases and 321 audi
 checks. The follow-up completed 64 units with mixed capacity outcomes; its saved-data
 audit passed 1,046 checks with zero failures. COMPLETE is not PASS.
 
-- `GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf` and `.md`: **28-page**
-  results PDF. Original baseline pages 1-22; follow-up summary/capacity/bursts
-  page 23, scheduler analysis page 24, HPA overview page 25, traffic/HTTP/delivery
-  figure page 26. Figure pages 25-26 are landscape. Appendix B on pages 27-28
-  contains the extended TC-14 results, per-trial statistics and charts.
-- `GROUP02_INSTRUCTIONS.pdf` and `.md`: **28-page** guide. Quick Start remains
-  page 2, demonstration route page 3, and matrices pages 23-24. Appendix A on
-  page 27 contains the follow-up findings. Appendix B on page 28 contains the
-  extended TC-14 reproduction procedure.
+- `GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf` and `.md`: results,
+  per-trial statistics and charts. The extended latency study appears within
+  TC-14. Scheduler, burst, API capacity and HPA follow-up results appear within
+  TC-18, TC-19, TC-23 and TC-24 respectively. Use PDF bookmarks to navigate.
+- `GROUP02_INSTRUCTIONS.pdf` and `.md`: deployment and testing guide. The
+  extended TC-14 procedure is in Section 9. Follow-up findings appear alongside
+  their procedures in Sections 9.2-9.5; evidence scope is in Section 9.9.
+  The documents have no Appendix A or B.
 
 [Detailed findings](../../docs/FOLLOWUP_EVALUATION_RESULTS.md),
 [article material and figures](../validation/followup-20261119/report/), and the
@@ -21,30 +20,33 @@ audit passed 1,046 checks with zero failures. COMPLETE is not PASS.
 Highest observed capacity passes at API1/2/4 were 200/250/250 requests/s, with
 3/3, 1/3 and 1/3 passing trials. All nine bursts and four full HPA cycles passed.
 
-The [standalone TC-14 supplement](TC14_EXTENDED_SUPPLEMENT.pdf) contains the procedure and results for direct seat-store latency. The [TC-14 Markdown report](../../docs/TC14_EXTENDED_RESULTS.md) links the raw data and charts.
+## Submission selection
+
+Submit one copy of the results report and one copy of the instructions guide listed above.
+The results report already includes the TC-14 extended results, both charts, methodology
+and reproduction steps within TC-14, together with the other test cases and follow-up
+studies. A separate TC-14 PDF is not needed for submission.
+
+The redundant standalone TC-14 supplement and `_Revised.pdf` copies have been removed.
+The instructions guide is kept under the regular filename above; the removed revised
+copy had the same body content and only omitted "Examiner edition" from its cover subtitle.
+The [TC-14 Markdown report](../../docs/TC14_EXTENDED_RESULTS.md) links the raw data and charts.
 
 ## Editing and rebuilding
 
-Build the TC-14 supplement from the exported evidence with the same reportlab and pypdf dependencies as the submission guides:
-
-```powershell
-python experiments/build_tc14_supplement.py output/tc14-extended-20261119 output/pdf/TC14_EXTENDED_SUPPLEMENT.pdf
-```
-
-The report supplement uses audited JSON/figures and the preserved original report
-PDF. The instruction supplement source is
-[`docs/FOLLOWUP_TESTING_APPENDIX.md`](../../docs/FOLLOWUP_TESTING_APPENDIX.md).
+Both PDFs render from their editable Markdown files in this directory.
+Measured figures remain linked to their original evidence exports.
 With reportlab and pypdf available, run:
 
 ```powershell
 python experiments/refresh_followup_documents.py
 ```
 
-Keep the original 22-page report PDF under
-`output/validation/followup-20261119/document-refresh/before/output/pdf/`.
-The script retains the original report section, appends the follow-up and extended
-TC-14, and calls the existing instructions renderer. Keep the follow-up reports,
-audits and figures and the `output/tc14-extended-20261119/` cohort export available.
+The script rebuilds the integrated reports without adding appendices or cover
+notices. Keep the follow-up reports, audits and figures and the
+`output/tc14-extended-20261119/` cohort export available.
+If Windows locks an existing PDF, the builder saves an `_Revised.pdf` copy in
+this directory. Use that copy until the original is closed and rebuilt.
 Render and inspect PDF changes. The historical `build_all25_report.py` also
 recreates a combined report and is not the current follow-up refresh command.
 Deleted combined/handbook artifacts were not recreated.

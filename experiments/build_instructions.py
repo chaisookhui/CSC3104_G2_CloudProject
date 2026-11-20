@@ -139,7 +139,6 @@ def page(canvas, doc):
     canvas.setStrokeColor(colors.HexColor('#D9E0E7'))
     canvas.setLineWidth(.5)
     canvas.line(42, 34, w-42, 34)
-    canvas.drawString(42, 22, 'Local assessment. Expected results require independent execution.')
     canvas.drawRightString(w-42, 22, str(doc.page))
 
 
@@ -164,7 +163,7 @@ def make_table(lines):
     return table
 
 
-def build():
+def build(output=None):
     path = OUT / 'GROUP02_INSTRUCTIONS.md'
     lines = path.read_text(encoding='utf-8-sig').splitlines()
     story = []
@@ -226,8 +225,9 @@ def build():
             while i < len(lines) and lines[i].strip() and not re.match(r'^(#|\||`|<!--|\d+\. |\- |\*\*[^*]+:\*\*)', lines[i]):
                 block.append(lines[i].strip()); i += 1
             story.append(paragraph(' '.join(block)))
-    output = OUT / 'GROUP02_INSTRUCTIONS.pdf'
-    doc = Instructions(str(output), pagesize=A4, title='CSC3104 Group 02 - Testing Instructions',
+    output = Path(output) if output else OUT / 'GROUP02_INSTRUCTIONS.pdf'
+    rendered = BytesIO()
+    doc = Instructions(rendered, pagesize=A4, title='CSC3104 Group 02 - Testing Instructions',
                        author='CSC3104 Group 02', leftMargin=42, rightMargin=42,
                        topMargin=60, bottomMargin=48, allowSplitting=True)
     doc.addPageTemplates([PageTemplate(id='instructions',
@@ -236,13 +236,21 @@ def build():
                                        topPadding=0, bottomPadding=0)], onPage=page)])
     doc.build(story)
     # Keep the public guide undated, including the document properties.
-    reader = PdfReader(BytesIO(output.read_bytes()))
+    rendered.seek(0)
+    reader = PdfReader(rendered)
     writer = PdfWriter()
     writer.clone_document_from_reader(reader)
     writer.metadata = {key: value for key, value in (reader.metadata or {}).items()
                        if key not in ('/CreationDate', '/ModDate')}
-    with output.open('wb') as stream:
+    staged = output.with_suffix('.pending.pdf')
+    with staged.open('wb') as stream:
         writer.write(stream)
+    try:
+        staged.replace(output)
+    except PermissionError:
+        output = output.with_name(output.stem + '_Revised.pdf')
+        staged.replace(output)
+        print('Original PDF is locked; saved revised copy instead.')
     print('Created:', output)
 
 

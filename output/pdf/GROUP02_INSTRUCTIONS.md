@@ -1,7 +1,7 @@
 # Fair Seat Allocation
 CSC3104 Cloud and Distributed Computing | Group 02
 
-**Testing Instructions | Examiner edition**
+**Testing Instructions**
 
 ## 1. Introduction
 This application allocates adjacent seats to parties of one to four people. Customers register for a sale, receive a queue position when the sale opens, and receive a whole-party reservation if a suitable block exists. A mock payment confirms the reservation. Unpaid reservations expire; customers can cancel an unpaid reservation. No money or real payment details are involved.
@@ -25,7 +25,6 @@ This document lets an examiner deploy the submitted source, test the implementat
 
 **Final validation scope:** all 25 documented cases passed their recorded local acceptance conditions. TC-01 to TC-13, TC-17 and TC-25 have new final-version functional/browser/deployment evidence. TC-14/15/16/18/19/20/21/22/23/24 use the complete final v9 cohorts, independently re-audited with unchanged application sources and matching captured image IDs. This is the same evidence and scope as the updated results report. It is not a guarantee on another machine. This document correction generated no new application test results.
 
-**Submission revision:** the verified application is now committed in 253a6e2; its 96 compared application/configuration files match the recorded final v9 build. This edition synchronises documentation and release packaging only. The current source-package manifest identifies the base commit and any documentation/release changes included. See docs/FINAL_SUBMISSION_VERIFICATION.md for submission checks; no new application execution is implied.
 
 **Source basis:** service implementations, schemas/migrations, Dockerfiles, deployment configurations, launcher, frontend, tests and experiment tools in this checkout. The local four-page project assignment brief was reviewed. It requires containers and/or Kubernetes, tested advertised functionality and explicit testing instructions. This document is the testing guide, separate from the research article.
 
@@ -495,6 +494,29 @@ Reset and repeat with IDs TC-14-r2/r3.
 **Verification Method:** metrics.json average/P95, elapsed time, HTTP rates; raw customer sample.
 **Evidence:** per-run customers.json/csv, summary.json, metrics.json, before/after captures. With one sample average=P95; this is not a stable distribution or full booking latency.
 
+### TC-14 | Extended direct seat-store baseline
+The three original single-request trials in Section 9 retain their original procedure and acceptance evidence. This extended study measures the local `POST /seats/hold` HTTP path through a loopback port-forward to `seat-api`. End-to-end booking includes browser and frontend activity, waiting-room admission, batching, allocation, and payment through confirmation.
+
+**Set up and run**
+
+Start Docker with Linux containers and use the project Kind cluster with its images loaded. Use host Python 3.10 or later and install Matplotlib 3.8 or later for the exporter. Run from the repository root. Use a new run ID and export directory for each cohort. Allow about 5-10 minutes for the full run.
+
+```powershell
+python experiments/tc14_extended.py --run tc14-extended-repro01
+python experiments/tc14_report.py --run tc14-extended-repro01 --output output/tc14-repro01
+```
+
+The collector creates a fresh disposable namespace per trial with one Ready pod per component, a 300-second hold TTL and batch size 10. Each trial starts with 200 available Section C seats. Ten sequential one-seat warm-up holds precede the 100 measured requests. There is one client request in flight at a time and each attempt uses a new TCP connection and a unique request ID. Run without concurrent benchmarks or changes to the cluster.
+
+**Verify and save evidence**
+
+1. Check that all five trials attempted 100 measured requests each. Confirm the summary reports 500 successful holds, zero failed or missing requests, and zero SQL invariant violations for a passing cohort. The trial evidence includes deployment settings, inventory snapshots and SQL audit results.
+2. Save `raw-observations.csv` and `raw-observations.json`. Keep warm-up rows and every unsuccessful attempt. Summarize latency from successful measured holds only. Keep `summary.csv`, `summary.json` and both charts.
+3. Inspect trial variation alongside the pooled estimate. Record any failed or incomplete trial with its observed outcomes. There is no fixed latency target for this baseline.
+
+The recorded run `tc14-extended-20261119` passed all five trials. Its 500 measured holds had a 26.51 ms median, 63.43 ms P95 and 91.67 ms P99, with zero SQL invariant violations. See the TC-14 extended study in the results report, `docs/TC14_EXTENDED_RESULTS.md` and `output/tc14-extended-20261119/` for the methodology, data and figures.
+
+<!-- pagebreak -->
 ### TC-15 | Concurrent scheduled registration
 **Objective:** measure admission latency/rate and missing acknowledgements.
 **Preconditions:** empty pre-sale lab before each run; do not start sale.
@@ -570,6 +592,14 @@ Read trade-offs together: number of booking groups served; reservation success b
 
 Fairness objective: equal opportunity for sizes 1-4 within each section. Summaries report the maximum-minus-minimum reservation-rate gap and Jain's index over those rates. Smaller gaps and indices nearer one indicate greater equality; zero service has no score. Missing groups or unknown outcomes prevent a full-size conclusion. Read these measures alongside waits, overtakes, utilization and sample sizes. Add --seeds 10 to compare to run independent consecutive seeds; paired differences are descriptive, not statistical significance.
 
+### TC-18 | Follow-up scheduler findings
+
+| Study | Completed evidence | Observed result |
+|---|---|---|
+| TC-18 F2/F3/F6 | 30 matched seed pairs; 60 policy replays | All correctness checks passed. Mean DC-FCFS party/Jain deltas: F2 -0.1/+0.009405; F3 +0.5/+0.028361; F6 0/0. |
+
+The original F1 parties-versus-Jain trade-off did not recur on mean paired effects. F3 nevertheless had a worse rate gap despite higher Jain. Missing sizes remain missing; Jain requires all four sizes, known outcomes and positive service. F6 fixture bookings are excluded.
+
 <!-- pagebreak -->
 ## 9.3 Extended Robustness Experiments
 These tests address the remaining professor questions. Reset lab before EACH independent command, preserve evidence, and use a new run ID. Full procedures and interpretation: experiments/ROBUSTNESS.md. Costs are excluded.
@@ -583,6 +613,14 @@ python experiments/study.py --case 19 --reset-lab --run TC19-exam
 **Expected Result:** every offered arrival accepted/reconciled, no missing acknowledged ID, unique positions 1..N stable through admission, all outcomes RESERVED or UNAVAILABLE within 600 seconds, zero SQL violations. Generator drops, rejections, HTTP failures, unresolved outcomes or excess launch lag prevent PASS. UNAVAILABLE means valid inventory exhaustion, not a confirmed booking.
 **Expected Result:** mixed outcomes contain complete adjacent parties, no shared live ownership or partial party, at most ten C seats reserved and zero SQL violations. Winning mixture depends on scheduling.
 **Evidence:** .local/test-results/TC19-exam/ contains surge-1/2/3 and mixed, raw arrivals/customers, admission records, preflight, captures, metrics/timeline and summary.json. Preserve every failed/inconclusive attempt. These registration/allocation workloads do not perform payment.
+
+### TC-19 | Follow-up burst findings
+
+| Study | Completed evidence | Observed result |
+|---|---|---|
+| TC-19 bursts | Three trials per peak 100/150/200 per second | All nine passed; all 27,900 offers accepted. Maximum admission 178.1/269.7/352.0s, within 600s. |
+
+Burst success means terminal processing, including unavailable/expired parties, not thousands of booked seats.
 
 ### TC-20 | Payment/cancellation/expiry race
 **Steps:** fresh reset, run payment and cancellation together:
@@ -625,6 +663,24 @@ python experiments/study.py --case capacity --reset-lab --run TC23-cap-exam
 This runs 20/40/60/80/100 arrivals/s for 30 seconds at each 1/2/4 setting, one trial per point. In addition to correctness/delivery checks, sustainable means P95 <=1,000 ms and accepted throughput >=95% of offered rate. The saved final study also tested 200/s separately. Highest passing tested rate is a lower bound, not the true maximum; single capacity points have no confidence interval.
 
 <!-- pagebreak -->
+### TC-23 | Follow-up API capacity
+
+| Study | Completed evidence | Observed result |
+|---|---|---|
+| TC-23 capacity | 21 trials; 19 valid delivery, two invalid delivery | Eight met the composite SLO. Fourteen workload PASS and seven INCONCLUSIVE outcomes remain separate from SLO status. |
+
+
+| API replicas | Highest observed pass | Passing / valid trials at that rate | First observed valid-delivery miss |
+|---|---|---|---|
+| 1 | 200/s | 3/3 | 250/s: two valid misses; one other attempt had invalid delivery |
+| 2 | 250/s | 1/3 | 200/s: one miss among three valid trials |
+| 4 | 250/s | 1/3 | 250/s: two misses among three valid trials |
+
+These maxima describe observed trials, not stable or production capacity. All five completed 300/s attempts remain INCONCLUSIVE with unavailable accepted-ID reconciliation; acknowledgements are lower bounds. A P95 of 536ms at 250/s with four replicas still missed because 158 HTTP requests timed out. All unchanged SLO conditions must pass, not P95 alone.
+
+Two invalid-delivery attempts are excluded from capacity inference: 374 pool drops at 300/s with one replica, and 4.08s launch lag in an extra 250/s one-replica trial.
+
+<!-- pagebreak -->
 ## 9.5 Automatic Scaling Procedure
 ### TC-24 | Optional autoscaling
 **Preconditions:** current application images built/loaded, pinned host load dependency installed, enough free resources, no concurrent experiments. Each target needs at least 18.5 minutes of measured phases plus deployment, admission and evidence collection. Run targets sequentially.
@@ -657,6 +713,12 @@ The wrapper resets only csc3104-lab before each target, captures baseline config
 ```powershell
 python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
 ```
+
+### TC-24 | Follow-up HPA findings
+
+| Study | Completed evidence | Observed result |
+|---|---|---|
+| TC-24 CPU HPA | Two full cycles per target | All four passed scale-out, original 600s recovery and repeated scale-out. API held at four Ready replicas in worker-only tests. |
 
 <!-- pagebreak -->
 ## 9.6 Browser Access and Evidence Collection
@@ -734,6 +796,12 @@ The earlier results in experiments/VALIDATION.md, acceptance-summary.json, robus
 The final local host/Docker budget reported 12 logical CPUs and approximately 7.69 GiB Docker RAM. Gateway CPU limit=1 core; PostgreSQL limit=2 cores. Other final pod resources, image/source fingerprints and runtime versions are captured in the evidence. Earlier hardware/configurations differ; do not infer a controlled old-versus-new speedup. Busy or smaller machines may miss deadlines even with the same source.
 
 Kubernetes studies and faults ran in isolated csc3104-lab; TC-09 used a separate Compose project and then stopped that project with volumes retained. Final restoration recorded one replica each, no HPAs, pre-sale, Demand-Cycle, batch 10, TTL 300 and 70 available seats. Main deployment specifications/UIDs were unchanged; retained main dispatcher data was not migrated. Historically, the fixed source changes were uncommitted when validation completed. They are now included in application commit 253a6e2; the 96 compared application/configuration files still match final v9. This examiner-edition documentation remains uncommitted. SOURCE_PROVENANCE.json records the current base commit and documentation/release overlay; use the submitted source, scripts and manifests to build images.
+
+### Follow-up evidence scope
+
+All 64 planned follow-up units are COMPLETE, with no measurement pending. The original November 14, 25-case PASS matrix retains its recorded scope; completion does not mean every higher-rate follow-up met its SLO. No application tests were rerun for this documentation update.
+
+The saved-data audit passed 1,046 checks with zero failures. Three historical interrupted attempts remain preserved and are not extra matched samples. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
 
 ### Supporting evidence files
 Under output/validation/tc-fixes/:
@@ -881,54 +949,3 @@ python demo.py --stop
 Resume main with its normal startup; resume lab with python experiments/run.py lab without --reset-lab and restart forwarding. To return the disposable lab to initial empty state, save evidence then repeat Section 4's --reset-lab. Do not delete main namespace/volumes/PVCs or Kind cluster as routine cleanup; cluster deletion loses node-local storage. Verification harnesses remove their own csc3104-check; inspect leftovers before rerunning.
 
 **Supporting scripts:** experiments/run.py, study.py, loadgen.py, observability.py, runtime.py, workloads.py, metrics.py, invariants.sql; tests/docker_booking_smoke.py and http_validation_smoke.py. Editable source: output/pdf/GROUP02_INSTRUCTIONS.md; renderer: experiments/build_instructions.py (requires reportlab and pypdf).
-
-<!-- followup-20261119:supplements:start -->
-<!-- pagebreak -->
-## Appendix A. Latest Follow-up Results - 19 November 2026
-
-This supplement extends the original November 14, 25-case baseline. The earlier PASS matrix is retained within its recorded scope; it does not mean every higher-rate follow-up met its SLO. All 64 planned follow-up units are COMPLETE, with no measurement pending. No application tests were rerun for this documentation update.
-
-| Study | Completed evidence | Observed result |
-|---|---|---|
-| TC-18 F2/F3/F6 | 30 matched seed pairs; 60 policy replays | All correctness checks passed. Mean DC-FCFS party/Jain deltas: F2 -0.1/+0.009405; F3 +0.5/+0.028361; F6 0/0. |
-| TC-24 CPU HPA | Two full cycles per target | All four passed scale-out, original 600s recovery and repeated scale-out. API held at four Ready replicas in worker-only tests. |
-| TC-19 bursts | Three trials per peak 100/150/200 per second | All nine passed; all 27,900 offers accepted. Maximum admission 178.1/269.7/352.0s, within 600s. |
-| TC-23 capacity | 21 trials; 19 valid delivery, two invalid delivery | Eight met the composite SLO. Fourteen workload PASS and seven INCONCLUSIVE outcomes remain separate from SLO status. |
-
-### Observed API capacity - unchanged composite SLO
-| API replicas | Highest observed pass | Passing / valid trials at that rate | First observed valid-delivery miss |
-|---|---|---|---|
-| 1 | 200/s | 3/3 | 250/s: two valid misses; one other attempt had invalid delivery |
-| 2 | 250/s | 1/3 | 200/s: one miss among three valid trials |
-| 4 | 250/s | 1/3 | 250/s: two misses among three valid trials |
-
-These maxima describe observed trials, not stable or production capacity. All five completed 300/s attempts remain INCONCLUSIVE with unavailable accepted-ID reconciliation; acknowledgements are lower bounds. A P95 of 536ms at 250/s with four replicas still missed because 158 HTTP requests timed out. All unchanged SLO conditions must pass, not P95 alone.
-
-Two invalid-delivery attempts are excluded from capacity inference: 374 pool drops at 300/s with one replica, and 4.08s launch lag in an extra 250/s one-replica trial. The original F1 parties-versus-Jain trade-off did not recur on mean paired effects. F3 nevertheless had a worse rate gap despite higher Jain. Missing sizes remain missing; Jain requires all four sizes, known outcomes and positive service. F6 fixture bookings are excluded. Burst success means terminal processing, including unavailable/expired parties, not thousands of booked seats.
-
-The saved-data audit passed 1,046 checks with zero failures. Three historical interrupted attempts remain preserved and are not extra matched samples. Full analysis, counts, waits, denominators and raw paths: docs/FOLLOWUP_EVALUATION_RESULTS.md and output/validation/followup-20261119/report/RESULTS.md. Article table/paragraph and PNG/SVG figures are in that report folder.
-<!-- followup-20261119:supplements:end -->
-
-<!-- pagebreak -->
-## Appendix B. TC-14 Extended Direct Seat-Store Baseline
-
-The three original single-request trials in Section 9 retain their original procedure and acceptance evidence. This extended study measures the local `POST /seats/hold` HTTP path through a loopback port-forward to `seat-api`. End-to-end booking includes browser and frontend activity, waiting-room admission, batching, allocation, and payment through confirmation.
-
-### Set up and run
-
-Start Docker with Linux containers and use the project Kind cluster with its images loaded. Use host Python 3.10 or later and install Matplotlib 3.8 or later for the exporter. Run from the repository root. Use a new run ID and export directory for each cohort. Allow about 5-10 minutes for the full run.
-
-```powershell
-python experiments/tc14_extended.py --run tc14-extended-repro01
-python experiments/tc14_report.py --run tc14-extended-repro01 --output output/tc14-repro01
-```
-
-The collector creates a fresh disposable namespace per trial with one Ready pod per component, a 300-second hold TTL and batch size 10. Each trial starts with 200 available Section C seats. Ten sequential one-seat warm-up holds precede the 100 measured requests. There is one client request in flight at a time and each attempt uses a new TCP connection and a unique request ID. Run without concurrent benchmarks or changes to the cluster.
-
-### Verify and save evidence
-
-1. Check that all five trials attempted 100 measured requests each. Confirm the summary reports 500 successful holds, zero failed or missing requests, and zero SQL invariant violations for a passing cohort. The trial evidence includes deployment settings, inventory snapshots and SQL audit results.
-2. Save `raw-observations.csv` and `raw-observations.json`. Keep warm-up rows and every unsuccessful attempt. Summarize latency from successful measured holds only. Keep `summary.csv`, `summary.json` and both charts.
-3. Inspect trial variation alongside the pooled estimate. Record any failed or incomplete trial with its observed outcomes. There is no fixed latency target for this baseline.
-
-The recorded run `tc14-extended-20261119` passed all five trials. Its 500 measured holds had a 26.51 ms median, 63.43 ms P95 and 91.67 ms P99, with zero SQL invariant violations. See results report Appendix B, `docs/TC14_EXTENDED_RESULTS.md` and `output/tc14-extended-20261119/` for the methodology, data and figures.
