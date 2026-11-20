@@ -15,6 +15,24 @@ The tested project is maintained on **[twy](https://github.com/chaisookhui/CSC31
 the release preserves its submission snapshot. Large raw evidence is distributed
 through the release attachment rather than Git history.
 
+### Instructions, results and evidence: what is the difference?
+
+| Item | Purpose |
+|---|---|
+| `GROUP02_INSTRUCTIONS.pdf` | How to deploy the application and run the tests. |
+| `GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf` | What was observed, with summaries, charts and interpretation. |
+| Raw evidence and audits | The request records, logs, screenshots and database checks used to verify those findings. |
+
+The results report summarises the evidence; the underlying records let a reviewer
+check the claims independently. Most raw evidence is in the attached
+`GROUP02_Submission.zip`, rather than the branch file listing. After extracting it,
+open `CSC3104_G2_CloudProject/START_HERE.md`. Recorded runs are under
+`.local/test-results/`; `output/validation/all25/all25-audit.json` selects the run
+for each case. Baseline and follow-up reports/audits are under `output/validation/`,
+and extended TC-14 data is under `output/tc14-extended-20261119/`.
+The TC-14 export and a few earlier validation records are also tracked on `twy`.
+See the [evidence index](https://github.com/chaisookhui/CSC3104_G2_CloudProject/blob/twy/docs/VALIDATION_EVIDENCE.md) for the full folder map.
+
 ## Historical main-branch development notes
 
 The notes below describe this older `main` branch. For the submitted integrated
