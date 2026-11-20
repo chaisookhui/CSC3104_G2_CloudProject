@@ -602,7 +602,7 @@ The original F1 parties-versus-Jain trade-off did not recur on mean paired effec
 
 <!-- pagebreak -->
 ## 9.3 Extended Robustness Experiments
-These tests address the remaining professor questions. Reset lab before EACH independent command, preserve evidence, and use a new run ID. Full procedures and interpretation: experiments/ROBUSTNESS.md. Costs are excluded.
+These tests address the remaining professor questions. Reset lab before EACH independent command, preserve evidence, and use a new run ID. Full procedures and interpretation: experiments/STUDY_PROTOCOLS.md#robustness. Costs are excluded.
 
 ### TC-19 | Thousands of arrivals and mixed parties
 **Steps:** use the existing study wrapper to reset before each trial, run all three original surges, then run the mixed-party test on a separate fresh lab:
@@ -663,24 +663,6 @@ python experiments/study.py --case capacity --reset-lab --run TC23-cap-exam
 This runs 20/40/60/80/100 arrivals/s for 30 seconds at each 1/2/4 setting, one trial per point. In addition to correctness/delivery checks, sustainable means P95 <=1,000 ms and accepted throughput >=95% of offered rate. The saved final study also tested 200/s separately. Highest passing tested rate is a lower bound, not the true maximum; single capacity points have no confidence interval.
 
 <!-- pagebreak -->
-### TC-23 | Follow-up API capacity
-
-| Study | Completed evidence | Observed result |
-|---|---|---|
-| TC-23 capacity | 21 trials; 19 valid delivery, two invalid delivery | Eight met the composite SLO. Fourteen workload PASS and seven INCONCLUSIVE outcomes remain separate from SLO status. |
-
-
-| API replicas | Highest observed pass | Passing / valid trials at that rate | First observed valid-delivery miss |
-|---|---|---|---|
-| 1 | 200/s | 3/3 | 250/s: two valid misses; one other attempt had invalid delivery |
-| 2 | 250/s | 1/3 | 200/s: one miss among three valid trials |
-| 4 | 250/s | 1/3 | 250/s: two misses among three valid trials |
-
-These maxima describe observed trials, not stable or production capacity. All five completed 300/s attempts remain INCONCLUSIVE with unavailable accepted-ID reconciliation; acknowledgements are lower bounds. A P95 of 536ms at 250/s with four replicas still missed because 158 HTTP requests timed out. All unchanged SLO conditions must pass, not P95 alone.
-
-Two invalid-delivery attempts are excluded from capacity inference: 374 pool drops at 300/s with one replica, and 4.08s launch lag in an extra 250/s one-replica trial.
-
-<!-- pagebreak -->
 ## 9.5 Automatic Scaling Procedure
 ### TC-24 | Optional autoscaling
 **Preconditions:** current application images built/loaded, pinned host load dependency installed, enough free resources, no concurrent experiments. Each target needs at least 18.5 minutes of measured phases plus deployment, admission and evidence collection. Run targets sequentially.
@@ -736,7 +718,7 @@ capture saves available resource metrics; missing metrics support no CPU/memory/
 ### Evidence handling
 Run one workload at a time; use a fresh run ID and preserve failures alongside passes. Export .local/test-results/<run-id>/ before resetting. Keep original rates, counts, TTLs, deadlines and safety assertions. Do not overwrite a failed or incomplete run to obtain a PASS. Interrupted.json and partial timelines are diagnostic evidence, not completed acceptance.
 
-Full build/upgrade, exact measurement methods, interruption/resume rules and saved-data graph generation are documented in experiments/SCALING_STUDIES.md. No trial is run by opening or rebuilding this PDF. Examiner observations must be recorded separately from the saved results on the following page.
+Full build/upgrade, exact measurement methods, interruption/resume rules and saved-data graph generation are documented in experiments/STUDY_PROTOCOLS.md#scaling. No trial is run by opening or rebuilding this PDF. Examiner observations must be recorded separately from the saved results on the following page.
 
 Scope limits: verified personal accounts, HA storage, node failover, cloud-node scaling, cost analysis and exactly-once transport are not claimed. Optional features require recorded execution.
 
@@ -745,7 +727,7 @@ After normal image build/load and with csc3104-check absent:
 ```powershell
 python experiments/acceptance.py
 ```
-This optional harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. The final 15-case coverage completion used experiments/examiner_verify.py and its real Chromium UI/HTTP/database checks, rather than rerunning this optional bounded harness. TC-14/15/16/18/19/20/21/22/23/24 retain their full v9 workloads. See experiments/EXAMINER_VERIFICATION.md for the exact verification/audit workflow. No application tests were launched for this document correction.
+This optional harness runs booking/policy/recovery/storage checks in its own disposable namespace and removes it afterwards. Save stdout and .local/test-results/acceptance-* folders. The final 15-case coverage completion used experiments/examiner_verify.py and its real Chromium UI/HTTP/database checks, rather than rerunning this optional bounded harness. TC-14/15/16/18/19/20/21/22/23/24 retain their full v9 workloads. See experiments/README.md#examiner-verification for the exact verification/audit workflow. No application tests were launched for this document correction.
 
 <!-- pagebreak -->
 ## 9.7 Saved Validation Results
@@ -785,9 +767,7 @@ The final ledger records the completed local validation. Fifteen cases have newl
 
 The new browser checks include actual refresh of both same-customer tabs, an unchanged five-minute expiry with same-hold late-payment HTTP 409, and TC-25 offline refresh, full browser-process restart, original identity/deadline recovery, administrator sign-in/out and return after real expiry. TC-25 completed 19 checks and eight HTTP 403 denials, including genuine payment/cancellation IDs; no second registration occurred. Its seven-day cookie lifetime is configuration, not a claim of seven elapsed days of testing.
 
-The first serial run's overall status remains FAIL because its initial TC-09/13 checker attempts stopped. A separate TC-13 browser-bootstrap attempt also stopped before booking. Those attempts are preserved; only the completed passing reruns above support those cases. The all25-audit.json ledger selects each actual passing case and retains the failure history. No failed attempt was relabelled PASS.
-
-The earlier results in experiments/VALIDATION.md, acceptance-summary.json, robustness-implementation.json and browser-recovery.json remain historical. Earlier incomplete HPA attempts stay INCONCLUSIVE. Current 25-case conclusions use the later complete evidence above, not those earlier bounded checks. Both this guide and the updated results report now describe the same final ledger.
+Current 25-case conclusions use the completed evidence above. Both this guide and the updated results report describe the same final ledger.
 
 <!-- pagebreak -->
 ## 9.9 Environment and Evidence Package
@@ -926,7 +906,7 @@ For a restarted container, k logs <actual-pod-name> --previous may expose prior 
 <!-- pagebreak -->
 ## 11.1 Cleanup and Retained-State Upgrades
 ### Retained-state dispatcher upgrade
-New dispatcher storage separates active work, append-only history and receipts; inline legacy state migrates transactionally. Upgrade waiting-room API first. Quiesce BOTH old dispatcher-api and dispatcher-worker and wait for their pods to exit before starting either new version. Preserve Redis/PostgreSQL volumes. Mixed old/new dispatcher rolling upgrades are unsupported; old binaries cannot hydrate normalized history. A downgrade requires exporting/recombining history first. See experiments/SCALING_STUDIES.md. Fresh lab resets avoid this migration path; do not reset main storage for these tests.
+New dispatcher storage separates active work, append-only history and receipts; inline legacy state migrates transactionally. Upgrade waiting-room API first. Quiesce BOTH old dispatcher-api and dispatcher-worker and wait for their pods to exit before starting either new version. Preserve Redis/PostgreSQL volumes. Mixed old/new dispatcher rolling upgrades are unsupported; old binaries cannot hydrate normalized history. A downgrade requires exporting/recombining history first. See experiments/STUDY_PROTOCOLS.md#scaling. Fresh lab resets avoid this migration path; do not reset main storage for these tests.
 
 ### Command effects - choose deliberately
 - **Inspect:** k get / describe / logs and payment monitor read operational state; preserve evidence before intervention.

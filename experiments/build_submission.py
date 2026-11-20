@@ -23,7 +23,9 @@ PDFS = ('GROUP02_INSTRUCTIONS.pdf',
         'GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf')
 SUPERSEDED = {'EXAMINER_GUIDE_VERIFICATION.md', 'FOLLOWUP_DOCUMENTATION_UPDATE.md',
               'FOLLOWUP_TESTING_APPENDIX.md', 'ARCHITECTURE_AUDIT.md',
-              'EVALUATION_MATRIX.md', 'build_tc14_supplement.py', 'build_all25_report.py'}
+              'EVALUATION_MATRIX.md', 'build_tc14_supplement.py', 'build_all25_report.py',
+              'ROBUSTNESS.md', 'SCALING_STUDIES.md', 'FOLLOWUP_STUDIES.md',
+              'EXAMINER_VERIFICATION.md'}
 
 
 def authoring_only(name):

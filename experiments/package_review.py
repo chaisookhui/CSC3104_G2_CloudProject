@@ -60,7 +60,7 @@ SOURCE_PROVENANCE.json gives the base commit/branch, application continuity
 check, and the changed-file inventory. SOURCE_MANIFEST.json hashes every file.
 
 Extract to a clean folder and run from CSC3104_G2_CloudProject/. Follow README.md,
-output/pdf/GROUP02_INSTRUCTIONS.pdf and experiments/SCALING_STUDIES.md.
+output/pdf/GROUP02_INSTRUCTIONS.pdf and experiments/STUDY_PROTOCOLS.md.
 Startup generates new local credentials. No .env.core, kubeconfig, generated
 Secrets, database files, virtual environments or browser profiles are supplied.
 The GitHub remote is identified in provenance for reference; this task does not

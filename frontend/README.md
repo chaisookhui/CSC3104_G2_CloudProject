@@ -164,4 +164,4 @@ Cookies persist for seven days. Clearing cookies or changing browser loses guest
 ownership; there is no personal-account or cross-device recovery service. Keep
 internal service ports private. No-token native mode remains an unauthenticated
 local demo. For HTTPS set `FRONTEND_COOKIE_SECURE=true`. See
-[extended testing procedures](../experiments/ROBUSTNESS.md).
+[extended testing procedures](../experiments/STUDY_PROTOCOLS.md#robustness).

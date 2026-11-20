@@ -77,8 +77,8 @@ results ZIP into the checkout so its `.local/test-results/` and
 
 ## Reproduction tools
 
-- [Exact performance/HPA studies](../experiments/SCALING_STUDIES.md)
-- [Final functional/browser verification and audit workflow](../experiments/EXAMINER_VERIFICATION.md)
+- [Exact performance/HPA studies](../experiments/STUDY_PROTOCOLS.md#scaling)
+- [Final functional/browser verification and audit workflow](../experiments/README.md#examiner-verification)
 - [Public v9 saved-data auditor](../experiments/audit_v9_evidence.py)
 
 The application, testing tools, tests, dependency files, deployment manifests

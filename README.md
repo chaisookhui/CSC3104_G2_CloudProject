@@ -218,7 +218,7 @@ See [the seat-store README](src/seat-store/README.md) for its API, booking examp
 configuration and native-PostgreSQL alternative. Internal mutation endpoints are
 for trusted private service-to-service traffic. The frontend gateway separately
 enforces browser ownership and administrator access when configured with its
-generated credential. See [extended robustness and access instructions](experiments/ROBUSTNESS.md).
+generated credential. See [extended robustness and access instructions](experiments/STUDY_PROTOCOLS.md#robustness).
 
 ## Run tests
 

@@ -1143,7 +1143,7 @@ reset the lab before each independent run. The CLI creates its own connection.
 Inspect accepted/rejected/unknown arrivals, generator drops and launch lag.
 A conclusive PASS requires all offered arrivals accepted or reconciled, no
 missing acknowledged IDs and launch lag within one second. Preserve inconclusive
-runs. See `experiments/ROBUSTNESS.md` for surge/admission and API-scaling studies.
+runs. See `experiments/STUDY_PROTOCOLS.md#robustness` for surge/admission and API-scaling studies.
 
 ## References
 

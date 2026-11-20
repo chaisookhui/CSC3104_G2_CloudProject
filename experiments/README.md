@@ -1,5 +1,11 @@
 # Lab measurement and testing tools
 
+## Guide navigation
+
+- This README: lab setup, command entry points and [functional/browser verification](#examiner-verification).
+- [STUDY_PROTOCOLS.md](STUDY_PROTOCOLS.md): exact robustness, scaling and follow-up procedures.
+- [VALIDATION.md](VALIDATION.md): earlier recorded executions and their limitations.
+
 <!-- followup-20261119:latest-results:start -->
 **Latest measured follow-up:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
@@ -23,7 +29,7 @@ it with `python experiments/build_instructions.py` using a reportlab-enabled run
 The main frontend intentionally contains no test-case workbench. Use Overview,
 Batches, Seat map and My booking to observe the application at **http://127.0.0.1:18100**.
 Use the PDF's TC-01 to TC-18 procedures and this CLI for execution/evidence.
-TC-19 to TC-25 and [extended robustness procedures](ROBUSTNESS.md) add thousands
+TC-19 to TC-25 and [extended robustness procedures](STUDY_PROTOCOLS.md#robustness) add thousands
 of arrivals, mixed parties, lifecycle races, committed-reply/crash recovery,
 sustained dependency outages, API scaling, optional HPA and browser ownership.
 For administrator controls run `python experiments/access.py --namespace csc3104-lab`
@@ -190,7 +196,7 @@ The last command creates, resets and removes only its own disposable verificatio
 namespace. It preserves main and the existing lab. See `VALIDATION.md` for actual
 executions and evidence, rather than treating configured tests as recorded passes.
 
-See [extended robustness procedures](ROBUSTNESS.md) for committed-reply/crash
+See [extended robustness procedures](STUDY_PROTOCOLS.md#robustness) for committed-reply/crash
 injections, sustained dependency outages, API replicas, browser ownership and
 optional HPA. The [current 25-case evidence index](../docs/VALIDATION_EVIDENCE.md)
 selects completed final studies; `output/validation/robustness-results.md` retains
@@ -199,10 +205,98 @@ storage HA, node failure and allocator blocked-work repair remain outside this d
 Cost analysis is excluded.
 
 For the full surge repetitions, fixed-replica/capacity grids and automated HPA
-baseline/spike/recovery/repeat cycle, use [the scaling study procedure](SCALING_STUDIES.md).
+baseline/spike/recovery/repeat cycle, use [the scaling study procedure](STUDY_PROTOCOLS.md#scaling).
 
 For the additional F2/F3/F6 seed comparisons, repeated HPA cycles and bounded
-200/250/300 requests/s capacity grid, use [the follow-up procedure](FOLLOWUP_STUDIES.md).
+200/250/300 requests/s capacity grid, use [the follow-up procedure](STUDY_PROTOCOLS.md#follow-up).
 
 `build_instructions.py` is the PDF renderer for the current editable submission
 Markdown. Re-render and inspect the PDF after changes.
+
+<a id="examiner-verification"></a>
+
+## Functional/browser verification and evidence audit
+
+The examiner harness completed the fifteen previously missing final-version
+cases in the 25-case instructions. All 25 local cases now have passing recorded
+evidence; the final audit passed 321 checks. It uses the existing lab setup, request plumbing, waits,
+contention workload and original SQL invariants. Genuine Chromium form clicks,
+reloads, separate tabs/profiles and browser-process restarts supplement HTTP and
+database assertions. Mock payment expiry retains its original 300-second TTL.
+
+The ten original full-scope v9 cases are independently re-audited from their raw
+evidence, with unchanged application/configuration sources and deployed images.
+They are not replaced by smaller test runs. Existing failures remain in place.
+
+### Reproduce the functional/browser cases
+
+This command explicitly erases ONLY `csc3104-lab`. Export existing lab evidence
+first. Use a new run ID and run one workload at a time. It does not reset main.
+TC-09 uses a separate Compose project and loopback18280, then stops only that
+project with its volumes retained.
+
+```powershell
+python experiments/examiner_verify.py --reset-lab --run examiner-new-run
+```
+
+Prerequisites: current application images built/loaded, working Docker/Kind,
+Python with the existing load dependencies, Node.js, Playwright and an installed
+Chrome or Edge. The local authoring environment uses bundled Node/Playwright;
+on another workstation override `EXAM_NODE`, `EXAM_PLAYWRIGHT` (resolvable module
+name or package path), and optionally `EXAM_BROWSER` (installed browser exe).
+No browser is downloaded by this harness. The normal manual examiner route in
+GROUP02_INSTRUCTIONS.pdf does not require this browser automation setup.
+
+Each script run also needs the original final-v9 source inventory and baseline
+snapshot for continuity comparison. Extract the complete submission ZIP and work from its
+CSC3104_G2_CloudProject folder before using this workflow on another machine.
+It includes the reviewed v9 evidence at the required project-relative paths. A plain checkout without the evidence is not a completed
+verification; do not bypass that check to claim the earlier results.
+
+Use `--only` with a fresh ID to rerun an unassessable case: journeys (TC01-04),
+capacity (TC05), validation (TC06), flow (TC07), contention (TC08), compose
+(TC09), replacement (TC10), payment-pause (TC11), allocation-pause (TC12),
+seat-outage (TC13), storage (TC17), or browser (TC25). Original failed evidence
+is never overwritten. A rerun must satisfy the same original acceptance checks.
+
+Private browser profiles/cookies remain under `.local/examiner-browser-profiles/`.
+Do not submit those directories. Exported JSON and screenshots contain only
+synthetic test identities and observed application state, not login passwords.
+
+### Audit and publish after successful completion
+
+Supply all completed run IDs, including preliminary failed attempts and their
+completed replacements, in chronological order:
+
+```powershell
+python experiments/examiner_audit.py --runs RUN_A RUN_B RUN_C --output output/validation/all25
+```
+
+This re-evaluates new raw evidence, re-executes the v9 saved-data auditor in
+`experiments/audit_v9_evidence.py`
+with a separate output directory, checks current application source continuity
+and captured deployed image IDs, and requires all25 distinct test IDs. No new
+traffic is generated. Its all25-audit.json identifies exactly which passing run
+supports each case and preserves the preliminary failure ledger.
+
+Require the complete independent audit to pass before updating the submission.
+Update the editable Markdown reports to match the selected evidence, retaining
+failed and inconclusive outcomes, then rebuild the two integrated PDFs. Inspect
+the rendered pages before exporting. Historical PDFs are not appended to the
+current submission reports.
+
+```powershell
+python experiments/refresh_followup_documents.py
+python experiments/export_examiner_evidence.py --audit output/validation/all25/all25-audit.json
+```
+
+Restore the ordinary lab after exporting the evidence:
+
+```powershell
+python experiments/run.py lab --reset-lab --hold-ttl 300 --batch-size 10
+```
+
+The examiner exporter produces a separate archive for newly collected runs and
+references the original workload export by checksum. For a single complete
+submission containing the reviewed baseline and follow-up evidence, use
+`python experiments/build_submission.py`. Original sealed exports remain unchanged.

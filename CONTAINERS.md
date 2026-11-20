@@ -118,7 +118,7 @@ the frontend enforces signed browser ownership, CSRF checks and administrator
 access. Internal services remain private; keep the published frontend on loopback.
 Browser possession is not a verified personal account. Native/no-token mode is
 explicitly unauthenticated. Extended robustness procedures, optional HPA and their
-limits are in experiments/ROBUSTNESS.md; cost analysis is excluded. Kubernetes and booking/recovery procedures are documented
+limits are in experiments/STUDY_PROTOCOLS.md#robustness; cost analysis is excluded. Kubernetes and booking/recovery procedures are documented
 in output/pdf/GROUP02_INSTRUCTIONS.pdf; experiments/VALIDATION.md separates prior
 execution evidence from unexecuted scenarios. Persistent volumes alone do not
 provide database high availability or backups.
