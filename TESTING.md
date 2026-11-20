@@ -1,9 +1,9 @@
 # Testing our ticket-booking application
 
 <!-- followup-20261119:latest-results:start -->
-**Latest measured follow-up - 19 November 2026:** [Results and evidence](docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+**Latest measured follow-up:** [Results and evidence](docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+No follow-up trial remains pending. The current main results report and instructions integrate follow-up findings within the relevant test cases.
 <!-- followup-20261119:latest-results:end -->
 
 The submission-facing [testing PDF](output/pdf/GROUP02_INSTRUCTIONS.pdf) and its
@@ -18,7 +18,7 @@ cases and 10 full-scope final v9 cases re-audited, with 321 audit checks passed.
 `output/validation/robustness-results.md` and `experiments/VALIDATION.md` retain
 earlier execution history; they do not replace the final ledger.
 
-For the direct seat-store latency baseline, follow [Appendix B of the testing guide](output/pdf/GROUP02_INSTRUCTIONS.pdf#page=28) and see the [extended results and raw evidence](docs/TC14_EXTENDED_RESULTS.md). The protocol uses five fresh trials of 100 sequential measured requests, with ten warm-up holds per trial. The original three single-request trials remain historical acceptance evidence.
+For the direct seat-store latency baseline, follow [TC-14 in the testing guide](output/pdf/GROUP02_INSTRUCTIONS.pdf) and see the [extended results and raw evidence](docs/TC14_EXTENDED_RESULTS.md). The protocol uses five fresh trials of 100 sequential measured requests, with ten warm-up holds per trial. The original three single-request trials remain historical acceptance evidence.
 
 This guide explains **what to test, why it matters, what to do, and what a correct
 result looks like**. You do not need to understand every command before starting.

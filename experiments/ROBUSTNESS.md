@@ -1,9 +1,9 @@
 # Extended robustness experiments
 
 <!-- followup-20261119:latest-results:start -->
-**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+**Latest measured follow-up:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+No follow-up trial remains pending. The current main results report and instructions integrate follow-up findings within the relevant test cases.
 <!-- followup-20261119:latest-results:end -->
 
 The final recorded results are in the [25-case report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
@@ -232,7 +232,7 @@ workload only. Preserve raw arrivals/customers, before/after captures, summary,
 invariants and interrupted records. Never relabel an inconclusive run as PASS.
 Use `output/validation/all25/all25-audit.json` for the final selected case evidence
 and `output/validation/tc-fixes/FINAL_REPORT.md` for full performance/fault detail.
-`output/validation/robustness-implementation.json` records the earlier 12 November
+`output/validation/robustness-implementation.json` records the earlier development
 revision, including its incomplete HPA attempt; it remains historical. No cost,
 real-payment, full account-system, storage
 HA, consensus, cloud-node autoscaling or universal fairness claim is added.

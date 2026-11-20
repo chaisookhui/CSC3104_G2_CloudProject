@@ -1,9 +1,9 @@
 # Lab measurement and testing tools
 
 <!-- followup-20261119:latest-results:start -->
-**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+**Latest measured follow-up:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+No follow-up trial remains pending. The current main results report and instructions integrate follow-up findings within the relevant test cases.
 <!-- followup-20261119:latest-results:end -->
 
 Recorded final local status: all 25 documented cases PASS, comprising 15 newly
@@ -194,7 +194,7 @@ See [extended robustness procedures](ROBUSTNESS.md) for committed-reply/crash
 injections, sustained dependency outages, API replicas, browser ownership and
 optional HPA. The [current 25-case evidence index](../docs/VALIDATION_EVIDENCE.md)
 selects completed final studies; `output/validation/robustness-results.md` retains
-the earlier 12 November observations and incomplete studies. Verified personal accounts,
+the earlier development observations and incomplete studies. Verified personal accounts,
 storage HA, node failure and allocator blocked-work repair remain outside this demo.
 Cost analysis is excluded.
 

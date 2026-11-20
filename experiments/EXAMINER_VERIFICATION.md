@@ -62,15 +62,14 @@ and captured deployed image IDs, and requires all25 distinct test IDs. No new
 traffic is generated. Its all25-audit.json identifies exactly which passing run
 supports each case and preserves the preliminary failure ledger.
 
-The report builder refuses publication unless the complete independent audit
-passes. It preserves the original source PDFs/Markdown before editing, writes
-the updated results/concepts report, and merges both original PDFs as explicitly
-historical appendices after the current25-case report. Original inconclusive
-attempts keep their original status. PDF skill authoring marker and full rendered
-page QA are required when this is used in the authoring workflow.
+Require the complete independent audit to pass before updating the submission.
+Update the editable Markdown reports to match the selected evidence, retaining
+failed and inconclusive outcomes, then rebuild the two integrated PDFs. Inspect
+the rendered pages before exporting. Historical PDFs are not appended to the
+current submission reports.
 
 ```powershell
-python experiments/build_all25_report.py --audit output/validation/all25/all25-audit.json
+python experiments/refresh_followup_documents.py
 python experiments/export_examiner_evidence.py --audit output/validation/all25/all25-audit.json
 ```
 

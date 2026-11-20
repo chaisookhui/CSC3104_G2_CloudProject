@@ -58,7 +58,7 @@ For a controlled one-Pod versus multiple-Pod comparison, temporarily remove the 
 
 Known scaling limits: batch transitions currently read the event to validate global order and batch membership, then optimistically write only changed records. `/queue` and aggregate `/status` also read the event; individual request polling reads one hash field. At very large event sizes, add bounded eligible-queue discovery and maintained aggregate counters before interpreting multi-Pod gains. AOF `always` trades write throughput for persistence.
 
-## Verified locally (2026-10-29)
+## Verified locally
 
 - Eleven waiting-room tests passed with Lua-enabled fakeredis; all three Redis-specific tests also passed inside Docker against real Redis 7.
 - Five dispatcher recovery tests passed.

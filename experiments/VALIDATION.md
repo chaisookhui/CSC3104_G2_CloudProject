@@ -1,9 +1,9 @@
 # Validation records
 
 <!-- followup-20261119:latest-results:start -->
-**Latest measured follow-up - 19 November 2026:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
+**Latest measured follow-up:** [Results and evidence](../docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+No follow-up trial remains pending. The current main results report and instructions integrate follow-up findings within the relevant test cases.
 <!-- followup-20261119:latest-results:end -->
 
 This file retains historical executions. Current final results are in
@@ -11,12 +11,12 @@ This file retains historical executions. Current final results are in
 [25-case results report](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf)
 and [evidence index](../docs/VALIDATION_EVIDENCE.md): all 25 local cases PASS,
 15 newly verified plus 10 complete v9 cases re-audited, with 321 audit checks PASS.
-`output/validation/robustness-results.md` describes the earlier 12 November runs,
+`output/validation/robustness-results.md` describes the earlier development runs,
 not the final 25-case status. The obsolete browser workbench,
 catalogue and its authoring utilities have been removed; references below describe
 the earlier tested revision, not current commands.
 
-## Historical documentation/frontend revision: 12 November 2026
+## Earlier documentation/frontend validation
 
 At that revision, the submission guide was `output/pdf/GROUP02_INSTRUCTIONS.pdf`,
 with an editable Markdown source beside it and 18 procedures across the eleven
@@ -38,7 +38,7 @@ suites were rerun. The Redis suite could not import the missing host `redis`
 package. These environment failures are distinct from passed memory-backed tests.
 Do not treat the historical results below as current-source deployment acceptance.
 
-## Historical validation recorded 10 November 2026
+## Earlier integration validation
 
 These are implementation/integration checks performed during this revision.
 They are **not** a completed research article, a heavy-load capacity result,

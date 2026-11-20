@@ -47,7 +47,7 @@ def main(source_only=False):
     stamp=datetime.now(timezone.utc).isoformat()
     index='''# Start here - source code and experimental evidence
 
-Prepared 14 November 2026 from the current working checkout.
+Prepared from the current working checkout.
 
 ## 1. Latest source code
 

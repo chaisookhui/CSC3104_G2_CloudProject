@@ -1,6 +1,6 @@
 # Additional scheduler, HPA and higher-load measurements
 
-The 19 November follow-up is complete; see [final observed results](../docs/FOLLOWUP_EVALUATION_RESULTS.md). Do not repeat completed studies.
+The follow-up is complete; see [final observed results](../docs/FOLLOWUP_EVALUATION_RESULTS.md). Do not repeat completed studies.
 
 This procedure adds evidence to the original 25-case ledger. It does not replace
 or recertify those original results. All deployed commands use the project's
@@ -30,7 +30,7 @@ python experiments/followup.py --prefix followup-YYYYMMDD --preserved followup-Y
 
 The plan uses the existing public `run.py trace`, `run.py compare`, and `study.py`
 commands. The orchestrator records commands, logs, interruptions and run IDs.
-Completed identical attempts and incomplete evidence are retained. The November 19 cohort is complete; refer to its recorded results rather than rerunning it as a new experiment.
+Completed identical attempts and incomplete evidence are retained. The follow-up cohort is complete; refer to its recorded results rather than rerunning it as a new experiment.
 
 `--skip-hpa` omits HPA when initially planning a cohort. The recorded follow-up is now complete. The recorded measurements and raw evidence are retained separately from future studies. Never adopt an incomplete
 policy replay as a completed matched pair.
@@ -112,5 +112,5 @@ production scalability claims.
 <!-- followup-20261119:documentation-link:start -->
 ## Current submission documents
 
-The main results report and instructions include dated follow-up supplements. [Documentation synchronization](../docs/FOLLOWUP_DOCUMENTATION_UPDATE.md) records their page counts and checks. The article table/paragraph and slide PNG/SVG files remain in the report folder; these are insert-ready materials, not edits to a separate article manuscript or slide deck.
+The main results report and instructions integrate the follow-up within the relevant test cases. See the [submission checklist](../docs/FINAL_SUBMISSION_VERIFICATION.md). Article tables and PNG/SVG figures remain in the report folder.
 <!-- followup-20261119:documentation-link:end -->

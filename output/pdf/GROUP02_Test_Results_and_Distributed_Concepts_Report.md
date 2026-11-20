@@ -2,7 +2,7 @@
 
 ## Verified Test Results and Distributed Systems Concepts
 
-CSC3104 Cloud and Distributed Computing | Group 02 | Baseline 14 November 2026 | Follow-up 19 November 2026
+CSC3104 Cloud and Distributed Computing | Group 02
 
 All 25 distinct documented test cases passed their recorded local acceptance conditions. This result combines fifteen newly completed final-version functional/browser/deployment checks with ten full original-scope final v9 studies, whose raw evidence was independently re-audited. It is not a promise that every case will pass on another machine or a production reliability estimate.
 
@@ -28,7 +28,7 @@ Verification ledger: output/validation/all25/all25-audit.json. All case IDs, raw
 
 Independent verification: 77 new evidence/coverage/continuity checks and 244 original-workload raw checks passed, with zero failed checks. These counts are distinct from the 25 case IDs and are not a statistical reliability estimate.
 
-Validation completed: 2026-11-14T18:10:59.455083+08:00. Existing final cohorts: 14 November2026. New observations and exact source/image/configuration details are in each run folder.
+The audit ledger selects the recorded validation cohorts. Observations and exact source/image/configuration details are in each run folder.
 
 Scope: local single-node Kind and isolated Compose; mock payments; browser sessions. No verified accounts, node failover, storage HA, consensus, exactly-once transport or public production security is claimed.
 
@@ -264,7 +264,7 @@ TC-01 to TC-13, TC-17 and TC-25: new final-version checks. TC-14/15/16/18/19/20/
 
 ### Extended direct seat-store baseline
 
-19 November 2026 · Kind on Docker Desktop · Run `tc14-extended-20261119`
+Kind on Docker Desktop · Run `tc14-extended-20261119`
 
 #### Results
 

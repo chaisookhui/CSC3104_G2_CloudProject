@@ -3,11 +3,13 @@
 Uses reviewed evidence exports, never the private .local directory wholesale.
 Run from the repository root: python experiments/build_submission.py
 """
+import argparse
 import hashlib
 import hmac
 import json
 from pathlib import Path, PurePosixPath
 import subprocess
+import re
 import zipfile
 from datetime import datetime, timezone
 
@@ -19,6 +21,16 @@ OUT = ROOT / 'output/review-package'
 PREFIX = 'CSC3104_G2_CloudProject/'
 PDFS = ('GROUP02_INSTRUCTIONS.pdf',
         'GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf')
+SUPERSEDED = {'EXAMINER_GUIDE_VERIFICATION.md', 'FOLLOWUP_DOCUMENTATION_UPDATE.md',
+              'FOLLOWUP_TESTING_APPENDIX.md', 'ARCHITECTURE_AUDIT.md',
+              'EVALUATION_MATRIX.md', 'build_tc14_supplement.py', 'build_all25_report.py'}
+
+
+def authoring_only(name):
+    """Drop editing/planning debris, while retaining raw traces and reproduction sources."""
+    path = PurePosixPath(name)
+    return (path.name in SUPERSEDED or path.name.startswith('CHECKPOINT')
+            or path.name == 'WORK_LOG.md')
 
 
 def sha(data):
@@ -28,6 +40,25 @@ def sha(data):
 def require(condition, message):
     if not condition:
         raise ValueError(message)
+
+
+def read_export_entry(archive, name, manifest):
+    """Refuse missing or altered evidence when reusing a complete submission."""
+    key = name.removeprefix(PREFIX)
+    require(key in manifest, 'Evidence missing from input manifest: ' + key)
+    data = archive.read(name)
+    expected = manifest[key]
+    require(sha(data) == expected['sha256'] and len(data) == expected['bytes'],
+            'Input evidence hash mismatch: ' + key)
+    return data
+
+
+def validated_source_bytes(current, recorded, expected):
+    """Allow a Windows checkout's newline conversion, never a source-content change."""
+    require(sha(recorded) == expected, 'Recorded application source hash mismatch')
+    require(current.replace(b'\r\n', b'\n') == recorded.replace(b'\r\n', b'\n'),
+            'Application source content differs from validated build')
+    return recorded
 
 
 def credentials():
@@ -52,10 +83,28 @@ def credentials():
     return values
 
 
-def main():
+def main(evidence_zip=None):
     OUT.mkdir(parents=True, exist_ok=True)
     scratch = ROOT / 'tmp/pdfs/submission'
     scratch.mkdir(parents=True, exist_ok=True)
+    if evidence_zip is None and not (OUT / 'package-verification.json').exists():
+        evidence_zip = OUT / 'GROUP02_Submission.zip'
+    if evidence_zip is not None:
+        evidence_zip = Path(evidence_zip).resolve()
+        require(evidence_zip.is_file(), 'Supply a reviewed submission ZIP with --evidence-zip')
+        # A clean checkout has no ignored analysis figures. Recover only images
+        # referenced by the current report, checking each against the input manifest.
+        with zipfile.ZipFile(evidence_zip) as archive:
+            manifest = json.loads(archive.read(PREFIX + 'SUBMISSION_MANIFEST.json'))
+            text = (ROOT / 'output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.md').read_text(encoding='utf-8')
+            for relative in re.findall(r'!\[[^\]]*\]\(([^)]+)\)', text):
+                path = (ROOT / 'output/pdf' / relative).resolve()
+                require(ROOT in path.parents, 'Report image escapes workspace')
+                name = path.relative_to(ROOT).as_posix()
+                data = read_export_entry(archive, PREFIX + name, manifest)
+                if not path.exists():
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes(data)
     # Render fresh copies for the ZIP even when a viewer locks a public PDF.
     build_instructions(scratch / PDFS[0])
     build_results(scratch / PDFS[1])
@@ -73,22 +122,31 @@ def main():
 
     # Archive entries are references until written, avoiding an uncompressed in-memory bundle.
     archives = []
+    input_manifests = {}
     try:
-        checks = json.loads((OUT / 'package-verification.json').read_text())
-        baseline = next(p for p in checks['packages'] if p['archive'] == 'GROUP02_Raw_Results_and_Graphs.zip')
-        followup_dir = ROOT / 'output/validation/followup-20261119'
-        followup = json.loads((followup_dir / 'export-verification.json').read_text())
-        for path, expected in ((OUT / baseline['archive'], baseline['sha256']),
-                               (followup_dir / followup['archive'], followup['sha256'])):
+        if evidence_zip is not None:
+            sources = [(evidence_zip, sha(evidence_zip.read_bytes()))]
+        else:
+            checks = json.loads((OUT / 'package-verification.json').read_text())
+            baseline = next(p for p in checks['packages'] if p['archive'] == 'GROUP02_Raw_Results_and_Graphs.zip')
+            followup_dir = ROOT / 'output/validation/followup-20261119'
+            followup = json.loads((followup_dir / 'export-verification.json').read_text())
+            sources = [(OUT / baseline['archive'], baseline['sha256']),
+                       (followup_dir / followup['archive'], followup['sha256'])]
+        for path, expected in sources:
             require(sha(path.read_bytes()) == expected, 'Evidence archive checksum mismatch: ' + path.name)
-            origins.append({'path': path.relative_to(ROOT).as_posix(), 'sha256': expected})
+            origins.append({'path': path.name, 'sha256': expected})
             archive = zipfile.ZipFile(path)
             archives.append(archive)
+            if evidence_zip is not None:
+                input_manifests[archive] = json.loads(archive.read(PREFIX + 'SUBMISSION_MANIFEST.json'))
             for info in archive.infolist():
                 name = info.filename.removeprefix(PREFIX)
                 if info.is_dir() or not name.startswith(('.local/test-results/', 'output/validation/', 'review/graphs/')):
                     continue
                 if PurePosixPath(name).suffix.lower() in ('.zip', '.pdf', '.pyc'):
+                    continue
+                if authoring_only(name):
                     continue
                 require(name not in entries, 'Conflicting evidence path: ' + name)
                 entries[name] = (archive, info.filename)
@@ -105,7 +163,7 @@ def main():
                 continue
             if name.startswith(('tmp/', 'output/validation/', 'output/review-package/')):
                 continue
-            if relative.name.startswith('CHECKPOINT') or relative.name == 'WORK_LOG.md':
+            if authoring_only(name):
                 continue
             if relative.name.startswith('.env') and relative.name not in ('.env.example', '.env.sample', '.env.template'):
                 continue
@@ -125,7 +183,11 @@ def main():
             entries['output/pdf/' + name] = scratch / name
 
         def read(value):
-            return value[0].read(value[1]) if isinstance(value, tuple) else value.read_bytes()
+            if isinstance(value, tuple):
+                archive, name = value
+                return (read_export_entry(archive, name, input_manifests[archive])
+                        if archive in input_manifests else archive.read(name))
+            return value.read_bytes()
 
         audit_path = 'output/validation/all25/all25-audit.json'
         audit = json.loads(read(entries[audit_path]))
@@ -180,6 +242,15 @@ original archives or removed PDF editions; use this current guide and manifest.
         baseline_capture = json.loads(read(entries['.local/test-results/tc-fix-19-v9/surge-1/before.json']))
         application = {n: h for n, h in baseline_capture['source_files_sha256'].items()
                        if n.startswith(('src/', 'frontend/', 'infra/')) or n == 'demo.py'}
+        restored_line_endings = []
+        if evidence_zip is not None:
+            archive = archives[0]
+            for name, expected in application.items():
+                if name in entries and sha(read(entries[name])) != expected:
+                    recorded = read_export_entry(archive, PREFIX + name, input_manifests[archive])
+                    validated_source_bytes(read(entries[name]), recorded, expected)
+                    entries[name] = (archive, PREFIX + name)
+                    restored_line_endings.append(name)
         require(bool(application) and all(n in entries and sha(read(entries[n])) == h
                                          for n, h in application.items()),
                 'Application/configuration differs from the recorded validated build')
@@ -189,6 +260,7 @@ original archives or removed PDF editions; use this current guide and manifest.
             'application_files_compared': len(application),
             'application_matches_validated_v9': True,
             'no_application_tests_rerun': True,
+            'validated_line_endings_restored_in_export': restored_line_endings,
             'status': subprocess.check_output(['git', 'status', '--short'], cwd=ROOT).decode().splitlines(),
         }
         generated = {'START_HERE.md': start.encode(),
@@ -215,6 +287,9 @@ original archives or removed PDF editions; use this current guide and manifest.
                     == sorted('output/pdf/' + n for n in PDFS), 'Unexpected PDF copies')
             for name, expected in exported.items():
                 require(sha(zipped.read(PREFIX + name)) == expected['sha256'], 'ZIP hash mismatch: ' + name)
+        # On Windows the previous submission may also be the evidence input.
+        for archive in archives:
+            archive.close()
         pending.replace(target)
         report = dict(verification, archive=target.name, sha256=sha(target.read_bytes()), bytes=target.stat().st_size)
         (OUT / 'submission-verification.json').write_text(json.dumps(report, indent=2), encoding='utf-8')
@@ -225,4 +300,7 @@ original archives or removed PDF editions; use this current guide and manifest.
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--evidence-zip', type=Path,
+                        help='Reuse a verified complete submission when the original export archives are unavailable')
+    main(parser.parse_args().evidence_zip)

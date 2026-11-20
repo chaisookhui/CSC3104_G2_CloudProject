@@ -4,6 +4,8 @@ from io import BytesIO
 from pathlib import Path
 import re
 
+from pypdf import PdfReader, PdfWriter
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
@@ -128,7 +130,14 @@ def build(output=None):
         topPadding=0, bottomPadding=0)], onPage=page))
     doc.build(story)
     staged = target.with_suffix('.pending.pdf')
-    staged.write_bytes(rendered.getvalue())
+    rendered.seek(0)
+    writer = PdfWriter()
+    reader = PdfReader(rendered)
+    writer.clone_document_from_reader(reader)
+    writer.metadata = {key: value for key, value in (reader.metadata or {}).items()
+                       if key not in ('/CreationDate', '/ModDate')}
+    with staged.open('wb') as stream:
+        writer.write(stream)
     try:
         staged.replace(target)
     except PermissionError:

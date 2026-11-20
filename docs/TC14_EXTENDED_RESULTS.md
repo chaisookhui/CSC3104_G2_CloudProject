@@ -1,6 +1,6 @@
 # TC-14 extended seat reservation baseline
 
-19 November 2026 · Kind on Docker Desktop · Run `tc14-extended-20261119`
+Kind on Docker Desktop · Run `tc14-extended-20261119`
 
 ## Results
 

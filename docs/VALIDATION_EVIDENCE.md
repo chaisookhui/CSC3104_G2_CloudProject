@@ -36,13 +36,13 @@ The extended run `tc14-extended-20261119` completed five trials of 100 sequentia
 
 Use `output/review-package/GROUP02_Submission.zip` for a single upload with source,
 the two submission PDFs, baseline raw evidence and audit ledgers, historical reports,
-the November 19 follow-up evidence and the extended TC-14 export. Extract it once
+the follow-up evidence and the extended TC-14 export. Extract it once
 and open `CSC3104_G2_CloudProject/`; evidence paths in the guide are relative to that
 folder. `START_HERE.md`, `SUBMISSION_MANIFEST.json` and
 `SUBMISSION_VERIFICATION.json` explain and verify its contents.
 
 For repository-URL submission, download the attached `GROUP02_Submission.zip` from
-the [submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/tag/submission-2026-11-20).
+the [submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest).
 GitHub's automatic source-code ZIP does not include ignored raw evidence.
 
 Build with `python experiments/build_submission.py`. The builder uses the existing
@@ -99,5 +99,5 @@ outcomes. The saved-data audit passed 1,046 checks with zero failures.
 <!-- followup-20261119:current-documents:start -->
 ## Current document synchronization
 
-The current results report and instructions integrate the November 19 follow-up into TC-18, TC-19, TC-23 and TC-24, and the extended latency study into TC-14. The [document index](../output/pdf/README.md) lists the sections and evidence locations. The [earlier synchronization record](FOLLOWUP_DOCUMENTATION_UPDATE.md) and November 14 package and guide verification records describe historical editions. Supply the current PDFs and the TC-14 export alongside the sealed follow-up evidence ZIP.
+The current reports integrate follow-up studies into TC-18, TC-19, TC-23 and TC-24, and the extended baseline into TC-14. The [document index](../output/pdf/README.md) lists the two PDFs. Use the complete submission release for the current documents and their evidence; earlier sealed archives remain provenance inputs.
 <!-- followup-20261119:current-documents:end -->

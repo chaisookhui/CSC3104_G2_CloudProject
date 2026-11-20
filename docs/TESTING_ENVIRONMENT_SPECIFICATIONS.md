@@ -1,6 +1,6 @@
 # Testing environment specifications and evidence
 
-This document describes the recorded local environment for the completed follow-up evaluation and extended TC-14 baseline dated 19 November 2026. Values come from saved trial snapshots, `output/validation/followup-20261119/report/lab-provenance.csv` and the TC-14 run export.
+This document describes the recorded local environment for the completed follow-up evaluation and extended TC-14 baseline recorded in the exported evidence. Values come from saved trial snapshots, `output/validation/followup-20261119/report/lab-provenance.csv` and the TC-14 run export.
 
 ## Recorded follow-up environment
 
@@ -41,7 +41,7 @@ The five trials used the same `kind-csc3104` node and a fresh, isolated namespac
 
 ## Raw data and independent verification
 
-The existing sealed evidence bundle is:
+The complete [submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest) includes the raw evidence directly. The original sealed follow-up archive is retained as a provenance input:
 
 `output/validation/followup-20261119/GROUP02_Followup_Final_20261119.zip`
 

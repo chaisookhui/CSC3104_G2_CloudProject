@@ -1,7 +1,7 @@
-# Follow-up evaluation — 19 November 2026
+# Follow-up evaluation
 
 <!-- followup-20261119:document-sync:start -->
-The current [submission results PDF](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf) and [testing instructions](../output/pdf/GROUP02_INSTRUCTIONS.pdf) include these findings as labelled supplements. [Documentation synchronization](FOLLOWUP_DOCUMENTATION_UPDATE.md) records the refreshed files and PDF checks. The sealed scientific-evidence ZIP remains unchanged; current PDF/source hashes are in the separate document-refresh manifest.
+The current [submission results PDF](../output/pdf/GROUP02_Test_Results_and_Distributed_Concepts_Report.pdf) and [testing instructions](../output/pdf/GROUP02_INSTRUCTIONS.pdf) integrate these findings within the relevant test cases. See the [submission checklist](FINAL_SUBMISSION_VERIFICATION.md) for navigation and evidence verification.
 <!-- followup-20261119:document-sync:end -->
 
 All 64 planned evaluation units are complete: four full HPA cycles, 30 matched
@@ -107,7 +107,7 @@ not thousands of successful seat bookings.
 - [Paired scheduler figure](../output/validation/followup-20261119/report/scheduler-paired-comparison.png)
 - [Fresh HPA overview](../output/validation/followup-20261119/report/hpa-fresh-overview.png)
 - [Offered/achieved, latency, HTTP failures and delivery figure](../output/validation/followup-20261119/report/traffic-offered-achieved.png)
-- [Final reviewed evidence bundle](../output/validation/followup-20261119/GROUP02_Followup_Final_20261119.zip)
+- [Complete submission and evidence download](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/latest)
 
 The figures also have editable SVG companions. Detailed per-cycle HPA timelines,
 timestamped traffic, traces, logs, SQL checks, commands, source hashes, image IDs
