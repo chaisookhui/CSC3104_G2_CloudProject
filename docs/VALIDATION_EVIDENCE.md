@@ -32,7 +32,25 @@ The extended run `tc14-extended-20261119` completed five trials of 100 sequentia
 - [Methodology and interpretation](TC14_EXTENDED_RESULTS.md) explain the direct seat-store timing boundary and its limits for end-to-end booking.
 - [Raw CSV](../output/tc14-extended-20261119/raw-observations.csv), [raw JSON](../output/tc14-extended-20261119/raw-observations.json) and [statistical summary](../output/tc14-extended-20261119/summary.json) are stored with trial-level deployment, inventory and SQL evidence in [the cohort export](../output/tc14-extended-20261119/). The raw files include all 550 observations, including 50 warm-ups.
 
-## Separate raw evidence and reviewer packages
+## Complete submission package
+
+Use `output/review-package/GROUP02_Submission.zip` for a single upload with source,
+the two submission PDFs, baseline raw evidence and audit ledgers, historical reports,
+the November 19 follow-up evidence and the extended TC-14 export. Extract it once
+and open `CSC3104_G2_CloudProject/`; evidence paths in the guide are relative to that
+folder. `START_HERE.md`, `SUBMISSION_MANIFEST.json` and
+`SUBMISSION_VERIFICATION.json` explain and verify its contents.
+
+For repository-URL submission, download the attached `GROUP02_Submission.zip` from
+the [submission release](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/tag/submission-2026-11-20).
+GitHub's automatic source-code ZIP does not include ignored raw evidence.
+
+Build with `python experiments/build_submission.py`. The builder uses the existing
+reviewed evidence archives, checks their recorded hashes and does not copy private
+`.local/` files wholesale. It verifies all 25 selected case folders and exports only
+the two current submission PDFs. No application workloads are rerun.
+
+## Earlier separate raw evidence and reviewer packages
 
 Generated artifacts are kept on disk and excluded from Git. Share these files
 separately with the reviewer; excluding them from Git does not delete them.

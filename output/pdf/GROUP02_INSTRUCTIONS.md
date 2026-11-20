@@ -74,7 +74,7 @@ These five demonstrations highlight the distributed mechanisms. They do not repl
 | TC-24 / Automated | Actual API/worker scale-out, scale-in and repeated scale-out. | Section 9.5, TC-24; full phase, CPU, backlog and safety criteria. |
 
 ### Saved evidence and effect of reproduction
-All five have saved passing evidence. Viewing those files changes no deployment. The paths below are under .local/test-results/ after the raw evidence ZIP is extracted; full case selection is in Section 9.8.
+All five have saved passing evidence. Viewing those files changes no deployment. Extract GROUP02_Submission.zip and open its CSC3104_G2_CloudProject folder first. The .local/test-results/ and output/validation/ evidence paths below are included in that submission folder; full case selection is in Section 9.8. Paths created by a fresh manual rerun are separate from these recorded runs.
 
 | Test | Saved evidence available | Changes when reproduced |
 |---|---|---|
@@ -816,7 +816,7 @@ The archive was verified for CRC, manifest hashes, readable JSON and configured-
 
 Under output/validation/all25/, all25-audit.json selects the final 25 passing cases; final-acceptance-audit.json records the 244 original-workload checks; checker-corrections.json retains the preliminary checker errors. final-environment-verification.json records restoration and unchanged main deployment specifications/UIDs. GROUP02_All25_Additional_Evidence.zip supplies the new functional/browser runs alongside the separately sealed v9 archive; neither historical archive is rewritten by this document correction.
 
-For reviewer delivery, output/review-package/GROUP02_Latest_Source.zip contains the fixed working source and this corrected guide. GROUP02_Raw_Results_and_Graphs.zip consolidates raw runs, audits and measured figures; GROUP02_Graphs_and_CSV.zip is the smaller figure/table bundle. START_HERE.md and package-verification.json identify the contents and checksums. The standalone results report records current conclusions; the combined report additionally preserves the two original reports as labelled historical appendices.
+For submission, use output/review-package/GROUP02_Submission.zip. Extract it once and work from CSC3104_G2_CloudProject/. It includes the current source, the two submission PDFs, the all25 audit and selected raw case folders, historical experiment reports, the November 19 follow-up export and the extended TC-14 data. START_HERE.md explains the evidence paths; SUBMISSION_MANIFEST.json hashes each included file and SUBMISSION_VERIFICATION.json records the packaging checks. Read the selected recorded run paths in Section 9.8 and all25-audit.json; example names such as TC-01 and TC19-exam are destinations for new manual reruns. Original sealed ZIPs and older source-only/figure bundles are archival inputs, not additional files required to open the extracted evidence. They are not nested inside the submission ZIP.
 
 ### Examiner result log
 For every case record observed result, run ID, source/image version, machine limits, exact steps, configuration, timestamps, IDs, terminal counts, errors, invariant output, evidence filenames and restoration. Expected results in Section 10 are acceptance conditions; the examiner must enter their own observations. All 25 cases passed the recorded local checks. This does not establish a clean-machine result, production security, storage HA or a guaranteed outcome on another machine.

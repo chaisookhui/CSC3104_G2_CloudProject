@@ -23,6 +23,9 @@ Highest observed capacity passes at API1/2/4 were 200/250/250 requests/s, with
 ## Submission selection
 
 Submit one copy of the results report and one copy of the instructions guide listed above.
+For a single complete upload, use `../review-package/GROUP02_Submission.zip`:
+it includes these two PDFs, current source and the exported evidence at the guide's paths.
+Build it with `python experiments/build_submission.py`; a source-only ZIP omits raw evidence.
 The results report already includes the TC-14 extended results, both charts, methodology
 and reproduction steps within TC-14, together with the other test cases and follow-up
 studies. A separate TC-14 PDF is not needed for submission.

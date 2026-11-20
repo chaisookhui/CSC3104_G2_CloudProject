@@ -1,12 +1,27 @@
 # CSC3104 Group 2: Fair Seat Allocation
 
+## Professor submission: source, reports and test evidence
+
+**[Download the complete submission and test evidence](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/tag/submission-2026-11-20)**.
+On that release page, download the attached **GROUP02_Submission.zip** (not GitHub's
+automatically generated "Source code" ZIP). Extract it once and open
+`CSC3104_G2_CloudProject/START_HERE.md`.
+
+The attachment includes current source, exactly two submission PDFs, all 25 selected
+case evidence folders and audits, historical reports, November 19 follow-up evidence
+and the extended TC-14 export. Evidence paths in the included guide resolve inside
+the extracted folder. Checksums and a case-by-case evidence index are included.
+The tested project is maintained on **[twy](https://github.com/chaisookhui/CSC3104_G2_CloudProject/tree/twy)**;
+the release preserves its submission snapshot. Large raw evidence is distributed
+through the release attachment rather than Git history.
+
 <!-- followup-20261119:latest-results:start -->
 **Latest measured follow-up - 19 November 2026:** [Results and evidence](docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-No follow-up trial remains pending. The current main results report and instructions include dated follow-up supplements.
+No follow-up trial remains pending. The current main results report and instructions integrate the follow-up under the relevant test cases.
 <!-- followup-20261119:latest-results:end -->
 
-**Extended TC-14 seat-store baseline.** Five fresh trials produced 500 successful measured holds at concurrency one, with zero failures or SQL invariant violations. Median latency was 26.51 ms, P95 was 63.43 ms, and P99 was 91.67 ms. These measurements cover the direct hold request. The testing guide and results report include the procedure and findings in Appendix B. [Methodology and raw evidence](docs/TC14_EXTENDED_RESULTS.md)
+**Extended TC-14 seat-store baseline.** Five fresh trials produced 500 successful measured holds at concurrency one, with zero failures or SQL invariant violations. Median latency was 26.51 ms, P95 was 63.43 ms, and P99 was 91.67 ms. These measurements cover the direct hold request. The testing guide and results report include the procedure and findings within TC-14. [Methodology and raw evidence](docs/TC14_EXTENDED_RESULTS.md)
 
 We are building a ticketing system that allocates adjacent seats to whole parties
 of 1-4 people. We will compare the proposed Demand-Cycle policy with correct
