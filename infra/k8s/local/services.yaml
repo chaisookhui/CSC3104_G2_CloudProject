@@ -1,0 +1,72 @@
+# Managed by the main local Kubernetes deployment. No credentials in this file.
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "seat-api"
+spec:
+  selector:
+    app: "seat-api"
+  ports:
+    - name: "http"
+      port: 5003
+      targetPort: "http"
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "allocation-api"
+spec:
+  selector:
+    app: "allocation-api"
+  ports:
+    - name: "http"
+      port: 5002
+      targetPort: "http"
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "dispatcher-api"
+spec:
+  selector:
+    app: "dispatcher-api"
+  ports:
+    - name: "http"
+      port: 5005
+      targetPort: "http"
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "waiting-room"
+spec:
+  selector:
+    app: "waiting-room"
+  ports:
+    - name: "http"
+      port: 5001
+      targetPort: "http"
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "payment-api"
+spec:
+  selector:
+    app: "payment-api"
+  ports:
+    - name: "http"
+      port: 5004
+      targetPort: "http"
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  name: "frontend"
+spec:
+  selector:
+    app: "frontend"
+  ports:
+    - name: "http"
+      port: 8080
+      targetPort: "http"

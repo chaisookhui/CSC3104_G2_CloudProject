@@ -31,12 +31,15 @@ open `CSC3104_G2_CloudProject/START_HERE.md`. Recorded runs are under
 for each case. Baseline and follow-up reports/audits are under `output/validation/`,
 and extended TC-14 data is under `output/tc14-extended-20261119/`.
 The TC-14 export and a few earlier validation records are also tracked on `twy`.
-See the [evidence index](https://github.com/chaisookhui/CSC3104_G2_CloudProject/blob/twy/docs/VALIDATION_EVIDENCE.md) for the full folder map.
+See the [evidence index](docs/VALIDATION_EVIDENCE.md) for the full folder map.
 
-## Historical main-branch development notes
+<!-- followup-20261119:latest-results:start -->
+**Latest measured follow-up:** [Results and evidence](docs/FOLLOWUP_EVALUATION_RESULTS.md) cover 30 matched F2/F3/F6 scheduler pairs, four full HPA cycles, 21 capacity trials and nine burst trials. All bursts passed; capacity outcomes were mixed. Highest observed passing offers at 1/2/4 API replicas were 200/250/250 requests/s, with 3/3, 1/3 and 1/3 passing trials at those rates. The saved-data audit passed 1,046 checks with zero failures. The original 25-case baseline remains separate and unchanged.
 
-The notes below describe this older `main` branch. For the submitted integrated
-application, deployment instructions and recorded results, use the release above.
+No follow-up trial remains pending. The current main results report and instructions integrate the follow-up under the relevant test cases.
+<!-- followup-20261119:latest-results:end -->
+
+**Extended TC-14 seat-store baseline.** Five fresh trials produced 500 successful measured holds at concurrency one, with zero failures or SQL invariant violations. Median latency was 26.51 ms, P95 was 63.43 ms, and P99 was 91.67 ms. These measurements cover the direct hold request. The testing guide and results report include the procedure and findings within TC-14. [Methodology and raw evidence](docs/TC14_EXTENDED_RESULTS.md)
 
 We are building a ticketing system that allocates adjacent seats to whole parties
 of 1-4 people. We will compare the proposed Demand-Cycle policy with correct
@@ -44,16 +47,81 @@ baselines using measured results. Its fairness benefits are hypotheses to test.
 
 ## What currently works?
 
+For the complete Docker stack, start Docker Desktop and run **`python demo.py`**
+from this directory. This uses `compose.core.yaml` for frontend, all APIs/workers,
+PostgreSQL and Redis, and creates ignored local credentials on first use. Open
+http://127.0.0.1:18080. Stop with `python demo.py --stop`; bookings are preserved.
+See [the full-stack Docker runbook](CONTAINERS.md) for configuration and acceptance
+checks. The Windows installation steps below are for native/module development.
+
+For the same stack on local Kubernetes, run `python demo.py --kubernetes --verify`
+and open http://127.0.0.1:18090. See [the local Kubernetes runbook](infra/k8s/README.md)
+for persistent storage, configuration, resource limits, probes and validation limits.
+The launcher needs host Python 3.10+, Docker Engine 24+ with Linux containers,
+and Compose v2.20+. It prepares its own pinned Kind/kubectl tools and supports
+cgroup v1/v2; it does not require the latest Docker Desktop. Run
+`python demo.py --kubernetes --check` to check prerequisites before deployment.
+
+To clear the main local Kubernetes demo at **port 18090** and repeat the simulation,
+run `python demo.py --kubernetes --reset-demo`. This deletes its bookings, payments
+and queue, then recreates the initial seats and pre-sale state. Reload the page
+and click **My booking > New user** before registering again. `--reset-test-env` resets only
+the separate lab at **port 18100**.
+
+See [the full test and cloud-readiness guide](TESTING.md) for deployment checks,
+in-flight failures, overload/scaling, reconnect rules, fairness comparisons, cost
+measurement and release gates. Proposed experiments are distinguished from
+already demonstrated behavior.
+
+Start with the [professor's testing instructions](output/pdf/GROUP02_INSTRUCTIONS.pdf)
+for deployment, functional tests, concurrency, scaling, failure recovery and cleanup.
+The [editable source](output/pdf/GROUP02_INSTRUCTIONS.md) contains the same procedures.
+Tests and evidence collection run through the [lab CLI tools](experiments/README.md);
+the application shows Overview, Batches, Seat map and My booking without a test checklist.
+Expected behavior, current verification and historical evidence remain distinct.
+The final recorded local acceptance is **25 cases PASS**: 15 newly verified
+functional/browser/deployment cases plus 10 complete final v9 cases independently
+re-audited. The evidence audit passed 77 new checks and 244 original-workload
+checks (321 total). This does not establish production reliability or guarantee
+an outcome on another machine. See the
+[final submission verification](docs/FINAL_SUBMISSION_VERIFICATION.md) for the
+current source/package checks and remaining submission considerations.
+The [validation evidence index](docs/VALIDATION_EVIDENCE.md) identifies the final
+reports, recorded results and separate raw-evidence archives. Generated logs,
+temporary renders and large ZIP packages remain local and are excluded from Git.
+
 | Component | Current purpose |
 | --- | --- |
 | Root `app.py`, port 5000 | Small Flask application with `/health`. It checks that Flask runs, not the database or the full booking system. |
 | `src/seat-store/`, port 5003 | Existing seat/hold service: PostgreSQL transactions, adjacent holds, confirmation, expiry and retryable expiry callbacks. It has database integration and concurrency tests. |
-| `src/waitlist-payment/`, port 5004 | WY's first slice: durable mock-payment attempts, expiry inbox/recovery and pure waitlist selection. See [WY's README](src/waitlist-payment/README.md) for startup and remaining integration. |
-| Other `src/` folders | Preserved placeholders. The allocator and waiting room implementations on other branches have not been integrated here. |
+| `src/waitlist-payment/`, port 5004 | Durable mock checkout/payment, cancellation reconciliation and expiry recovery. |
+| `src/allocation/`, port 5002 | Fixed-batch demand-cycle scheduler, durable job queue and shared allocation workers. Includes dummy dispatcher input; see [allocation setup and integration contract](src/allocation/README.md). |
+| `src/services/waiting-room/`, port 5001 | Global queue, atomic claims/outcomes, checkout discovery and cancellation. |
+| `src/batch-dispatcher/`, port 5005 | Persisted batches, idempotent handoff recovery and periodic dispatch. See [dispatcher startup/testing](src/batch-dispatcher/README.md). |
 
-This is not yet an end-to-end booking system. Seat-store's current schema represents
-one inventory, without `sale_id`. Durable intake/allocation progress, complete
-payment/waitlist integration and final service contracts remain owner-led work.
+The service APIs now connect registration, allocation, checkout and cancellation.
+UNAVAILABLE, expired and cancelled requests are exit points; there is no rejoin or
+waitlist. Routed integration tests and bounded deployed booking/recovery evidence
+are described in experiments/VALIDATION.md. The later recorded local load/scaling
+and 25-case validation are indexed in docs/VALIDATION_EVIDENCE.md. Seat-store represents
+one inventory without `sale_id`. Use Redis for durable admission and shared PostgreSQL
+for distributed allocator/dispatcher workers; memory/SQLite modes are local only.
+
+## Local containers (current deployment)
+
+Cloud deployment is on hold. The main local project includes PostgreSQL, Redis,
+frontend and all APIs/workers. See [CONTAINERS.md](CONTAINERS.md) for configuration,
+persistent storage and full-network verification.
+
+```powershell
+python demo.py
+```
+
+This path needs Docker Desktop with Linux containers and host Python only for the
+standard-library launcher. Database data persists across restarts and shutdown.
+The standalone seat-store database setup and its existing volume remain available
+for module development; the main stack preserves its own core-project volume.
+The Windows installation below remains available for running Python on the host.
 
 ## Windows installation
 
@@ -97,7 +165,7 @@ Setup checks the Python version, installs the pinned runtime and test dependenci
 into the root `.venv`, and checks dependency compatibility. It then uses the
 selected backend to start PostgreSQL, create separate
 `seat_booking` and `seat_booking_test` databases, apply migrations and seed the
-development seats (A/B/C = 30/20/10). The application role is not a superuser.
+development seats (A/B/C/D = 30/20/10/10). The application role is not a superuser.
 Local passwords are generated into the ignored `src/seat-store/.env` file.
 Existing configuration, data volumes and bookings are preserved.
 
@@ -146,8 +214,8 @@ Invoke-RestMethod http://127.0.0.1:5003/health
 
 The first returns `status=ok`; the second also returns `service=seat-store` and
 `storage=postgresql`. These are local development servers. They are not production
-deployment commands. No waitlist service is integrated yet, so expiry callbacks
-remain pending and retry; seat release still works.
+deployment commands. Start the payment API and worker on port 5004 to reconcile callbacks; while
+payment is absent callbacks remain durable and retry, and seat release still works.
 
 Stop an application with Ctrl+C. PostgreSQL stays running and retains its data.
 For Docker, stop only this project's database without deleting it:
@@ -166,7 +234,9 @@ Restart either backend with `.\src\seat-store\run.ps1`.
 
 See [the seat-store README](src/seat-store/README.md) for its API, booking examples,
 configuration and native-PostgreSQL alternative. Internal mutation endpoints are
-for trusted local development; caller authentication is not implemented here.
+for trusted private service-to-service traffic. The frontend gateway separately
+enforces browser ownership and administrator access when configured with its
+generated credential. See [extended robustness and access instructions](experiments/STUDY_PROTOCOLS.md#robustness).
 
 ## Run tests
 

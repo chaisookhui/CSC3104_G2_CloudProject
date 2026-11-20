@@ -1,85 +1,354 @@
-# WY: waitlist policy and mock-payment lifecycle
+# Mock payment and checkout service
 
-## Task goals
+This service owns mock payment attempts, checkout projections, cancellation intents,
+recovery jobs and incoming/outgoing event delivery. Seat-store remains the only
+seat/hold writer. Admission owns queue positions. An expired or cancelled checkout
+is an exit point; there is no rejoin or waitlist.
+No real charge, refund, external payment provider or financial settlement exists.
 
-- [x] Preserve seat-store as the only seat/hold writer.
-- [x] Add exact hold lookup for uncertain confirmation recovery.
-- [x] Persist keyed mock-payment attempts before confirmation.
-- [x] Recover committed confirmation after response loss; reject stale hold effects.
-- [x] Persist/deduplicate expiry events before acknowledgement.
-- [x] Implement largest-fitting initial queue heads and strict FCFS late-entry selection.
-- [x] Validate the first slice against real PostgreSQL: 9 WY tests pass; the preceding full database run passed 52 tests, plus the root smoke test.
-- [ ] Integrate durable waitlist membership, leave and preference changes with admission.
-- [ ] Integrate offer-attempt persistence and section scheduling with Xin/Sook Hui/Linc.
-- [ ] Add integrated process-crash, scheduling-priority and preference/offer race tests.
+See [reliability coverage and operating guide](RELIABILITY.md) for the eight-area
+review, optional scoped customer access, metrics, audit records and deployment limits.
 
-This is the first WY implementation slice, not a complete ticketing journey.
-The policy follows the team's supplied technical reference defaults. Initial
-requests preserve rank within party size; the largest fitting queue head wins.
-Late/re-entry requests are eligible only when no initial head fits, with strict
-arrival ordering and head-of-line blocking. `policy.select_next` receives eligible
-entries for exactly one sale/section and the sizes that fit the current inventory.
-It does not mutate seats, persist queues, or grant allocation authority.
+## Implemented behaviour
 
-Queued/waiting preference changes should supersede the old request and create a
-new re-entry request. Active-offer changes are unsupported. Expired users explicitly
-re-enter without original batch priority. These admission operations are not yet
-implemented here. There is no offer-count limit.
+- Existing POST /payments and GET /payments/{id} wire shapes remain supported.
+- `success`, `decline`, `timeout` remain mock payment outcomes. `decline` means a
+  rejected payment attempt, NOT a user rejecting their seats. Retrying a declined
+  attempt uses a new attempt_key and never extends the original hold deadline.
+- Attempt history is separate from booking state. A declined attempt remains
+  `attempt_status=declined` when another attempt confirms the booking. Legacy
+  `status` remains a booking projection (`failed` means an active declined attempt).
+- New payment attempts require an active, unelapsed hold; database time checks the
+  deadline precondition. Seat-store still decides confirmation atomically after its
+  locks. A read/precheck is never a cross-service reservation guarantee.
+- One pending attempt per hold is database-enforced. Identical persisted retries
+  can be read during seat-store outage; changed input under the same key conflicts.
+- Explicit user rejection uses POST /checkouts/cancel. The cancellation intent is
+  durable BEFORE any remote mutation. Payment never writes seat-store tables.
+- Cancellation, confirmation and expiry are reconciled by exact hold ID. If
+  confirmation wins, cancellation reports confirmed; it never releases paid seats.
+- Incoming events are durably deduplicated before acknowledgement and validated
+  against authoritative historical hold state before processing.
+- Atomic PostgreSQL work claims, leases, fenced acknowledgements, delayed retries,
+  visible BLOCKED work and operator retry support independent recovery processes.
+  Long-lived pending checkout/payment work does not consume the failure budget.
+- Terminal checkout projection and its notification are committed together. Event
+  IDs stay stable through retries. Notification delivery is at least once; receivers
+  must deduplicate event IDs. No exactly-once network guarantee is claimed.
 
-## Run locally
+## Current integration boundaries
 
-Use the root Python 3.15.0 environment and existing PostgreSQL setup. This first
-slice uses the existing configured application database, with separate `wy_*`
-tables; it never writes seat-store tables. Seat-store remains on port 5003.
-From the repository root:
+Seat-store now provides idempotent POST /seats/cancel accepting the exact
+{request_id, hold_id}. Apply seat-store migration 002 before enabling cancellation.
+SEAT_CANCEL_PATH defaults to /seats/cancel; replace an existing empty local override
+with that path. Retry the SAME blocked action after upgrading; preserve its IDs.
+If confirmation or expiry already won, cancellation returns that terminal state.
+
+Admission owns GET /requests/{id}/checkout and POST /requests/{id}/cancel. RESERVED
+outcomes carry the hold identity, and admission can discover it from allocator
+results before batch completion. Payment does not assign queue positions.
+
+Local ports are seat-store 5003, payment 5004, dispatcher 5005. Section D inventory
+and confirmed-result null-expiry validation are implemented. Durable dispatcher
+recovery is available; admission still requires Redis/PVC for persistence. Full
+external-network, container/cluster and measured-load acceptance remain necessary.
+
+## Independent local configuration
+
+Use the root Python 3.15.0 environment and pinned dependencies. Copy .env.example
+to an ignored .env in THIS directory, or export environment variables. Runtime no
+longer imports seat-store configuration or reads its .env. PAYMENT_DATABASE_URL is
+preferred; exported DATABASE_URL is accepted as a compatibility fallback. Existing
+local database credentials may be supplied explicitly; never commit them.
+
+Required:
+- PAYMENT_DATABASE_URL: PostgreSQL DB with payment table permissions.
+- SEAT_STORE_URL: reachable API base (default http://127.0.0.1:5003).
+
+Optional:
+- SEAT_CANCEL_PATH: /seats/cancel after seat-store migration 002; empty explicitly disables it.
+- PAYMENT_STATUS_URL: terminal checkout event receiver; empty retains unsent events.
+- PAYMENT_HOST / PAYMENT_PORT: 127.0.0.1 / 5004 locally; bind 0.0.0.0 in a container.
+- PAYMENT_HTTP_TIMEOUT / PAYMENT_WORKER_INTERVAL: 5 seconds / 1 second.
+- PAYMENT_API_TOKEN: internal Bearer credential on all business endpoints. Set the
+  SAME value in waiting-room and seat-store (including its expiry/callback workers).
+  Compose/Kubernetes require PAYMENT_REQUIRE_AUTH=true and a token of at least 32
+  characters; local loopback development may leave authentication disabled.
+  This token does not establish user ownership; an exposed
+  frontend/gateway must authenticate users and authorize their request/hold IDs.
+  The optional payment-owned customer facade now enforces reservation-scoped signed
+  grants; it does not replace the trusted login/gateway that assigns those grants.
+
+From the repository root, in separate terminals:
 
 ```powershell
-.\.venv\Scripts\python.exe src/waitlist-payment/service.py init-db
-.\.venv\Scripts\python.exe src/waitlist-payment/service.py serve
-# In another terminal:
-.\.venv\Scripts\python.exe src/waitlist-payment/service.py worker
+.\src\waitlist-payment\run.ps1 -Command init-db
+.\src\waitlist-payment\run.ps1 -Command serve
+.\src\waitlist-payment\run.ps1 -Command worker
 ```
 
-The API binds to 127.0.0.1:5004. Set `SEAT_STORE_URL` if needed. Both processes
-load the existing seat-store `.env`. These are trusted local development endpoints,
-without caller authentication; they are not public deployment interfaces.
+Portable equivalents are `python src/waitlist-payment/service.py init-db`, `serve`
+and `worker`. Initialisation is explicit; serving does not silently alter schemas.
+Multiple workers must share the SAME PostgreSQL database. HTTP calls occur outside
+payment DB transactions. Leases do not prevent duplicate remote calls after slow
+requests/crashes; exact-hold idempotency and monotone projections preserve effects.
 
-After obtaining a seat-store hold, POST `/payments` with
-`{request_id, hold_id, outcome, attempt_key}`. Outcomes are `success`, `decline`,
-or `timeout`. The response contains `payment_id` and the current status. Poll
-`GET /payments/{payment_id}`; the separate recovery worker processes intent.
-Reuse the same attempt key and payload after network failure. Changed payload
-under the same key returns 409. Only one pending attempt per hold is permitted.
-A declined attempt permits a new key; retries never extend the seat-store deadline.
-The timeout scenario simulates no definitive provider result: it stays pending
-until hold expiry. No real provider or charge exists.
+## APIs and states
 
-Payment status here is a booking reconciliation projection (`pending`, `failed`,
-`confirmed`, `expired`), not proof of a financial settlement. The immutable mock
-`outcome` records the simulation separately. Even a previously declined record
-may project confirmed if another attempt confirms its hold.
+| Method | Path | Input / meaning |
+|---|---|---|
+| POST | /payments | {request_id, hold_id, outcome, attempt_key}; existing {payment_id,status} result |
+| GET | /payments/{payment_id} | Existing {status} booking projection |
+| GET | /payments/{payment_id}/details | Attempt identity, immutable outcome, attempt_status and legacy status |
+| POST | /checkouts/cancel | {request_id, hold_id, action_key}; 202 pending or 200 already terminal |
+| GET | /cancellations/{action_id} | Action result and recovery state/error |
+| GET | /checkouts/{hold_id}?request_id=... | Refresh exact hold; seats, booking reference, deadline, attempts and permitted actions |
+| GET | /checkouts/{hold_id}?request_id=...&cached=true | Last known projection during outage, explicitly labelled cached |
+| POST | /notify/expired | Existing expiry event, exact legacy retries supported |
+| POST | /notify/holds | Version 1 hold.expired / hold.cancelled / hold.confirmed events |
+| GET | /health | Process liveness; no DB/dependency probe |
+| GET | /ready | Payment schema/storage readiness and work counts; not proof of worker liveness |
+| GET | /metrics | Internal authenticated Prometheus HTTP/backlog/recovery/heartbeat metrics |
+| GET | /customer/checkout | Optional signed-grant checkout; derives IDs from the grant |
+| POST | /customer/payments | Optional signed-grant payment; accepts attempt_key only |
+| POST | /customer/cancel | Optional signed-grant cancellation; accepts action_key only |
+| GET | /customer/payments/{id}, /customer/cancellations/{id} | Own-resource status only |
 
-Seat-store's new internal `GET /holds/{hold_id}?request_id=...` returns the existing
-hold response shape. It reads committed state, does not expire holds on read, and
-may report ACTIVE past deadline until a transition/scanner processes it. Confirmation
-still checks database time after locks and is the authority for deadline decisions.
+Errors are JSON: 400 invalid input, 401 missing internal credential when enabled,
+404 missing resource/hold ownership, 409 conflicting action/key or closed checkout,
+413 oversized body, 503 unavailable/malformed dependency or storage, 500 unexpected
+internal failure. Public callers must not directly control mock outcomes in a real
+payment product. These are prototype internal APIs.
 
-`POST /notify/expired` durably records the event before returning `success:true`.
-Duplicate event IDs with changed payload conflict. Recovery checks the exact hold
-before processing an event. Notifications never directly allocate replacement seats.
-An old event cannot expire a newer hold. An unresolved dependency leaves work pending.
+Attempt states: pending -> succeeded | declined | closed. `closed` means the hold
+finished without this attempt being reported as successful (e.g. expiry/cancellation
+or another authoritative confirmation). The immutable outcome remains separate.
+Legacy payment status: pending / failed / confirmed / expired / cancelled.
+Booking states: active -> confirmed | expired | cancelled. A stable booking reference
+is the confirmed hold ID; a redundant tickets table is unnecessary for this mock.
+Cancellation states: pending -> cancelled | expired | confirmed. A pending action
+with BLOCKED recovery means intervention/integration is needed, NOT cancellation.
 
-## Tests and integration boundaries
+A refreshed checkout is a point-in-time observation, not permission to bypass the
+next authoritative mutation. Cached state can be stale. GET by historical hold ID
+returns that hold's history; it is not a claim about current ownership of reused
+seat IDs. APIs require a known hold ID; admission/allocator must supply the original
+request-to-hold handoff and recover it after disconnect.
 
-Run `.\test.ps1` from the root. WY tests live with seat-store tests to reuse their
-real PostgreSQL fixture: each test gets an isolated disposable schema in `*_test`.
-They exercise actual persistence and use a local seat-store adapter for lifecycle
-calls; the hold lookup and expiry inbox HTTP routes are also tested. A simulated
-response loss after committed confirmation verifies fresh-instance reconciliation.
-This is not yet a real multi-process/network-partition end-to-end test.
+## Events, retries and recovery
 
-The current inventory has no sale scoping. Do not mix sales. Xin's future scheduler
-must serialize decisions per section, persist an offer attempt before a remote
-hold call, and resolve uncertain attempts before selecting again. A seat lock alone
-does not enforce queue priority. Atomic admission preference changes and scheduler
-claims need owner integration; this module intentionally creates no competing allocator.
+Legacy expiry fields {event_id,request_id,hold_id} remain accepted, with optional
+section/seats/expired_at from current seat-store. General events add version=1 and
+type=hold.expired, hold.cancelled or hold.confirmed. UUIDs, bounded identifiers,
+optional unique seat IDs and timezone-aware timestamps are validated. Same event ID
+with changed payload returns 409. Receipt acknowledges persistence, not completed
+reconciliation; unresolved/mismatched events are visible as work.
+
+Terminal notifications POST to PAYMENT_STATUS_URL with Idempotency-Key=event_id:
+
+```json
+{"version":1,"type":"checkout.cancelled","event_id":"stable-UUID",
+ "request_id":"original-request","hold_id":"exact-UUID","hold_status":"CANCELLED"}
+```
+
+The receiver must acknowledge with HTTP 2xx only after durable acceptance. Blank URL
+leaves events pending. These notifications are a proposed integration contract;
+no consumer endpoint has been invented or enabled in teammates' services.
+
+Transient failures use capped exponential backoff with equal jitter (half to the
+current ceiling, maximum 300 seconds) and become BLOCKED after 10 failures.
+Unsupported cancellation and permanently invalid events block visibly immediately.
+Pending authoritative results are rechecked after 5 seconds; unconfigured outgoing
+notifications after 30 seconds. Independent jobs continue. Inspect and retry:
+
+```powershell
+.\src\waitlist-payment\run.ps1 -Command work-status
+.\src\waitlist-payment\run.ps1 -Command retry-work -WorkId 'cancel:ACTION-UUID'
+```
+
+Retry only after resolving the recorded dependency/problem. Only BLOCKED work can
+be reset; intent IDs and remote idempotency identity never change. Worker handles
+SIGINT/SIGTERM and finishes its current bounded call before exiting. A crash leaves
+an abandoned lease reclaimable after 30 seconds. Work timestamps/errors/counts aid
+monitoring; API /ready alone cannot establish worker progress. Watch oldest pending
+work/last updates and blocked counts externally. `/metrics` and the `monitor` CLI
+now expose shared backlog/heartbeat observations plus per-process HTTP counters.
+
+## Migration and permissions
+
+`init-db` records checksummed payment-owned migrations in wy_schema_migrations.
+It adopts the existing schema.sql baseline, adds attempt history/checkouts/actions/
+recovery/outbox tables, and backfills pending work without deleting legacy records.
+Existing failed/declined history is preserved. Applied migration text must not be
+edited; add another migration for later changes. No seat-store table is altered.
+
+Run migrations once using an owner role, then grant a payment runtime role SELECT,
+INSERT, UPDATE on the wy_* runtime tables (and SELECT on wy_schema_migrations).
+It needs no seat/hold write privileges and no superuser/CREATE DATABASE permission.
+Database role provisioning belongs to the database owner; do not silently change
+teammates' shared role. Migration/backup access is separate from routine serving.
+
+Before upgrading an existing shared database, take a database-owner-approved backup.
+Test restoration into a separate database, run init-db there, then inspect pending
+work and checkout history. Roll back application/schema together; an older release
+cannot understand CANCELLED or the new action tables. Never drop the shared volume
+or delete unresolved work to force progress. The service assumes a single sale's
+inventory; multi-sale IDs require coordinated changes outside this service.
+
+## Packaging and deployment
+
+Build from the repository root:
+
+```text
+docker build -f src/waitlist-payment/Dockerfile -t ticketing-payment:local .
+```
+
+The image copies explicit runtime files, not .env, tests or teammates' code. API and
+worker use the same image with different commands. `serve` runs Waitress on Windows
+and Linux, with 8 request threads, 100 connections, backlog 100, a 30-second idle
+timeout, and 16 KiB body/header limits. PAYMENT_HTTP_THREADS and
+PAYMENT_HTTP_CONNECTION_LIMIT configure the first two bounds. Untrusted forwarded
+headers are not enabled. Use a TLS gateway and restricted internal network before
+exposing the system; this API accepts caller-selected MOCK outcomes.
+
+Payment-only Compose uses an EXTERNAL PostgreSQL database and seat-store. Run from
+the repository root in PowerShell:
+
+```powershell
+Copy-Item src/waitlist-payment/container.env.example src/waitlist-payment/.env.container
+```
+
+Edit the ignored `.env.container` before starting: set the actual database URL,
+seat-store URL and a private `PAYMENT_API_TOKEN` of at least 32 characters. The
+example values are placeholders. Use the same internal token in trusted callers
+(frontend proxy, waiting room and seat-store callbacks). Keep the optional checkout
+signing key separate. Compose always binds the API to `0.0.0.0:5004` inside the
+container and publishes it only on host loopback port 5004.
+
+Container localhost is not the host or another container. The template uses
+`host.docker.internal` for Docker Desktop host-based services. If integrating
+Compose projects, connect them to an agreed shared network and use service DNS;
+separate projects' default networks do not provide cross-project discovery.
+No payment data is stored in the API/worker containers: both use the same external
+PostgreSQL database. Database provisioning and seat-store startup are separate.
+
+```powershell
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml config --quiet
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml build
+# Run explicitly against the intended database before starting/upgrading runtime processes.
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml --profile migration run --rm migrate
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml up -d api worker
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml ps -a
+Invoke-RestMethod http://127.0.0.1:5004/health
+Invoke-RestMethod http://127.0.0.1:5004/ready
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml exec -T worker python service.py monitor
+```
+
+Do not run migrations against an existing shared database without coordinating its
+backup/upgrade with its owner. The migration profile is deliberately explicit; API
+and worker startup never apply migrations. If migrating with a separate owner
+credential, supply it to the migration command only, then use the runtime role's
+URL for API/worker as described above.
+
+`/health` checks the API process; `/ready` checks database access and migration
+presence. Neither proves seat-store connectivity or worker progress. The `monitor`
+command should show a recent worker heartbeat; use a real checkout to verify the
+remote booking path. Logs are available with the same Compose arguments followed
+by `logs --tail 100 api worker`. The worker has a 45-second shutdown grace period
+to finish bounded work; abandoned claims remain recoverable after their leases.
+
+Stop only payment with:
+
+```powershell
+docker compose --env-file src/waitlist-payment/.env.container -f src/waitlist-payment/compose.yaml down
+```
+
+This leaves the external database and other Compose projects running. Optional
+terminal notifications remain pending when `PAYMENT_STATUS_URL` is empty; checkout
+refresh and confirmation do not require that consumer. Customer login/grant delivery
+and public deployment authorization remain separate integration work.
+
+For deploy/payment.yaml, build/load the image, create ConfigMap payment-config with
+SEAT_STORE_URL and PAYMENT_HOST=0.0.0.0 (and optional cancellation/status URL keys),
+and Secret payment-secrets with PAYMENT_DATABASE_URL and PAYMENT_API_TOKEN (32+ chars).
+Run `python service.py init-db` once in a migration Job using those same references
+before starting workloads. The manifest contains only payment API/worker/service;
+database storage/HA, seat-store and admission are outside this change. Worker replicas
+are configurable and do not each get private storage. No actual cluster deployment,
+image build or scaling performance is implied by these files.
+
+Container verification on 2026-11-03: built `ticketing-payment:local` with Python
+3.15.0 and passed `pip check`. All 49 payment regression tests passed from that
+image against a disposable PostgreSQL 17 database with a non-superuser test role.
+Real container-network checks against seat-store and its worker passed successful
+payment, duplicate attempt replay, decline/retry without deadline extension,
+cancellation/seat release, expiry/late-payment rejection and worker heartbeat.
+Expiry checks used a 12-second test hold; the normal default remains 300 seconds.
+Migration replay and API/worker restart preserved the test payment records. The
+isolated test containers were removed afterwards. These checks do not establish
+full frontend integration, cluster recovery or measured scaling performance.
+
+## Bounded load and shared rate limits
+
+Run `init-db` before upgrading APIs: migration 003 adds wy_rate_limits. Include this
+table in runtime SELECT/INSERT/UPDATE grants. API startup does not apply migrations.
+No existing attempt, hold or booking is deleted by this migration. Migration 004
+adds audit records, worker heartbeat storage and a pending-attempt index; apply
+both before starting this version.
+
+Payment connections use a lazy per-process psycopg pool. Defaults are a maximum of
+8 connections, 16 queued acquisition requests and a 3-second acquisition timeout
+(PAYMENT_DB_POOL_SIZE, PAYMENT_DB_POOL_WAITING, PAYMENT_DB_POOL_TIMEOUT). Overload
+returns HTTP 503 with Retry-After instead of an unbounded wait. Pool transactions
+commit/rollback before reuse. Budget the SUM of every process/Pod's pool against
+the database connection limit; extra replicas do not provide unlimited capacity.
+
+All API replicas share three service-wide PostgreSQL fixed-window quotas: reads,
+writes and incoming callbacks. Each defaults to 600 requests per 60 seconds. Set
+PAYMENT_RATE_LIMIT and PAYMENT_RATE_WINDOW_SECONDS identically in all API replicas.
+Authentication runs first. Quotas use database time and atomic mutations, never
+caller-supplied IP/forwarded headers. Exhaustion returns 429 with Retry-After; a
+storage failure fails closed with 503. Probes bypass rate limits, and separate
+callback quota prevents ordinary checkout traffic consuming callback capacity.
+Responses are marked no-store and nosniff. Only three quota rows are retained.
+
+These are coarse admission bounds, not per-user fairness or DDoS protection. Fixed
+windows permit bursts near a boundary. The limiter itself uses the database, and
+initial hold validation remains synchronous. A gateway with identity-based quotas,
+TLS, end-user authentication, network isolation and actual capacity tests remain
+deployment requirements. Optional TLS gateway and API HPA definitions are provided;
+they are not evidence of a running cluster. Reservation ownership is enforced by
+the optional customer facade's signed grant, not by caller-supplied identifiers.
+No database HA, real payment provider or measured high-traffic claim is introduced.
+
+New payment attempts are also bounded by PAYMENT_MAX_PENDING (default 5000 unresolved
+attempts across APIs) and PAYMENT_MAX_ATTEMPTS_PER_HOLD (default 10 total attempts).
+The shared backlog check is serialized in the acceptance transaction. At capacity,
+new attempts return 503; saved replays, reads, cancellation and recovery remain
+available. A per-hold attempt limit returns 409. These bounds never extend a hold.
+
+## Tests and CI handoff
+
+```powershell
+.\src\waitlist-payment\test.ps1
+# Existing compatibility/regression tests (separate process):
+.\src\seat-store\test.ps1
+```
+
+New tests require PAYMENT_TEST_DATABASE_URL (or TEST_DATABASE_URL) naming a dedicated
+*_test database. Test-only fixtures may read the existing seat-store local .env for
+that test DSN; runtime does not. Each test creates/drops an isolated schema. They
+use real PostgreSQL persistence and controlled remote holds, plus live HTTP response
+loss and independent worker-process claim tests. Unit adapters isolate payment behaviour; the repository integration suite also
+exercises the actual seat-store cancellation API and PostgreSQL transitions.
+
+Root CI runs payment, seat-store, allocator/dispatcher, waiting-room and five-service
+integration suites in separate processes. Run suites separately locally too, to avoid
+existing generic app/db module import collisions. Payment hardening tests include
+an authenticated live Waitress duplicate burst, independent-process shared quotas,
+bounded pool exhaustion/rollback, and concurrent attempts with different keys.
+
+Remaining deployment acceptance: trusted customer login/token issuance, optional terminal
+notification consumer, full-network failure tests, container/cluster startup and
+measured load/recovery. Checkout refresh does not depend on a notification consumer.
+The pure legacy waitlist policy is not evidence those flows are implemented.

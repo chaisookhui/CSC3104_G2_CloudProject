@@ -1,3 +1,4 @@
+# Module-only database commands must not replace the full stack's postgres service.
 name: csc3104-seat-store
 services:
   postgres:
@@ -20,4 +21,6 @@ services:
     restart: unless-stopped
 volumes:
   postgres_data:
+    # Preserve the volume created by the original database-only project.
+    name: csc3104-seat-store_postgres_data
 

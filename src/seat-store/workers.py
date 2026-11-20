@@ -10,11 +10,13 @@ LOG = logging.getLogger(__name__)
 
 
 class OutboxDispatcher:
-    def __init__(self, database, waitlist_url, timeout=5, sender=None):
+    def __init__(self, database, waitlist_url, timeout=5, sender=None, api_token=''):
         self.db = database
         self.url = waitlist_url.rstrip("/") + "/notify/expired"
+        self.holds_url = waitlist_url.rstrip("/") + "/notify/holds"
         self.timeout = timeout
         self.sender = sender or requests.post
+        self.api_token = api_token
 
     def deliver_one(self):
         token = uuid4()
@@ -37,8 +39,10 @@ class OutboxDispatcher:
             return False
         delivered = False
         try:
-            response = self.sender(self.url, json=event["payload"], timeout=self.timeout,
-                                   allow_redirects=False)
+            url = self.holds_url if event["payload"].get("type") else self.url
+            response = self.sender(url, json=event["payload"], timeout=self.timeout,
+                                   allow_redirects=False,
+                                   **({'headers': {'Authorization': 'Bearer ' + self.api_token}} if self.api_token else {}))
             response.raise_for_status()
             body = response.json()
             delivered = (200 <= response.status_code < 300 and isinstance(body, dict)
@@ -68,7 +72,7 @@ class BackgroundTasks:
     def __init__(self, store, config):
         self.store = store
         self.dispatcher = OutboxDispatcher(store.db, config["WAITLIST_URL"],
-                                           config["CALLBACK_TIMEOUT_SECONDS"])
+                                           config["CALLBACK_TIMEOUT_SECONDS"], api_token=config.get('PAYMENT_API_TOKEN', ''))
         self.stop_event = Event()
         self.threads = [
             Thread(target=self._loop, args=(self.store.expire_due, config["EXPIRY_SCAN_INTERVAL"]),

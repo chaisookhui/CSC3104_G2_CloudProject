@@ -1,6 +1,8 @@
 """WY integration uses the existing isolated real-PostgreSQL fixture."""
 
 import sys
+import time
+from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
 
@@ -9,7 +11,6 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'waitlist-payment'))
 from lifecycle import Conflict, Lifecycle
-from policy import select_next
 from service import create_app as wy_app
 
 
@@ -67,11 +68,18 @@ def test_decline_allows_new_attempt_without_extending_deadline(wy, store):
     assert wy.reconcile(second['payment_id'])['status'] == 'confirmed'
 
 
-def test_expiry_event_is_durable_deduplicated_and_stale_safe(wy, store, make_due):
+def wait_until_due(hold):
+    deadline=datetime.fromisoformat(hold['hold_expiry'].replace('Z','+00:00'))
+    while datetime.now(timezone.utc)<deadline:time.sleep(.02)
+
+
+def test_expiry_event_is_durable_deduplicated_and_stale_safe(wy, store):
+    store.hold_ttl=2
     old = store.hold('A', 2, 'expired')
     payment = wy.start_payment('expired', old['hold_id'], 'success', 'one')
-    make_due(old['hold_id'])
+    wait_until_due(old)
     store.transition('expired', 'expire', old['hold_id'])
+    store.hold_ttl=300
     new = store.hold('A', 2, 'expired', reoffer_key='two')
     event = {'event_id': str(uuid4()), 'hold_id': old['hold_id'], 'request_id': 'expired'}
     client = wy_app(wy).test_client()
@@ -94,24 +102,13 @@ def test_timeout_stays_pending_and_prevents_second_attempt(wy, store):
         wy.start_payment('timeout', hold['hold_id'], 'success', 'two')
 
 
-def test_waitlist_policy():
-    initial = [{'request_id': 'small', 'party_size': 1, 'batch_order': 1},
-               {'request_id': 'later', 'party_size': 4, 'batch_order': 2},
-               {'request_id': 'large', 'party_size': 4, 'batch_order': 1}]
-    late = [{'request_id': 'old', 'party_size': 4, 'arrival_order': 1},
-            {'request_id': 'young', 'party_size': 1, 'arrival_order': 2}]
-    assert select_next(initial, late, {1, 4})['request_id'] == 'large'
-    assert select_next(initial, late, {1})['request_id'] == 'small'
-    assert select_next([], late, {1}) is None
-    assert select_next([], late, {4})['request_id'] == 'old'
-
-
-def test_confirmation_loses_race_after_active_lookup(wy, store, make_due, monkeypatch):
+def test_confirmation_loses_race_after_active_lookup(wy, store, monkeypatch):
     from store import StoreError
+    store.hold_ttl=2
     hold = store.hold('A', 2, 'race')
     payment = wy.start_payment('race', hold['hold_id'], 'success', 'one')
     def late_confirm(request_id, hold_id):
-        make_due(hold_id)
+        wait_until_due(hold)
         try:
             return store.transition(request_id, 'confirm', hold_id)
         except StoreError as exc:

@@ -1,0 +1,283 @@
+# Managed by the main local Kubernetes deployment. No credentials in this file.
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "seat-worker"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "seat-worker"
+  template:
+    metadata:
+      labels:
+        app: "seat-worker"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "worker"
+          image: "ticketing-seat-store:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "SEAT_DATABASE_URL"
+          command:
+            - "python"
+            - "manage.py"
+            - "worker"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "allocation-worker"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "allocation-worker"
+  template:
+    metadata:
+      labels:
+        app: "allocation-worker"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "worker"
+          image: "ticketing-allocation:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "ALLOCATION_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "ALLOCATION_DATABASE_URL"
+          command:
+            - "python"
+            - "worker.py"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "dispatcher-worker"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "dispatcher-worker"
+  template:
+    metadata:
+      labels:
+        app: "dispatcher-worker"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "worker"
+          image: "ticketing-batch-dispatcher:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "DISPATCHER_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "DISPATCHER_DATABASE_URL"
+          command:
+            - "python"
+            - "app.py"
+            - "worker"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "waiting-recovery"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "waiting-recovery"
+  template:
+    metadata:
+      labels:
+        app: "waiting-recovery"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "worker"
+          image: "ticketing-waiting-queue:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+          command:
+            - "python"
+            - "recovery.py"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  name: "payment-worker"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "payment-worker"
+  template:
+    metadata:
+      labels:
+        app: "payment-worker"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "worker"
+          image: "ticketing-payment:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "PAYMENT_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_DATABASE_URL"
+          command:
+            - "python"
+            - "service.py"
+            - "worker"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}

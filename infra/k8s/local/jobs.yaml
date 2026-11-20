@@ -1,0 +1,172 @@
+# Managed by the main local Kubernetes deployment. No credentials in this file.
+apiVersion: "batch/v1"
+kind: "Job"
+metadata:
+  name: "seat-init"
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 180
+  template:
+    metadata:
+      labels:
+        job: "seat-init"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "migrate"
+          image: "ticketing-seat-store:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "SEAT_DATABASE_URL"
+          command:
+            - "python"
+            - "manage.py"
+            - "init-db"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+      restartPolicy: "Never"
+---
+apiVersion: "batch/v1"
+kind: "Job"
+metadata:
+  name: "allocation-init"
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 180
+  template:
+    metadata:
+      labels:
+        job: "allocation-init"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "migrate"
+          image: "ticketing-allocation:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "ALLOCATION_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "ALLOCATION_DATABASE_URL"
+          command:
+            - "python"
+            - "app.py"
+            - "init-db"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+      restartPolicy: "Never"
+---
+apiVersion: "batch/v1"
+kind: "Job"
+metadata:
+  name: "payment-migrate"
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 180
+  template:
+    metadata:
+      labels:
+        job: "payment-migrate"
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: "migrate"
+          image: "ticketing-payment:local"
+          imagePullPolicy: "Never"
+          envFrom:
+            - configMapRef:
+                name: "core-config"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "96Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: "tmp"
+              mountPath: "/tmp"
+          env:
+            - name: "PAYMENT_API_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_API_TOKEN"
+            - name: "PAYMENT_DATABASE_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: "core-secrets"
+                  key: "PAYMENT_DATABASE_URL"
+          command:
+            - "python"
+            - "service.py"
+            - "init-db"
+      volumes:
+        - name: "tmp"
+          emptyDir: {}
+      restartPolicy: "Never"

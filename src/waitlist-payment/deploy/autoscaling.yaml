@@ -1,0 +1,20 @@
+# Optional API autoscaling; requires metrics-server. Workers scale independently.
+# CPU is a coarse signal. Validate DB/seat-store capacity before increasing bounds.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-api
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-api
+  minReplicas: 2
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

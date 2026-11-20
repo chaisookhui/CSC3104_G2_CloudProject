@@ -37,7 +37,7 @@ def create_app(config=None):
     def health():
         with database.connect() as conn:
             count = conn.execute("SELECT count(*) AS n FROM sections").fetchone()["n"]
-        if count != 3:
+        if count != 4:
             raise StoreError("not_initialized", "Initialize the database before serving", 503)
         return jsonify({"status": "ok", "service": "seat-store", "storage": "postgresql"})
 
@@ -48,6 +48,10 @@ def create_app(config=None):
     @app.get("/holds/<hold_id>")
     def hold_status(hold_id):
         return jsonify(store.get_hold(request.args.get("request_id"), hold_id))
+
+    @app.get('/requests/<request_id>/initial-hold')
+    def initial_hold(request_id):
+        return jsonify(store.initial_hold(request_id))
 
     @app.post("/seats/hold")
     def hold():
@@ -71,6 +75,13 @@ def create_app(config=None):
     @app.post("/seats/expire")
     def expire():
         return transition("expire")
+
+    @app.post("/seats/cancel")
+    def cancel():
+        data = body(("request_id", "hold_id"))
+        if data["hold_id"] is None:
+            raise StoreError("invalid_input", "hold_id is required", 400)
+        return jsonify(store.transition(action="cancel", **data))
 
     @app.errorhandler(StoreError)
     def domain_error(error):

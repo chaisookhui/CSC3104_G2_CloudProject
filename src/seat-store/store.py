@@ -64,7 +64,8 @@ class SeatStore:
 
     def _result(self, conn, hold):
         # This is the outcome of this hold, not the current ownership of reused seats.
-        state = {"ACTIVE": "HELD", "CONFIRMED": "CONFIRMED", "EXPIRED": "AVAILABLE"}[hold["status"]]
+        state = {"ACTIVE": "HELD", "CONFIRMED": "CONFIRMED", "EXPIRED": "AVAILABLE",
+                 "CANCELLED": "AVAILABLE"}[hold["status"]]
         rows = conn.execute("""
             SELECT s.seat_id, s.section, s.row, s.position_in_row
             FROM hold_seats hs JOIN seats s ON s.seat_id = hs.seat_id
@@ -77,7 +78,7 @@ class SeatStore:
                    hold_id=hold["hold_id"] if state != "AVAILABLE" else None)) for row in rows]
         return {"success": True, "request_id": hold["request_id"],
                 "hold_id": str(hold["hold_id"]), "hold_status": hold["status"],
-                "hold_expiry": timestamp(expiry), "seats": records}
+                "hold_expiry": timestamp(expiry), "original_hold_expiry":timestamp(hold['hold_expiry']), "seats": records}
 
     def get_hold(self, request_id, hold_id):
         """Read one committed hold outcome, including historical expired attempts."""
@@ -93,6 +94,15 @@ class SeatStore:
             if hold is None:
                 raise StoreError("unknown_hold", "Hold does not belong to this request", 404)
             return self._result(conn, hold)
+
+    def initial_hold(self, request_id):
+        """Recover the original committed attempt after a lost reply, without reoffering."""
+        validate_text(request_id,'request_id')
+        with self.db.connect() as conn:
+            self._lock_request(conn,request_id)
+            hold=conn.execute("SELECT * FROM holds WHERE request_id=%s AND attempt_key='initial'",(request_id,)).fetchone()
+            if hold is None: raise StoreError('unknown_hold','No original hold exists',404)
+            return {**self._result(conn,hold),'original_hold_expiry':timestamp(hold['hold_expiry'])}
 
     def hold(self, section, party_size, request_id, reoffer_key=None):
         validate_text(section, "section")
@@ -112,6 +122,8 @@ class SeatStore:
                 raise StoreError("request_conflict", "Request ID already has different booking details")
             same = next((h for h in previous if h["attempt_key"] == attempt_key), None)
             if same:
+                if same["status"] == "CANCELLED":
+                    raise StoreError("hold_cancelled", "This attempt was cancelled and cannot be reused")
                 if same["status"] == "EXPIRED" or (same["status"] == "ACTIVE" and
                         conn.execute("SELECT clock_timestamp() >= %s AS overdue",
                                      (same["hold_expiry"],)).fetchone()["overdue"]):
@@ -155,8 +167,10 @@ class SeatStore:
 
     def transition(self, request_id, action, hold_id=None):
         validate_text(request_id, "request_id")
-        if action not in ("confirm", "expire"):
+        if action not in ("confirm", "expire", "cancel"):
             raise ValueError("Unknown hold transition")
+        if action == "cancel" and hold_id is None:
+            raise StoreError("hold_id_required", "Cancellation requires the exact hold_id", 400)
         if hold_id is not None:
             try:
                 hold_id = UUID(str(hold_id))
@@ -181,9 +195,9 @@ class SeatStore:
             if hold["status"] == "CONFIRMED":
                 if action == "expire":
                     raise StoreError("already_confirmed", "Confirmed bookings cannot expire")
-            elif hold["status"] == "EXPIRED":
+            elif hold["status"] in ("EXPIRED", "CANCELLED"):
                 if action == "confirm":
-                    raise StoreError("hold_expired", "Expired holds cannot be confirmed")
+                    raise StoreError("hold_" + hold["status"].lower(), "Closed holds cannot be confirmed")
             else:
                 # Use database wall time AFTER waiting for locks, not transaction start time.
                 overdue = conn.execute("SELECT clock_timestamp() >= %s AS overdue",
@@ -195,6 +209,24 @@ class SeatStore:
                     if action == "confirm":
                         # Commit the release/outbox before returning a rejected late confirmation.
                         outcome_error = StoreError("hold_expired", "Payment deadline has passed")
+                elif action == "cancel":
+                    hold = conn.execute("""
+                        UPDATE holds SET status = 'CANCELLED', cancelled_at = clock_timestamp()
+                        WHERE hold_id = %s RETURNING *
+                    """, (hold["hold_id"],)).fetchone()
+                    released = conn.execute("""
+                        UPDATE seats SET state = 'AVAILABLE', current_hold_id = NULL
+                        WHERE current_hold_id = %s AND state = 'HELD' RETURNING seat_id
+                    """, (hold["hold_id"],)).fetchall()
+                    if len(released) != hold["party_size"]:
+                        raise RuntimeError("Partial party cancellation prevented")
+                    event_id = uuid4()
+                    payload = {"version": 1, "type": "hold.cancelled", "event_id": str(event_id),
+                               "request_id": request_id, "hold_id": str(hold["hold_id"]),
+                               "seats": sorted(s["seat_id"] for s in released),
+                               "cancelled_at": timestamp(hold["cancelled_at"])}
+                    conn.execute("INSERT INTO notification_outbox(event_id,hold_id,payload) VALUES (%s,%s,%s)",
+                                 (event_id, hold["hold_id"], Jsonb(payload)))
                 else:
                     hold = conn.execute("""
                         UPDATE holds SET status = 'CONFIRMED', confirmed_at = clock_timestamp()

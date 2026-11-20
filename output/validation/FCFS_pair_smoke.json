@@ -1,0 +1,989 @@
+{
+  "namespace": "csc3104-check",
+  "status": "PASS",
+  "identical_initial_inventory": true,
+  "trace_sha256": "5281e8fa9e8b194de5ad7d7964a9ed26ee7caccf48b31755b1669c7fe1d51927",
+  "results": [
+    {
+      "repeat": 1,
+      "policy": "demand-cycle",
+      "result": {
+        "customers": 8,
+        "outcomes": {
+          "CONFIRMED": 8
+        },
+        "elapsed_seconds": 6.10999999998603,
+        "allocation_decisions_per_second": 1.3093289689064307,
+        "reservations": 8,
+        "confirmations": 8,
+        "groups": [
+          {
+            "section": "A",
+            "party_size": 1,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.20923900604248047,
+            "p95_wait_seconds": 0.20923900604248047
+          },
+          {
+            "section": "A",
+            "party_size": 2,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.42847204208374023,
+            "p95_wait_seconds": 0.42847204208374023
+          },
+          {
+            "section": "B",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.2649390697479248,
+            "p95_wait_seconds": 0.2649390697479248
+          },
+          {
+            "section": "C",
+            "party_size": 3,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.31708288192749023,
+            "p95_wait_seconds": 0.31708288192749023
+          },
+          {
+            "section": "C",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.4798760414123535,
+            "p95_wait_seconds": 0.4798760414123535
+          },
+          {
+            "section": "D",
+            "party_size": 2,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.3634769916534424,
+            "p95_wait_seconds": 0.3634769916534424
+          },
+          {
+            "section": "D",
+            "party_size": 3,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.5286538600921631,
+            "p95_wait_seconds": 0.5286538600921631
+          },
+          {
+            "section": "D",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.581712007522583,
+            "p95_wait_seconds": 0.581712007522583
+          }
+        ],
+        "overtakes": 5,
+        "requested_seats": 23,
+        "reserved_trace_seats": 23,
+        "confirmed_trace_seats": 23,
+        "seat_reservation_rate": 1.0,
+        "seat_confirmation_rate": 1.0,
+        "incremental_venue_utilization": 0.32857142857142857,
+        "initial_fingerprint": "46568fb3031292aa7868485a06ebc32b4fd8ebe28f8d7f739f47045cf050c8ed",
+        "initial_occupied": 0,
+        "final_confirmed": 23,
+        "final_held": 0,
+        "total_inventory": 70,
+        "free_blocks": {
+          "A/1": [
+            7
+          ],
+          "A/2": [
+            10
+          ],
+          "A/3": [
+            10
+          ],
+          "B/1": [
+            6
+          ],
+          "B/2": [
+            10
+          ],
+          "C/1": [
+            3
+          ],
+          "D/1": [
+            1
+          ]
+        },
+        "timing_definition": "Allocator database decided_at minus Redis eligible_at, including UNAVAILABLE decisions; clocks must agree.",
+        "throughput_definition": "Client-observed full replay wall time including registration, actions and draining; not isolated allocator service capacity.",
+        "namespace": "csc3104-check",
+        "policy": "demand-cycle",
+        "trace_sha256": "5281e8fa9e8b194de5ad7d7964a9ed26ee7caccf48b31755b1669c7fe1d51927",
+        "captured_at": "2026-11-10T11:37:25.217226+00:00",
+        "batch_boundaries_match": true,
+        "actual_batches": {
+          "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0": {
+            "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+            "complete": true,
+            "completion_notification": "delivered",
+            "jobs": [
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 4,
+                "party_size": 1,
+                "priority": 0,
+                "request_id": "6b2dcb14-b9df-4189-b239-0e05b49cd555",
+                "result": {
+                  "decided_at": 1794310640.372611,
+                  "hold_expiry": "2026-11-10T11:37:50.353251Z",
+                  "hold_id": "90c28044-b165-4383-a114-2be8ac09bbf7",
+                  "hold_status": "ACTIVE",
+                  "request_id": "6b2dcb14-b9df-4189-b239-0e05b49cd555",
+                  "seats": [
+                    "A-1-1"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "A",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 1,
+                "party_size": 2,
+                "priority": 1,
+                "request_id": "a18031b4-2628-458c-a863-983ac1fd99bb",
+                "result": {
+                  "decided_at": 1794310640.591844,
+                  "hold_expiry": "2026-11-10T11:37:50.578801Z",
+                  "hold_id": "9862d8c9-47eb-4b33-a4ee-59982100985a",
+                  "hold_status": "ACTIVE",
+                  "request_id": "a18031b4-2628-458c-a863-983ac1fd99bb",
+                  "seats": [
+                    "A-1-2",
+                    "A-1-3"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "A",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 5,
+                "party_size": 4,
+                "priority": 0,
+                "request_id": "ad5271a6-4a61-4171-a586-f3f9a44a304b",
+                "result": {
+                  "decided_at": 1794310640.428311,
+                  "hold_expiry": "2026-11-10T11:37:50.415551Z",
+                  "hold_id": "396c517d-6c7a-4252-b3f9-197fed6538f2",
+                  "hold_status": "ACTIVE",
+                  "request_id": "ad5271a6-4a61-4171-a586-f3f9a44a304b",
+                  "seats": [
+                    "B-1-1",
+                    "B-1-2",
+                    "B-1-3",
+                    "B-1-4"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "B",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 8,
+                "party_size": 3,
+                "priority": 0,
+                "request_id": "85634f5b-3a29-4f76-8f37-f8a099c76a92",
+                "result": {
+                  "decided_at": 1794310640.480455,
+                  "hold_expiry": "2026-11-10T11:37:50.467078Z",
+                  "hold_id": "8ad2dc85-06ed-47be-93f6-15f1d337c283",
+                  "hold_status": "ACTIVE",
+                  "request_id": "85634f5b-3a29-4f76-8f37-f8a099c76a92",
+                  "seats": [
+                    "C-1-1",
+                    "C-1-2",
+                    "C-1-3"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "C",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 3,
+                "party_size": 4,
+                "priority": 1,
+                "request_id": "e842672d-4078-4f4c-98cc-56d97958f525",
+                "result": {
+                  "decided_at": 1794310640.643248,
+                  "hold_expiry": "2026-11-10T11:37:50.629207Z",
+                  "hold_id": "ad8fb501-dd94-4d8d-a44e-7f55630aada8",
+                  "hold_status": "ACTIVE",
+                  "request_id": "e842672d-4078-4f4c-98cc-56d97958f525",
+                  "seats": [
+                    "C-1-4",
+                    "C-1-5",
+                    "C-1-6",
+                    "C-1-7"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "C",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 7,
+                "party_size": 2,
+                "priority": 0,
+                "request_id": "0180d3dc-8a67-4b20-b589-394e5e76840e",
+                "result": {
+                  "decided_at": 1794310640.526849,
+                  "hold_expiry": "2026-11-10T11:37:50.515422Z",
+                  "hold_id": "6a250916-d9e0-417f-a754-a7b025896284",
+                  "hold_status": "ACTIVE",
+                  "request_id": "0180d3dc-8a67-4b20-b589-394e5e76840e",
+                  "seats": [
+                    "D-1-1",
+                    "D-1-2"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 6,
+                "party_size": 3,
+                "priority": 1,
+                "request_id": "e072d09a-5799-4bee-aec5-c788d2575bb5",
+                "result": {
+                  "decided_at": 1794310640.692026,
+                  "hold_expiry": "2026-11-10T11:37:50.679493Z",
+                  "hold_id": "048f0ad6-3b0b-4da1-b0e6-6d67a89418f5",
+                  "hold_status": "ACTIVE",
+                  "request_id": "e072d09a-5799-4bee-aec5-c788d2575bb5",
+                  "seats": [
+                    "D-1-3",
+                    "D-1-4",
+                    "D-1-5"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-b0c8b70d-5a56-4288-a200-aa29f316c1a0",
+                "error": null,
+                "global_position": 2,
+                "party_size": 4,
+                "priority": 2,
+                "request_id": "0a240ede-0a6c-4a9b-9077-7f677552221c",
+                "result": {
+                  "decided_at": 1794310640.745084,
+                  "hold_expiry": "2026-11-10T11:37:50.730496Z",
+                  "hold_id": "cb228599-8a26-4ec0-9f02-61d5c030584b",
+                  "hold_status": "ACTIVE",
+                  "request_id": "0a240ede-0a6c-4a9b-9077-7f677552221c",
+                  "seats": [
+                    "D-1-6",
+                    "D-1-7",
+                    "D-1-8",
+                    "D-1-9"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              }
+            ],
+            "policy": "demand-cycle",
+            "size_order": {
+              "A": [
+                1,
+                2
+              ],
+              "B": [
+                4
+              ],
+              "C": [
+                3,
+                4
+              ],
+              "D": [
+                2,
+                3,
+                4
+              ]
+            }
+          }
+        },
+        "config": {
+          "ALLOCATION_POLICY": "demand-cycle",
+          "ALLOCATION_SECTIONS": "A,B,C,D",
+          "ALLOCATION_URL": "http://allocation-api:5002",
+          "ALLOCATOR_URL": "http://allocation-api:5002",
+          "BATCH_SIZE": "10",
+          "DISPATCHER_COMPLETION_URL": "http://dispatcher-api:5005/allocator/status",
+          "DISPATCHER_URL": "http://dispatcher-api:5005",
+          "EXPERIMENT_NAMESPACE": "csc3104-check",
+          "FRONTEND_HOST": "0.0.0.0",
+          "FRONTEND_PORT": "8080",
+          "HOLD_TTL_SECONDS": "30",
+          "PAYMENT_HOST": "0.0.0.0",
+          "PAYMENT_PORT": "5004",
+          "PAYMENT_REQUIRE_AUTH": "true",
+          "PAYMENT_STATUS_URL": "",
+          "PAYMENT_URL": "http://payment-api:5004",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONUNBUFFERED": "1",
+          "QUEUE_KEY": "ticketing:kubernetes:queue",
+          "REDIS_URL": "redis://redis:6379/0",
+          "SEAT_MAP_TIER": "dev",
+          "SEAT_STORE_URL": "http://seat-api:5003",
+          "WAITING_ROOM_STORAGE": "redis",
+          "WAITING_ROOM_URL": "http://waiting-room:5001",
+          "WAITLIST_URL": "http://payment-api:5004"
+        },
+        "invariants": {
+          "seat_checks": [
+            {
+              "test": "available_seat_has_owner",
+              "violations": 0
+            },
+            {
+              "test": "state_does_not_match_hold",
+              "violations": 0
+            },
+            {
+              "test": "partial_live_party",
+              "violations": 0
+            },
+            {
+              "test": "non_adjacent_live_party",
+              "violations": 0
+            },
+            {
+              "test": "duplicate_live_request",
+              "violations": 0
+            },
+            {
+              "test": "seat_in_multiple_live_histories",
+              "violations": 0
+            }
+          ],
+          "payment_checks": {
+            "duplicate_pending": 0,
+            "duplicate_success": 0
+          },
+          "counts": {
+            "holds": 8,
+            "seats": 70,
+            "confirmed": 23,
+            "held": 0
+          },
+          "violations": 0,
+          "status": "PASS",
+          "captured_at": "2026-11-10T11:37:25.882690+00:00"
+        },
+        "status": "PASS"
+      }
+    },
+    {
+      "repeat": 1,
+      "policy": "fcfs",
+      "result": {
+        "customers": 8,
+        "outcomes": {
+          "CONFIRMED": 8
+        },
+        "elapsed_seconds": 6.436999999976251,
+        "allocation_decisions_per_second": 1.242814975925045,
+        "reservations": 8,
+        "confirmations": 8,
+        "groups": [
+          {
+            "section": "A",
+            "party_size": 1,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.881213903427124,
+            "p95_wait_seconds": 0.881213903427124
+          },
+          {
+            "section": "A",
+            "party_size": 2,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.6596238613128662,
+            "p95_wait_seconds": 0.6596238613128662
+          },
+          {
+            "section": "B",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.7201628684997559,
+            "p95_wait_seconds": 0.7201628684997559
+          },
+          {
+            "section": "C",
+            "party_size": 3,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.9480907917022705,
+            "p95_wait_seconds": 0.9480907917022705
+          },
+          {
+            "section": "C",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.7817449569702148,
+            "p95_wait_seconds": 0.7817449569702148
+          },
+          {
+            "section": "D",
+            "party_size": 2,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 1.0577268600463867,
+            "p95_wait_seconds": 1.0577268600463867
+          },
+          {
+            "section": "D",
+            "party_size": 3,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 1.0023298263549805,
+            "p95_wait_seconds": 1.0023298263549805
+          },
+          {
+            "section": "D",
+            "party_size": 4,
+            "offered": 1,
+            "reserved": 1,
+            "confirmed": 1,
+            "unavailable": 0,
+            "unknown": 0,
+            "outcomes": {
+              "CONFIRMED": 1
+            },
+            "reservation_rate": 1.0,
+            "confirmation_rate": 1.0,
+            "measured_waits": 1,
+            "median_wait_seconds": 0.8326389789581299,
+            "p95_wait_seconds": 0.8326389789581299
+          }
+        ],
+        "overtakes": 0,
+        "requested_seats": 23,
+        "reserved_trace_seats": 23,
+        "confirmed_trace_seats": 23,
+        "seat_reservation_rate": 1.0,
+        "seat_confirmation_rate": 1.0,
+        "incremental_venue_utilization": 0.32857142857142857,
+        "initial_fingerprint": "46568fb3031292aa7868485a06ebc32b4fd8ebe28f8d7f739f47045cf050c8ed",
+        "initial_occupied": 0,
+        "final_confirmed": 23,
+        "final_held": 0,
+        "total_inventory": 70,
+        "free_blocks": {
+          "A/1": [
+            7
+          ],
+          "A/2": [
+            10
+          ],
+          "A/3": [
+            10
+          ],
+          "B/1": [
+            6
+          ],
+          "B/2": [
+            10
+          ],
+          "C/1": [
+            3
+          ],
+          "D/1": [
+            1
+          ]
+        },
+        "timing_definition": "Allocator database decided_at minus Redis eligible_at, including UNAVAILABLE decisions; clocks must agree.",
+        "throughput_definition": "Client-observed full replay wall time including registration, actions and draining; not isolated allocator service capacity.",
+        "namespace": "csc3104-check",
+        "policy": "fcfs",
+        "trace_sha256": "5281e8fa9e8b194de5ad7d7964a9ed26ee7caccf48b31755b1669c7fe1d51927",
+        "captured_at": "2026-11-10T11:39:07.106998+00:00",
+        "batch_boundaries_match": true,
+        "actual_batches": {
+          "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee": {
+            "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+            "complete": true,
+            "completion_notification": "delivered",
+            "jobs": [
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 1,
+                "party_size": 2,
+                "priority": 0,
+                "request_id": "5d7674df-e917-47ee-a13d-c7fa01aa6dae",
+                "result": {
+                  "decided_at": 1794310742.253161,
+                  "hold_expiry": "2026-11-10T11:39:32.237094Z",
+                  "hold_id": "4b5dccb5-03b6-492c-b892-d9453fc50efc",
+                  "hold_status": "ACTIVE",
+                  "request_id": "5d7674df-e917-47ee-a13d-c7fa01aa6dae",
+                  "seats": [
+                    "A-1-1",
+                    "A-1-2"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "A",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 4,
+                "party_size": 1,
+                "priority": 1,
+                "request_id": "96ee4b40-e8d1-422f-a42b-fb3cd6951bea",
+                "result": {
+                  "decided_at": 1794310742.474751,
+                  "hold_expiry": "2026-11-10T11:39:32.461447Z",
+                  "hold_id": "59d1216f-84d3-4bfd-b725-2042182cea3e",
+                  "hold_status": "ACTIVE",
+                  "request_id": "96ee4b40-e8d1-422f-a42b-fb3cd6951bea",
+                  "seats": [
+                    "A-1-3"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "A",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 5,
+                "party_size": 4,
+                "priority": 0,
+                "request_id": "f17bc842-d655-4a4c-9cab-0d03675ce3f3",
+                "result": {
+                  "decided_at": 1794310742.3137,
+                  "hold_expiry": "2026-11-10T11:39:32.293072Z",
+                  "hold_id": "d9cd9f27-265a-4c75-8ebf-d10eeb99b7d4",
+                  "hold_status": "ACTIVE",
+                  "request_id": "f17bc842-d655-4a4c-9cab-0d03675ce3f3",
+                  "seats": [
+                    "B-1-1",
+                    "B-1-2",
+                    "B-1-3",
+                    "B-1-4"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "B",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 3,
+                "party_size": 4,
+                "priority": 0,
+                "request_id": "494e8c19-b55a-4b87-9281-20dd60b73f9f",
+                "result": {
+                  "decided_at": 1794310742.375282,
+                  "hold_expiry": "2026-11-10T11:39:32.361971Z",
+                  "hold_id": "9843cb65-0de1-4244-b327-f20aef262db4",
+                  "hold_status": "ACTIVE",
+                  "request_id": "494e8c19-b55a-4b87-9281-20dd60b73f9f",
+                  "seats": [
+                    "C-1-1",
+                    "C-1-2",
+                    "C-1-3",
+                    "C-1-4"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "C",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 8,
+                "party_size": 3,
+                "priority": 1,
+                "request_id": "023212a1-fb6f-4b5b-a600-cd8e5780530c",
+                "result": {
+                  "decided_at": 1794310742.541628,
+                  "hold_expiry": "2026-11-10T11:39:32.527643Z",
+                  "hold_id": "771d5ba1-88c5-4ccd-98bd-2eb28d1a2ba7",
+                  "hold_status": "ACTIVE",
+                  "request_id": "023212a1-fb6f-4b5b-a600-cd8e5780530c",
+                  "seats": [
+                    "C-1-5",
+                    "C-1-6",
+                    "C-1-7"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "C",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 2,
+                "party_size": 4,
+                "priority": 0,
+                "request_id": "02e78f26-0f1c-432b-8e85-9a01679e1359",
+                "result": {
+                  "decided_at": 1794310742.426176,
+                  "hold_expiry": "2026-11-10T11:39:32.413035Z",
+                  "hold_id": "1e48c213-3da8-416b-8a85-9dddae28639e",
+                  "hold_status": "ACTIVE",
+                  "request_id": "02e78f26-0f1c-432b-8e85-9a01679e1359",
+                  "seats": [
+                    "D-1-1",
+                    "D-1-2",
+                    "D-1-3",
+                    "D-1-4"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 6,
+                "party_size": 3,
+                "priority": 1,
+                "request_id": "00e7d728-d566-4e83-80ce-da63f7a36c20",
+                "result": {
+                  "decided_at": 1794310742.595867,
+                  "hold_expiry": "2026-11-10T11:39:32.581213Z",
+                  "hold_id": "ec58d2f6-5739-4875-be5f-a9d6ff1afe57",
+                  "hold_status": "ACTIVE",
+                  "request_id": "00e7d728-d566-4e83-80ce-da63f7a36c20",
+                  "seats": [
+                    "D-1-5",
+                    "D-1-6",
+                    "D-1-7"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              },
+              {
+                "attempts": 1,
+                "batch_id": "batch-963767d6-9027-4b9b-ac28-061dcbfde9ee",
+                "error": null,
+                "global_position": 7,
+                "party_size": 2,
+                "priority": 2,
+                "request_id": "b0589681-da15-4cf6-a748-9652e7f7432d",
+                "result": {
+                  "decided_at": 1794310742.651264,
+                  "hold_expiry": "2026-11-10T11:39:32.636154Z",
+                  "hold_id": "7a61bef3-0a40-4953-8916-5296e3663ade",
+                  "hold_status": "ACTIVE",
+                  "request_id": "b0589681-da15-4cf6-a748-9652e7f7432d",
+                  "seats": [
+                    "D-1-8",
+                    "D-1-9"
+                  ],
+                  "state": "RESERVED",
+                  "success": true
+                },
+                "section": "D",
+                "state": "RESERVED"
+              }
+            ],
+            "policy": "fcfs",
+            "size_order": {
+              "A": [
+                1,
+                2
+              ],
+              "B": [
+                4
+              ],
+              "C": [
+                3,
+                4
+              ],
+              "D": [
+                2,
+                3,
+                4
+              ]
+            }
+          }
+        },
+        "config": {
+          "ALLOCATION_POLICY": "fcfs",
+          "ALLOCATION_SECTIONS": "A,B,C,D",
+          "ALLOCATION_URL": "http://allocation-api:5002",
+          "ALLOCATOR_URL": "http://allocation-api:5002",
+          "BATCH_SIZE": "10",
+          "DISPATCHER_COMPLETION_URL": "http://dispatcher-api:5005/allocator/status",
+          "DISPATCHER_URL": "http://dispatcher-api:5005",
+          "EXPERIMENT_NAMESPACE": "csc3104-check",
+          "FRONTEND_HOST": "0.0.0.0",
+          "FRONTEND_PORT": "8080",
+          "HOLD_TTL_SECONDS": "30",
+          "PAYMENT_HOST": "0.0.0.0",
+          "PAYMENT_PORT": "5004",
+          "PAYMENT_REQUIRE_AUTH": "true",
+          "PAYMENT_STATUS_URL": "",
+          "PAYMENT_URL": "http://payment-api:5004",
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONUNBUFFERED": "1",
+          "QUEUE_KEY": "ticketing:kubernetes:queue",
+          "REDIS_URL": "redis://redis:6379/0",
+          "SEAT_MAP_TIER": "dev",
+          "SEAT_STORE_URL": "http://seat-api:5003",
+          "WAITING_ROOM_STORAGE": "redis",
+          "WAITING_ROOM_URL": "http://waiting-room:5001",
+          "WAITLIST_URL": "http://payment-api:5004"
+        },
+        "invariants": {
+          "seat_checks": [
+            {
+              "test": "available_seat_has_owner",
+              "violations": 0
+            },
+            {
+              "test": "state_does_not_match_hold",
+              "violations": 0
+            },
+            {
+              "test": "partial_live_party",
+              "violations": 0
+            },
+            {
+              "test": "non_adjacent_live_party",
+              "violations": 0
+            },
+            {
+              "test": "duplicate_live_request",
+              "violations": 0
+            },
+            {
+              "test": "seat_in_multiple_live_histories",
+              "violations": 0
+            }
+          ],
+          "payment_checks": {
+            "duplicate_pending": 0,
+            "duplicate_success": 0
+          },
+          "counts": {
+            "holds": 8,
+            "seats": 70,
+            "confirmed": 23,
+            "held": 0
+          },
+          "violations": 0,
+          "status": "PASS",
+          "captured_at": "2026-11-10T11:39:07.654043+00:00"
+        },
+        "status": "PASS"
+      }
+    }
+  ],
+  "interpretation": "PASS means comparable executions and safety, not Demand-Cycle superiority or statistical significance."
+}

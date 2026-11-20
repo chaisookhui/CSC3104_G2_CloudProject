@@ -1,0 +1,351 @@
+"""Global registration/queue service. Section scheduling belongs to the dispatcher."""
+from datetime import datetime, timezone
+import os
+import uuid
+import requests
+
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
+from admission_control import AdmissionController
+from queue_store import MemoryStore, RedisStore
+from checkout_routes import install_checkout_routes, validate_allocation
+
+
+def create_app(store=None, session=None):
+    app = Flask(__name__)
+    # Keep curl responses readable even when Flask debug mode is disabled.
+    app.json.compact = False
+    app.json.sort_keys = False
+    @app.after_request
+    def service_instance(response):
+        response.headers['X-Service-Instance']=os.getenv('HOSTNAME','local')
+        return response
+    sections = tuple("ABCD")
+    if store is None:
+        if os.getenv("WAITING_ROOM_STORAGE") == "memory":
+            store = MemoryStore()  # Explicit single-process development opt-in.
+        else:
+            store = RedisStore(os.getenv("REDIS_URL", "redis://127.0.0.1:6379/0"),
+                               os.getenv("QUEUE_KEY", "ticketing:default:queue"))
+    app.extensions["queue_store"] = store
+    app.config['MAX_CONTENT_LENGTH'] = 128 * 1024
+    install_checkout_routes(app, store, session or requests)
+    controller = AdmissionController(window_seconds=10, low_threshold=20,
+                                     high_threshold=50)
+    # added by zx
+    dispatcher_url = os.getenv(
+        "DISPATCHER_URL",
+        "http://localhost:5005"
+    )
+    @app.errorhandler(Exception)
+    def handle_error(exc):
+        if isinstance(exc, HTTPException):
+            return jsonify(error=exc.description), exc.code
+        app.logger.exception("Queue operation failed")
+        return jsonify(error="Queue unavailable; retry later"), 503
+
+    def request_response(party):
+        # Older Redis records may still contain the retired aliases.
+        return {key: value for key, value in party.items()
+                if key not in ("batch_order", "global_position")}
+
+    @app.post("/submit")
+    @app.post("/waiting-room")
+    def submit():
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON body"), 400
+        section, size, user = data.get("section"), data.get("party_size"), data.get("user_id")
+        if not isinstance(section, str) or section not in sections:
+            return jsonify(error="Invalid section"), 400
+        if type(size) is not int or not 1 <= size <= 4:
+            return jsonify(error="Party size must be 1-4"), 400
+        if not isinstance(user, str) or not 1 <= len(user.strip()) <= 128:
+            return jsonify(error="Invalid user ID"), 400
+        user = user.strip()
+        request_id = str(uuid.uuid4())
+
+        party, code = store.register({
+            "request_id": request_id, "user_id": user, "section": section,
+            "party_size": size, "timestamp": datetime.now(timezone.utc).isoformat(),
+            "entry_type": "waiting_room", "queue_number": None, "status": "REGISTERED"})
+        controller.record_request()  # Local telemetry; never limits registration.
+        return jsonify(request_response(party)), code
+
+    @app.post("/sale/start")
+    def start_sale():
+        # Each call makes bounded progress. A recovery worker resumes OPENING.
+        result = store.open_sale()
+        result["dispatcher_triggered"] = False
+        if result["sale_state"] == "sale_started":
+            try:
+                response = requests.post(
+                    f"{dispatcher_url}/batches/next", timeout=10)
+                response.raise_for_status()
+                result["dispatcher_triggered"] = True
+                result["dispatcher_response"] = response.json()
+            except (requests.RequestException, ValueError) as error:
+                app.logger.warning("Dispatcher handoff pending retry: %s", error)
+        return jsonify(result), 202 if result["sale_state"] == "opening" else 200
+
+    @app.get('/queue/activity')
+    def queue_activity():
+        return jsonify(store.activity())
+
+    @app.get('/queue/next/<int:limit>')
+    def queue_next(limit):
+        if not 1 <= limit <= 100:
+            return jsonify(error='Queue limit must be between 1 and 100'), 400
+        result = store.next_queued(limit)
+        return jsonify(sale_state=result['sale_state'], count=len(result['requests']),
+                       requests=[request_response(p) for p in result['requests']])
+
+    @app.get("/queue")
+    def display_queue():
+        state = store.read()
+        if state["sale_state"] != "sale_started":
+            parties = list(state["requests"].values())
+        else:
+            parties = [state["requests"][rid] for rid in state["queue"]]
+        return jsonify(sale_state=state["sale_state"], count=len(parties),
+                       requests=[request_response(party) for party in parties])
+
+    # changed by zxian
+    @app.post("/queue/claim")
+    def claim_queue():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        request_ids = data.get("request_ids")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if (
+            not isinstance(request_ids, list)
+            or not request_ids
+            or any(
+                not isinstance(rid, str) or not rid
+                for rid in request_ids
+            )
+            or len(request_ids) != len(set(request_ids))
+        ):
+            return jsonify(error="Invalid request IDs"), 400
+
+        
+        def claim(state):
+            if state["sale_state"] != "sale_started":
+                return {"error": "Sale has not started"}, 409
+
+            # Idempotent retry: same requests, same batch.
+            already_claimed = all(
+                rid in state["requests"]
+                and state["requests"][rid]["status"] == "ADMITTED"
+                and state["requests"][rid].get("batch_id") == batch_id
+                for rid in request_ids
+            )
+
+            if already_claimed:
+                return {
+                    "message": "Batch already claimed",
+                    "batch_id": batch_id,
+                    "claimed_count": len(request_ids)
+                }, 200
+
+            # All requests must currently be eligible.
+            for rid in request_ids:
+                party = state["requests"].get(rid)
+
+                if party is None:
+                    return {
+                        "error": f"Unknown request: {rid}"
+                    }, 404
+
+                if party["status"] != "QUEUED":
+                    return {
+                        "error": f"Request not claimable: {rid}"
+                    }, 409
+
+            # Get earliest eligible requests in global order.
+            eligible_ids = [
+                rid for rid in state["queue"]
+                if state["requests"][rid]["status"] == "QUEUED"
+            ]
+
+            expected_ids = eligible_ids[:len(request_ids)]
+
+            if set(request_ids) != set(expected_ids):
+                return {
+                    "error": "Requests are not the next eligible global positions",
+                    "expected_request_ids": expected_ids
+                }, 409
+
+            # Claim the entire batch.
+            for rid in request_ids:
+                state["requests"][rid].update(
+                    status="ADMITTED",
+                    batch_id=batch_id
+                )
+
+            return {
+                "message": "Batch requests claimed",
+                "batch_id": batch_id,
+                "claimed_count": len(request_ids)
+            }, 200
+
+        result, code = store.update(claim, append_safe=True,
+                                   request_ids=request_ids, batch_id=batch_id, claim=True)
+        return jsonify(result), code
+
+    @app.post("/queue/outcomes")
+    def update_allocation_outcomes():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error="Invalid JSON"), 400
+
+        batch_id = data.get("batch_id")
+        outcomes = data.get("outcomes")
+
+        if not isinstance(batch_id, str) or not batch_id:
+            return jsonify(error="Invalid batch ID"), 400
+
+        if not isinstance(outcomes, list) or not outcomes:
+            return jsonify(error="Invalid outcomes"), 400
+
+        statuses = {}
+        allocations = {}
+        for item in outcomes:
+            if not isinstance(item, dict):
+                return jsonify(error="Invalid outcome"), 400
+
+            rid = item.get("request_id")
+            status = item.get("status")
+
+            if (
+                not isinstance(rid, str)
+                or not rid
+                or status not in ("RESERVED", "UNAVAILABLE", "EXPIRED", "CANCELLED")
+                or rid in statuses
+            ):
+                return jsonify(error="Invalid or duplicate outcome"), 400
+
+            statuses[rid] = status
+            if status in ('EXPIRED','CANCELLED') and (not isinstance(item.get('allocation'),dict) or item['allocation'].get('hold_status')!=status):
+                return jsonify(error='Recovered terminal outcome requires the original hold'),400
+            if 'allocation' in item:
+                if status not in ('RESERVED','EXPIRED','CANCELLED'):
+                    return jsonify(error='Only reserved requests have checkout details'), 400
+                try:
+                    allocations[rid] = validate_allocation(item['allocation'])
+                except ValueError as exc:
+                    return jsonify(error=str(exc)), 400
+
+        def apply_outcomes(state):
+            # The submitted set must represent the entire batch.
+            batch_ids = {
+                rid
+                for rid, party in state["requests"].items()
+                if (
+                    party.get("batch_id") == batch_id
+                    or party.get("last_batch_id") == batch_id
+                )
+            }
+
+            if set(statuses) != batch_ids:
+                return {
+                    "error": "Outcome IDs do not match claimed batch"
+                }, 409
+
+            # Validate every entry before updating anything.
+            for rid, new_status in statuses.items():
+                party = state["requests"][rid]
+
+                if rid in allocations and (len(allocations[rid]['seats']) != party['party_size']
+                        or any(not seat.startswith(party['section'] + '-') for seat in allocations[rid]['seats'])):
+                    return {'error': 'Checkout seats do not match registered party'}, 409
+
+                claimed = (
+                    party["status"] == "ADMITTED"
+                    and party.get("batch_id") == batch_id
+                )
+
+                already_completed = (
+                    party["status"] == new_status
+                    and party.get("last_batch_id") == batch_id
+                )
+
+                if not (claimed or already_completed):
+                    return {
+                        "error": f"Conflicting outcome for {rid}"
+                    }, 409
+                if (rid in allocations and party.get('allocation') is not None
+                        and party['allocation'] != allocations[rid]):
+                    return {'error': 'Conflicting checkout identity'}, 409
+
+            for rid, new_status in statuses.items():
+                party = state["requests"][rid]
+
+                if party["status"] == "ADMITTED":
+                    party["status"] = new_status
+                    party["last_batch_id"] = batch_id
+                    party.pop("batch_id", None)
+                if rid in allocations:
+                    party['allocation'] = allocations[rid]
+
+            return {
+                "message": "Batch outcomes recorded",
+                "batch_id": batch_id,
+                "reserved_count": sum(
+                    status == "RESERVED"
+                    for status in statuses.values()
+                ),
+                "unavailable_count": sum(
+                    status == "UNAVAILABLE"
+                    for status in statuses.values()
+                )
+            }, 200
+
+        result, code = store.update(apply_outcomes, append_safe=True,
+                                   request_ids=list(statuses), batch_id=batch_id)
+        return jsonify(result), code
+
+
+    @app.get("/requests/<request_id>")
+    @app.get("/queue/<request_id>")
+    def lookup(request_id):
+        party = store.get_request(request_id)
+        return (jsonify(request_response(party)), 200) if party else (jsonify(error="Request not found"), 404)
+
+    @app.get("/status")
+    def status():
+        state = store.read()
+        parties = list(state["requests"].values())
+        return jsonify(sale_state=state["sale_state"],
+            storage="redis" if isinstance(store, RedisStore) else "memory",
+            waiting_count=sum(p["entry_type"] == "waiting_room" for p in parties),
+            latecomer_count=sum(p["entry_type"] == "latecomer" for p in parties),
+            queued_count=sum(p["status"] == "QUEUED" for p in parties),
+            next_queue_number=state["next_number"],
+            sections={s: {"registered_count": sum(p["section"] == s for p in parties)} for s in sections},
+            load_signal_scope="this_pod", registration_limited=False,
+            admission_policy="external_dispatcher", **controller.get_status())
+
+    @app.get("/health")
+    def health():
+        return jsonify(status="ok")
+
+    @app.get("/ready")
+    def ready():
+        store.ready()
+        return jsonify(status="ready")
+
+    return app
+
+
+app = create_app()
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5001, debug=False)

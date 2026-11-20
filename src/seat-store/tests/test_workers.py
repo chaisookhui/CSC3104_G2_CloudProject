@@ -104,3 +104,28 @@ def test_running_background_threads_expire_and_notify(db, store, make_due, recei
     assert not any(thread.is_alive() for thread in tasks.threads)
     assert all(s["state"] == "AVAILABLE" for s in store.list_seats("A"))
 
+
+def test_authenticated_callback_reaches_protected_payment_api(db,store,make_due):
+    from flask import Flask, request
+    from unittest.mock import Mock
+    enqueue(store,make_due)
+    payment=Flask('protected-callback')
+    received=[]
+    @payment.post('/notify/expired')
+    def accept():
+        if request.headers.get('Authorization')!='Bearer shared-internal-token':
+            return {'error':'unauthorized'},401
+        received.append(request.json)
+        return {'success':True}
+    def sender(url,**kwargs):
+        with payment.test_client() as client:
+            reply=client.post('/notify/expired',json=kwargs['json'],headers=kwargs.get('headers',{}))
+        response=Mock(status_code=reply.status_code)
+        response.json.return_value=reply.json
+        return response
+    dispatcher=OutboxDispatcher(db,'http://payment',sender=sender,api_token='shared-internal-token')
+    assert dispatcher.deliver_one()
+    assert len(received)==1
+    with db.connect() as conn:
+        assert conn.execute('SELECT delivered_at FROM notification_outbox').fetchone()['delivered_at'] is not None
+

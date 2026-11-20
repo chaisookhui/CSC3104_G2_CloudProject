@@ -1,0 +1,167 @@
+# Demo frontend
+
+A plain HTML/CSS/JS page that walks through the booking flow for demos.
+`server.py` serves the page and forwards `/api/<service>/<path>` to the backend
+services, so the browser never calls the service ports directly (no CORS issues)
+and the payment token stays on the server.
+
+| Prefix | Service | Default address (env var) |
+| --- | --- | --- |
+| `/api/waiting-room/` | Waiting room | `http://127.0.0.1:5001` (`WAITING_ROOM_URL`) |
+| `/api/allocation/` | Allocation | `http://127.0.0.1:5002` (`ALLOCATION_URL`) |
+| `/api/seats/` | Seat-store | `http://127.0.0.1:5003` (`SEAT_STORE_URL`) |
+| `/api/payment/` | Payment | `http://127.0.0.1:5004` (`PAYMENT_URL`) |
+| `/api/dispatcher/` | Batch dispatcher | `http://127.0.0.1:5005` (`DISPATCHER_URL`) |
+
+Set `PAYMENT_API_TOKEN` if the payment service requires it.
+
+## Run
+
+From the repository root, start Docker Desktop and run:
+
+```powershell
+python demo.py
+```
+
+This is the main project launcher. It starts frontend, all five service APIs,
+their workers, PostgreSQL and Redis using `compose.core.yaml`. It generates ignored
+`.env.core` credentials on first use and preserves data on subsequent runs.
+Open http://127.0.0.1:18080. Stop with `python demo.py --stop`.
+See [the full-stack runbook](../CONTAINERS.md) for networking, configuration,
+health checks and the isolated full-network booking test. The standalone
+`compose.frontend.yaml` remains available for frontend-only development.
+
+The dev seat map has 70 seats. Use `python demo.py --batch-size 10` for a small
+batch demonstration. Confirmed seats remain booked between runs; startup never
+resets reservations or deletes dispatcher progress.
+
+For native frontend-only development with separately running backends:
+
+```powershell
+python frontend/server.py
+```
+
+That standalone process uses port 8080 by default; the main container stack uses
+host port 18080. Set the documented backend environment variables as needed.
+
+## Demo users
+
+- **Your name** (User > My booking) is the only sign-in. There is no account service,
+  so the page creates a unique `user_id` and remembers it in this browser.
+- **Register** (User > My booking) registers for the sale with a section and party size
+  (waiting room `/submit`, status REGISTERED), matching the waiting-room slides.
+- **Different users in different tabs:** open the same address in ordinary browser
+  tabs. Each tab keeps its own selected user and Admin/User view. Private windows
+  are not needed. Keep Overview in one tab and My booking in another.
+- **View existing users:** My booking > Demo users lists saved browser identities
+  and users from the server queue, including `sim-...` users. Choose an ID and click
+  **View user** to open that user's existing request without registering again.
+  The header displays the selected user's full ID.
+- **New user** starts a new identity in this tab. Previous users and bookings stay
+  available in the picker. **Switch user** in the header opens that picker.
+- **Simulated users:** Admin > Overview > Simulate users registers many `sim-...` users
+  through the same `/submit` endpoint, with a fixed or random section and party size.
+  Add them before starting the sale; ones added afterwards join as latecomers.
+
+## Reconnect and terminal-outcome policy
+
+Reloading a tab restores its selected user, view and original request. A new tab
+starts independently; use the picker to reopen an earlier user. Queue position,
+hold identity, seats and deadline do not
+change. A lost registration response is replayed with the same user and payload.
+Booking polling retries connection failures and refreshes exact-hold checkout
+state before enabling actions. Confirmed, cancelled, expired and unavailable
+outcomes remain ended; there is no rejoin/new-attempt action for that user.
+
+The selected identity/view use per-tab session storage. Request and pending-action
+records use shared local storage keyed by user ID. Tabs viewing the same user share
+that booking; switching users in one tab leaves the other tabs unchanged. Web Locks serialize
+actions where supported; payment keys also use the hold and server-observed
+attempt number so concurrent tabs cannot create two attempts for the same step.
+A deliberate retry after a verified decline uses the next attempt number, without
+changing the hold deadline. The backend remains responsible for atomic effects.
+
+Use a modern browser on localhost with session/local storage enabled for recovery
+across reloads. If storage is blocked/cleared, the in-memory fallback cannot recover a
+closed page. Another browser, private profile, port or device has separate storage.
+The user picker is a local demo control, not a verified login. Names remembered
+by one browser profile are not an authentication system. Cross-device recovery and
+preventing users from inventing new identities require the future auth layer.
+
+Run the frontend recovery/concurrency tests without additional npm packages:
+
+```powershell
+node --test frontend/tests/recovery.test.cjs frontend/tests/access.test.cjs frontend/tests/admin.test.cjs
+```
+
+These execute the shipped scripts in isolated tab contexts with controlled HTTP,
+storage and locks; deployed browser acceptance remains a separate check (TESTING.md B6).
+Overview checks current authoritative checkout status for allocated parties, so
+expired, cancelled and confirmed bookings replace the original RESERVED outcome.
+Unverifiable states display UNKNOWN and retry; terminal outcomes are cached and
+checkout polling is limited to four concurrent requests.
+
+## Tabs
+
+Test cases are documented in [the submission PDF](../output/pdf/GROUP02_INSTRUCTIONS.pdf)
+and executed using the CLI tools. The obsolete Experiments screen and its assets
+have been removed.
+Overview, Batches, Seat map and My booking provide the observations an examiner needs.
+
+The tab bar is grouped by who uses each tab. For demos, keep an Admin tab in one
+window and User > My booking in another, side by side.
+
+| Side | Tab / part | File | Status |
+| --- | --- | --- | --- |
+| Admin | Overview (simulate users, start sale, queue with batch and latecomer tags) | `admin.js` | Done |
+| Admin | Batches (allocator demand cycle per section) | `batches.js` | Done |
+| Admin | Seat map (seats per section filling up live) | `seats.js` | Implemented |
+| User | My booking (your name, register, then live status) | `join.js`, `booking.js` | Done |
+| User | Checkout, inside My booking below the status | `checkout.js` | Implemented |
+
+**Checkout** is implemented in the `#checkout-step` container at the bottom of My booking,
+shown once the request is RESERVED (`getCurrentRequest().allocation` has the
+`hold_id`, seats and `hold_expiry`). Booking and checkout state refresh while active;
+the countdown keeps the original deadline and terminal outcomes are restored from
+the server even without a locally saved payment/action ID. Existing endpoints: waiting room
+`GET /requests/<id>/checkout` (booking status from payment) and
+`POST /requests/<id>/cancel` (`{action_key}`); payment `POST /payments`
+(`{request_id, hold_id, outcome, attempt_key}`) and `GET /payments/<id>`. Reuse
+the same `attempt_key` when Pay is retried so a double click does not create a
+second payment.
+
+**Batches** reads dispatcher `/status` for the batches and allocation
+`/batches/<id>` for each job's `priority` (turn order), `state` and seats, plus
+`size_order` (rank). Demand counts come from the dispatcher's `section_demand`.
+A new round starts when a party size comes up again in the turn order.
+
+## Adding a tab or part
+
+1. Fill in the placeholder in `static/index.html` (the Seat map `<section>`, or
+   `#checkout-step` inside My booking) and add its `<script>` tag after `batches.js`.
+2. Call services with `api(path)` for GET or `api(path, body)` for POST,
+   e.g. `await api("seats/seats/A")`. It throws with the service's error message.
+3. `getCurrentUser()` returns `{ name, user_id }`, or `null` before registering.
+   `getCurrentRequest()` returns the latest waiting-room record for this browser:
+   `request_id`, `user_id`, `section`, `party_size`, `status` and, once seats are
+   held, `allocation` (`hold_id`, `hold_status`, `hold_expiry`, `seats`).
+4. `onTabOpen("seats", fn)` runs `fn` each time the tab is shown (My booking's tab
+   id is `join`).
+5. Use `esc()` for any text placed into HTML, `message()` for notices,
+   `badge(status)` for statuses, and the colour variables in `style.css`.
+   `dispatchedBatches(dispatcherStatus)` lists batches in order, so "Batch N"
+   matches the Overview and Batches tabs.
+# Browser ownership and administration
+
+The complete container deployment enables signed browser sessions. Customer
+identities are issued by the server, and the gateway restricts reads and booking
+mutations to identities owned by that browser. Administrator controls require
+sign-in in the page header. Retrieve the lab password with
+`python experiments/access.py --namespace csc3104-lab`; use `csc3104` for main.
+CLI tests use a distinct operator token read from local configuration.
+
+Cookies persist for seven days. Clearing cookies or changing browser loses guest
+ownership; there is no personal-account or cross-device recovery service. Keep
+internal service ports private. No-token native mode remains an unauthenticated
+local demo. For HTTPS set `FRONTEND_COOKIE_SECURE=true`. See
+[extended testing procedures](../experiments/STUDY_PROTOCOLS.md#robustness).

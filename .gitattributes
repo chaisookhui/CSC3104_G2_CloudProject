@@ -1,3 +1,6 @@
 # Docker's Linux entrypoint scripts must retain LF on Windows checkouts.
 *.sh text eol=lf
 
+# Preserve generated PDF bytes and cross-reference offsets on Windows.
+*.pdf binary
+
