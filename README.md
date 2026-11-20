@@ -1,5 +1,25 @@
 # CSC3104 Group 2: Fair Seat Allocation
 
+## Professor submission: source, reports and test evidence
+
+**[Download the complete submission and test evidence](https://github.com/chaisookhui/CSC3104_G2_CloudProject/releases/tag/submission-2026-11-20)**.
+On that release page, download the attached **GROUP02_Submission.zip** (not GitHub's
+automatically generated "Source code" ZIP). Extract it once and open
+`CSC3104_G2_CloudProject/START_HERE.md`.
+
+The attachment includes current source, exactly two submission PDFs, all 25 selected
+case evidence folders and audits, historical reports, November 19 follow-up evidence
+and the extended TC-14 export. Evidence paths in the included guide resolve inside
+the extracted folder. Checksums and a case-by-case evidence index are included.
+The tested project is maintained on **[twy](https://github.com/chaisookhui/CSC3104_G2_CloudProject/tree/twy)**;
+the release preserves its submission snapshot. Large raw evidence is distributed
+through the release attachment rather than Git history.
+
+## Historical main-branch development notes
+
+The notes below describe this older `main` branch. For the submitted integrated
+application, deployment instructions and recorded results, use the release above.
+
 We are building a ticketing system that allocates adjacent seats to whole parties
 of 1-4 people. We will compare the proposed Demand-Cycle policy with correct
 baselines using measured results. Its fairness benefits are hypotheses to test.
